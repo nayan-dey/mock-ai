@@ -1,0 +1,686 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@repo/database";
+import { useState, useCallback, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  QuestionCard,
+  TestTimer,
+  TestNavigation,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Skeleton,
+  cn,
+  type QuestionStatus,
+} from "@repo/ui";
+import { Clock, FileQuestion, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X } from "lucide-react";
+import type { GenericId } from "convex/values";
+
+type Id<T extends string> = GenericId<T>;
+
+type TestId = Id<"tests">;
+type QuestionId = Id<"questions">;
+type AttemptId = Id<"attempts">;
+
+export default function TestPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useUser();
+  const testId = params.id as string;
+
+  const dbUser = useQuery(api.users.getByClerkId, {
+    clerkId: user?.id ?? "",
+  });
+  const testWithQuestions = useQuery(api.tests.getWithQuestions, {
+    id: testId as TestId,
+  });
+  const existingAttempt = useQuery(
+    api.attempts.getByUserAndTest,
+    dbUser?._id
+      ? { userId: dbUser._id, testId: testId as TestId }
+      : "skip"
+  );
+
+  const startAttempt = useMutation(api.attempts.start);
+  const saveAnswer = useMutation(api.attempts.saveAnswer);
+  const submitAttempt = useMutation(api.attempts.submit);
+
+  const [attemptId, setAttemptId] = useState<AttemptId | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<Map<string, number[]>>(new Map());
+  const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [showNavDrawer, setShowNavDrawer] = useState(false);
+  const [isStarted, setIsStarted] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isStarted && attemptId) {
+      localStorage.setItem(`test-${testId}-currentQuestion`, currentQuestion.toString());
+    }
+  }, [currentQuestion, isStarted, attemptId, testId]);
+
+  const handleStartTest = async (forceNew: boolean = false) => {
+    if (!dbUser) return;
+    setIsLoading(true);
+    try {
+      if (forceNew) {
+        localStorage.removeItem(`test-${testId}-currentQuestion`);
+      }
+      const id = await startAttempt({
+        testId: testId as TestId,
+        userId: dbUser._id,
+        forceNew,
+      });
+      setAttemptId(id);
+      setStartTime(Date.now());
+      setCurrentQuestion(0);
+      setAnswers(new Map());
+      setMarkedForReview(new Set());
+      setIsStarted(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResumeTest = () => {
+    if (!existingAttempt || existingAttempt.status !== "in_progress") return;
+
+    setAttemptId(existingAttempt._id);
+    setStartTime(existingAttempt.startedAt);
+    const answersMap = new Map<string, number[]>();
+    existingAttempt.answers.forEach((a) => {
+      answersMap.set(a.questionId, a.selected);
+    });
+    setAnswers(answersMap);
+
+    const savedQuestion = localStorage.getItem(`test-${testId}-currentQuestion`);
+    if (savedQuestion !== null) {
+      const questionIndex = parseInt(savedQuestion, 10);
+      if (!isNaN(questionIndex) && questionIndex >= 0) {
+        setCurrentQuestion(questionIndex);
+      }
+    }
+    setIsStarted(true);
+  };
+
+  const handleSelectAnswer = async (selected: number[]) => {
+    if (!attemptId || !testWithQuestions) return;
+    const question = testWithQuestions.questionDetails[currentQuestion];
+    if (!question) return;
+
+    setAnswers((prev) => new Map(prev).set(question._id, selected));
+
+    await saveAnswer({
+      attemptId,
+      questionId: question._id as QuestionId,
+      selected,
+    });
+  };
+
+  const handleMarkForReview = () => {
+    if (!testWithQuestions) return;
+    const question = testWithQuestions.questionDetails[currentQuestion];
+    if (!question) return;
+
+    setMarkedForReview((prev) => {
+      const next = new Set(prev);
+      if (next.has(question._id)) {
+        next.delete(question._id);
+      } else {
+        next.add(question._id);
+      }
+      return next;
+    });
+  };
+
+  const getQuestionStatuses = (): QuestionStatus[] => {
+    if (!testWithQuestions) return [];
+    return testWithQuestions.questionDetails.map((q, index) => {
+      if (!q) return "unanswered";
+      if (index === currentQuestion) return "current";
+      if (markedForReview.has(q._id)) return "marked";
+      const answer = answers.get(q._id);
+      if (answer && answer.length > 0) return "answered";
+      return "unanswered";
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!attemptId) return;
+    await submitAttempt({ attemptId });
+    localStorage.removeItem(`test-${testId}-currentQuestion`);
+    router.push(`/results/${attemptId}`);
+  };
+
+  const handleTimeUp = useCallback(() => {
+    if (attemptId) {
+      submitAttempt({ attemptId }).then(() => {
+        localStorage.removeItem(`test-${testId}-currentQuestion`);
+        router.push(`/results/${attemptId}`);
+      });
+    }
+  }, [attemptId, submitAttempt, router, testId]);
+
+  if (!testWithQuestions || !dbUser || existingAttempt === undefined) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-3/4 sm:h-8" />
+            <Skeleton className="h-4 w-1/2" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-32 w-full sm:h-40" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const getTimeRemaining = () => {
+    if (!existingAttempt || existingAttempt.status !== "in_progress") return null;
+    const elapsed = Date.now() - existingAttempt.startedAt;
+    const totalMs = testWithQuestions.duration * 60 * 1000;
+    const remaining = Math.max(0, totalMs - elapsed);
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    return { minutes, seconds, expired: remaining <= 0 };
+  };
+
+  const timeRemaining = getTimeRemaining();
+
+  if (!isStarted) {
+    const hasInProgress = existingAttempt?.status === "in_progress";
+    const hasCompleted = existingAttempt?.status === "submitted";
+
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+        <Card className="overflow-hidden border-2">
+          {/* Gradient header */}
+          <div className="bg-gradient-to-br from-primary/5 to-primary/10 px-6 py-8 text-center sm:px-8 sm:py-10">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-background shadow-lg shadow-black/5">
+              <FileQuestion className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-xl sm:text-2xl">{testWithQuestions.title}</CardTitle>
+            <CardDescription className="mx-auto mt-2 max-w-md text-sm">{testWithQuestions.description}</CardDescription>
+          </div>
+
+          <CardContent className="space-y-4 p-6 sm:space-y-5">
+            {hasCompleted && (
+              <div className="overflow-hidden rounded-xl border-2 border-success/30 bg-success/5">
+                <div className="border-b border-success/20 bg-success/10 px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-success" />
+                    <p className="text-sm font-semibold text-success">Previous Attempt Completed</p>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="rounded-lg bg-background p-3">
+                      <p className="font-serif text-xl font-bold">{existingAttempt.score.toFixed(1)}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Score</p>
+                    </div>
+                    <div className="rounded-lg bg-background p-3">
+                      <p className="font-serif text-xl font-bold text-success">{existingAttempt.correct}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Correct</p>
+                    </div>
+                    <div className="rounded-lg bg-background p-3">
+                      <p className="font-serif text-xl font-bold text-destructive">{existingAttempt.incorrect}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Wrong</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="link"
+                    className="mt-3 h-auto p-0 text-sm text-success"
+                    onClick={() => router.push(`/results/${existingAttempt._id}`)}
+                  >
+                    View Detailed Results
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {hasInProgress && !timeRemaining?.expired && (
+              <div className="overflow-hidden rounded-xl border-2 border-primary/30 bg-primary/5">
+                <div className="border-b border-primary/20 bg-primary/10 px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-semibold text-primary">Test In Progress</p>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Time remaining</p>
+                      <p className="font-serif text-2xl font-bold text-primary">
+                        {timeRemaining?.minutes}m {timeRemaining?.seconds}s
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Answered</p>
+                      <p className="font-serif text-2xl font-bold">
+                        {existingAttempt.answers.filter(a => a.selected.length > 0).length}
+                        <span className="text-base text-muted-foreground">/{existingAttempt.totalQuestions}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hasInProgress && timeRemaining?.expired && (
+              <div className="overflow-hidden rounded-xl border-2 border-destructive/30 bg-destructive/5">
+                <div className="flex items-center gap-3 p-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-destructive">Time Expired</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your previous attempt has expired. Start a new attempt.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl border-2 border-transparent bg-muted/50 p-4 text-center transition-colors hover:border-primary/20">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-background">
+                  <FileQuestion className="h-5 w-5 text-primary" />
+                </div>
+                <p className="font-serif text-2xl font-bold">
+                  {testWithQuestions.questions.length}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Questions</p>
+              </div>
+              <div className="rounded-xl border-2 border-transparent bg-muted/50 p-4 text-center transition-colors hover:border-primary/20">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-background">
+                  <Clock className="h-5 w-5 text-primary" />
+                </div>
+                <p className="font-serif text-2xl font-bold">
+                  {testWithQuestions.duration}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Minutes</p>
+              </div>
+              <div className="rounded-xl border-2 border-transparent bg-muted/50 p-4 text-center transition-colors hover:border-primary/20">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-background">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                </div>
+                <p className="font-serif text-2xl font-bold">
+                  {testWithQuestions.totalMarks}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Marks</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-dashed border-warning/50 bg-warning/5 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/10">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-warning">Instructions</p>
+                  <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground sm:text-sm">
+                    <li className="flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-muted-foreground" />
+                      Once started, the test cannot be paused
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-muted-foreground" />
+                      Negative marking: -{testWithQuestions.negativeMarking} for each wrong answer
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-muted-foreground" />
+                      You can mark questions for review
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-muted-foreground" />
+                      Auto-submit when time runs out
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-3 border-t bg-muted/30 p-6">
+            {hasInProgress && !timeRemaining?.expired && (
+              <Button onClick={handleResumeTest} className="w-full gap-2" size="lg">
+                <Play className="h-4 w-4" />
+                Resume Test ({timeRemaining?.minutes}m {timeRemaining?.seconds}s left)
+              </Button>
+            )}
+
+            {hasCompleted || (hasInProgress && timeRemaining?.expired) ? (
+              <Button
+                onClick={() => handleStartTest(true)}
+                className="w-full gap-2"
+                size="lg"
+                variant={hasInProgress && !timeRemaining?.expired ? "outline" : "default"}
+                disabled={isLoading}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {isLoading ? "Starting..." : "Retake Test"}
+              </Button>
+            ) : !hasInProgress ? (
+              <Button
+                onClick={() => handleStartTest(false)}
+                className="w-full gap-2"
+                size="lg"
+                disabled={isLoading}
+              >
+                <Play className="h-4 w-4" />
+                {isLoading ? "Starting..." : "Start Test"}
+              </Button>
+            ) : null}
+
+            {hasInProgress && !timeRemaining?.expired && (
+              <Button
+                variant="ghost"
+                className="w-full text-xs text-muted-foreground"
+                onClick={() => handleStartTest(true)}
+                disabled={isLoading}
+              >
+                {isLoading ? "Starting..." : "Abandon & Start New Attempt"}
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentQ = testWithQuestions.questionDetails[currentQuestion];
+  if (!currentQ) return null;
+
+  const answeredCount = [...answers.values()].filter((a) => a.length > 0).length;
+
+  return (
+    <div className="min-h-screen bg-muted/30 pb-20 lg:pb-0">
+      {/* Header */}
+      <div className="sticky top-14 z-40 border-b bg-background px-4 py-2 sm:py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-sm font-semibold sm:text-base lg:text-lg">{testWithQuestions.title}</h1>
+            <p className="text-xs text-muted-foreground md:hidden">
+              Q{currentQuestion + 1}/{testWithQuestions.questionDetails.length}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            {startTime && (
+              <TestTimer
+                durationMinutes={testWithQuestions.duration}
+                startTime={startTime}
+                onTimeUp={handleTimeUp}
+              />
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="hidden sm:inline-flex"
+              onClick={() => setShowSubmitDialog(true)}
+            >
+              Submit Test
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
+        <div className="grid gap-4 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_280px] md:gap-5 lg:gap-6">
+          {/* Question Area */}
+          <div className="space-y-4 sm:space-y-6">
+            <QuestionCard
+              questionNumber={currentQuestion + 1}
+              text={currentQ.text}
+              options={currentQ.options}
+              selectedOptions={answers.get(currentQ._id) || []}
+              isMultipleCorrect={currentQ.correctOptions.length > 1}
+              markedForReview={markedForReview.has(currentQ._id)}
+              onSelect={handleSelectAnswer}
+              onMarkForReview={handleMarkForReview}
+            />
+
+            {/* Desktop Navigation Buttons */}
+            <div className="hidden justify-between sm:flex">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentQuestion((p) => Math.max(0, p - 1))}
+                disabled={currentQuestion === 0}
+              >
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                onClick={() =>
+                  setCurrentQuestion((p) =>
+                    Math.min(testWithQuestions.questionDetails.length - 1, p + 1)
+                  )
+                }
+                disabled={
+                  currentQuestion === testWithQuestions.questionDetails.length - 1
+                }
+              >
+                Next
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Tablet/Desktop Sidebar */}
+          <div className="hidden md:block">
+            <Card className="sticky top-32">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Question Navigator</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TestNavigation
+                  totalQuestions={testWithQuestions.questionDetails.length}
+                  currentQuestion={currentQuestion}
+                  questionStatuses={getQuestionStatuses()}
+                  onQuestionSelect={setCurrentQuestion}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background md:hidden">
+        <div className="flex items-center justify-around py-2">
+          {/* Previous Button */}
+          <button
+            onClick={() => setCurrentQuestion((p) => Math.max(0, p - 1))}
+            disabled={currentQuestion === 0}
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-4 py-1.5",
+              currentQuestion === 0 ? "opacity-40" : "active:scale-95"
+            )}
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-[10px]">Previous</span>
+          </button>
+
+          {/* Questions Grid Button */}
+          <button
+            onClick={() => setShowNavDrawer(true)}
+            className="flex flex-col items-center gap-0.5 px-4 py-1.5 active:scale-95"
+          >
+            <div className="relative">
+              <List className="h-5 w-5" />
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-success text-[9px] font-bold text-white">
+                {answeredCount}
+              </span>
+            </div>
+            <span className="text-[10px]">Questions</span>
+          </button>
+
+          {/* Mark for Review */}
+          <button
+            onClick={handleMarkForReview}
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-4 py-1.5 active:scale-95",
+              markedForReview.has(currentQ._id) && "text-warning"
+            )}
+          >
+            <div className="relative h-5 w-5">
+              {markedForReview.has(currentQ._id) ? (
+                <CheckCircle className="h-5 w-5 text-warning" />
+              ) : (
+                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-current">
+                  <span className="text-[8px] font-bold">?</span>
+                </div>
+              )}
+            </div>
+            <span className="text-[10px]">{markedForReview.has(currentQ._id) ? "Marked" : "Mark"}</span>
+          </button>
+
+          {/* Next Button */}
+          <button
+            onClick={() =>
+              setCurrentQuestion((p) =>
+                Math.min(testWithQuestions.questionDetails.length - 1, p + 1)
+              )
+            }
+            disabled={currentQuestion === testWithQuestions.questionDetails.length - 1}
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-4 py-1.5",
+              currentQuestion === testWithQuestions.questionDetails.length - 1
+                ? "opacity-40"
+                : "active:scale-95"
+            )}
+          >
+            <ArrowRight className="h-5 w-5" />
+            <span className="text-[10px]">Next</span>
+          </button>
+
+          {/* Submit Button */}
+          <button
+            onClick={() => setShowSubmitDialog(true)}
+            className="flex flex-col items-center gap-0.5 px-4 py-1.5 text-destructive active:scale-95"
+          >
+            <CheckCircle className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Submit</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Bottom Sheet */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-opacity md:hidden",
+          showNavDrawer ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+        onClick={() => setShowNavDrawer(false)}
+      />
+      <div
+        className={cn(
+          "fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t bg-background shadow-2xl transition-transform duration-300 ease-out md:hidden",
+          showNavDrawer ? "translate-y-0" : "translate-y-full"
+        )}
+        style={{ maxHeight: "70vh" }}
+      >
+        <div className="flex flex-col" style={{ maxHeight: "70vh" }}>
+          {/* Handle bar */}
+          <div className="flex justify-center py-2">
+            <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+          </div>
+
+          {/* Header */}
+          <div className="flex items-center justify-between border-b px-4 pb-3">
+            <div>
+              <h2 className="text-sm font-semibold">Question Navigator</h2>
+              <p className="text-xs text-muted-foreground">
+                {answeredCount} of {testWithQuestions.questionDetails.length} answered
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowNavDrawer(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto p-4">
+            <TestNavigation
+              totalQuestions={testWithQuestions.questionDetails.length}
+              currentQuestion={currentQuestion}
+              questionStatuses={getQuestionStatuses()}
+              onQuestionSelect={(q) => {
+                setCurrentQuestion(q);
+                setShowNavDrawer(false);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Submit Confirmation Dialog */}
+      <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit Test?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to submit? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xl font-bold text-success sm:text-2xl">
+                  {[...answers.values()].filter((a) => a.length > 0).length}
+                </p>
+                <p className="text-xs text-muted-foreground sm:text-sm">Answered</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-warning sm:text-2xl">
+                  {markedForReview.size}
+                </p>
+                <p className="text-xs text-muted-foreground sm:text-sm">Marked</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold sm:text-2xl">
+                  {testWithQuestions.questionDetails.length -
+                    [...answers.values()].filter((a) => a.length > 0).length}
+                </p>
+                <p className="text-xs text-muted-foreground sm:text-sm">Unanswered</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setShowSubmitDialog(false)} className="w-full sm:w-auto">
+              Continue Test
+            </Button>
+            <Button variant="destructive" onClick={handleSubmit} className="w-full sm:w-auto">
+              Submit Test
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
