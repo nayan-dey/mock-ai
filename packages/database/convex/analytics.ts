@@ -61,12 +61,38 @@ export const getStudentAnalytics = query({
       { correct: number; total: number }
     > = {};
 
-    for (const attempt of attempts) {
-      const test = await ctx.db.get(attempt.testId);
+    // Fetch all tests in parallel
+    const tests = await Promise.all(
+      attempts.map((attempt) => ctx.db.get(attempt.testId))
+    );
+
+    // Collect all unique question IDs
+    const allQuestionIds = new Set<Id<"questions">>();
+    for (const test of tests) {
+      if (test) {
+        for (const questionId of test.questions) {
+          allQuestionIds.add(questionId);
+        }
+      }
+    }
+
+    // Fetch all questions in parallel
+    const questionsArray = await Promise.all(
+      Array.from(allQuestionIds).map((id) => ctx.db.get(id))
+    );
+    const questionsMap = new Map(
+      questionsArray.filter((q): q is NonNullable<typeof q> => q !== null)
+        .map((q) => [q._id as string, q])
+    );
+
+    // Process attempts with pre-fetched data
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i];
+      const test = tests[i];
       if (!test) continue;
 
       for (const questionId of test.questions) {
-        const question = await ctx.db.get(questionId);
+        const question = questionsMap.get(questionId as string);
         if (!question) continue;
 
         const subject = question.subject;
@@ -147,8 +173,14 @@ export const getTestAnalytics = query({
     const questionWiseAnalysis = [];
 
     if (test) {
-      for (const questionId of test.questions) {
-        const question = await ctx.db.get(questionId);
+      // Fetch all questions in parallel
+      const questions = await Promise.all(
+        test.questions.map((questionId) => ctx.db.get(questionId))
+      );
+
+      for (let i = 0; i < test.questions.length; i++) {
+        const questionId = test.questions[i];
+        const question = questions[i];
         if (!question) continue;
 
         let correctAttempts = 0;
@@ -286,13 +318,19 @@ export const getAttemptBreakdown = query({
     const test = await ctx.db.get(attempt.testId);
     if (!test) return [];
 
+    // Fetch all questions in parallel
+    const questions = await Promise.all(
+      test.questions.map((questionId) => ctx.db.get(questionId))
+    );
+
     const subjectBreakdown: Record<
       string,
       { correct: number; incorrect: number; unanswered: number; total: number }
     > = {};
 
-    for (const questionId of test.questions) {
-      const question = await ctx.db.get(questionId);
+    for (let i = 0; i < test.questions.length; i++) {
+      const questionId = test.questions[i];
+      const question = questions[i];
       if (!question) continue;
 
       const subject = question.subject;
@@ -372,19 +410,22 @@ export const getGlobalLeaderboard = query({
 
     const topTenUserIds = new Set(sortedAll.slice(0, 10).map(s => s.userId as string));
 
-    // Filter out users with showOnLeaderboard = false
-    const filteredStats = [];
-    for (const stats of sortedAll) {
-      const settings = await ctx.db
-        .query("userSettings")
-        .withIndex("by_user_id", (q) => q.eq("userId", stats.userId))
-        .first();
+    // Fetch all user settings in parallel
+    const allSettings = await Promise.all(
+      sortedAll.map((stats) =>
+        ctx.db
+          .query("userSettings")
+          .withIndex("by_user_id", (q) => q.eq("userId", stats.userId))
+          .first()
+      )
+    );
 
+    // Filter out users with showOnLeaderboard = false
+    const filteredStats = sortedAll.filter((stats, index) => {
+      const settings = allSettings[index];
       // Include if no settings or showOnLeaderboard is true
-      if (!settings || settings.showOnLeaderboard !== false) {
-        filteredStats.push(stats);
-      }
-    }
+      return !settings || settings.showOnLeaderboard !== false;
+    });
 
     const sorted = filteredStats.slice(0, limit);
 
@@ -556,12 +597,19 @@ export const getPublicStudentAnalytics = query({
     const isTopTen = sortedUserIds.includes(args.userId as string);
     const tier = calculateTier(attempts.length, avgAccuracy, isTopTen);
 
+    // Calculate total score and rank
+    const totalScore = attempts.reduce((sum, a) => sum + a.score, 0);
+    const sortedByScore = Object.entries(userScores).sort(([, a], [, b]) => b - a);
+    const rank = sortedByScore.findIndex(([id]) => id === (args.userId as string)) + 1;
+
     return {
       isPrivate: false,
       showHeatmap,
       totalTestsTaken: attempts.length,
       avgAccuracy: Math.round(avgAccuracy * 10) / 10,
       tier,
+      totalScore,
+      rank: rank > 0 ? rank : null,
     };
   },
 });
@@ -575,11 +623,17 @@ export const getStudentAchievements = query({
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
 
+    // Fetch all tests in parallel
+    const tests = await Promise.all(
+      attempts.map((attempt) => ctx.db.get(attempt.testId))
+    );
+
     const achievements: { id: string; name: string; icon: string; earnedAt: number }[] = [];
 
     // Check for achievements
-    for (const attempt of attempts) {
-      const test = await ctx.db.get(attempt.testId);
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i];
+      const test = tests[i];
       if (!test) continue;
 
       // Perfectionist: 100% on any test
