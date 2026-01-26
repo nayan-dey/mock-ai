@@ -122,7 +122,7 @@ export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
       id: "actions",
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-0.5">
           <Link href={`/questions/${row.original._id}`}>
             <Button variant="ghost" size="icon" aria-label="Edit question">
               <Edit className="h-4 w-4" />
@@ -142,14 +142,14 @@ export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
   ], [getDifficultyBadge]);
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Questions</h1>
-          <p className="text-muted-foreground">Manage your question bank</p>
+    <div className="p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Questions</h1>
+          <p className="text-sm text-muted-foreground">Manage your question bank</p>
         </div>
         <Link href="/questions/new">
-          <Button className="gap-2">
+          <Button>
             <Plus className="h-4 w-4" />
             Add Question
           </Button>
@@ -158,63 +158,61 @@ export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
 
       {/* Filters */}
       <Card className="mb-6">
-        <CardContent className="flex flex-wrap gap-4 pt-6">
-          <div className="w-full sm:w-48">
-            <Select
-              value={selectedSubject || "all"}
-              onValueChange={(value) => updateFilter("subject", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Subjects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {SUBJECTS.map((subject) => (
-                  <SelectItem key={subject} value={subject}>
-                    {subject}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent className="flex flex-wrap gap-3 p-4">
+          <Select
+            value={selectedSubject || "all"}
+            onValueChange={(value) => updateFilter("subject", value)}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All Subjects" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subjects</SelectItem>
+              {SUBJECTS.map((subject) => (
+                <SelectItem key={subject} value={subject}>
+                  {subject}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <div className="w-full sm:w-48">
-            <Select
-              value={selectedDifficulty || "all"}
-              onValueChange={(value) => updateFilter("difficulty", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Difficulties" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Difficulties</SelectItem>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select
+            value={selectedDifficulty || "all"}
+            onValueChange={(value) => updateFilter("difficulty", value)}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All Difficulties" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Difficulties</SelectItem>
+              <SelectItem value="easy">Easy</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="hard">Hard</SelectItem>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
       {/* Questions Table */}
       {questions.length === 0 ? (
-        <Card className="py-12 text-center">
-          <CardContent>
-            <FileQuestion className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">No Questions Found</h3>
-            <p className="mt-2 text-muted-foreground">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <FileQuestion className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">No questions yet</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Get started by adding your first question.
             </p>
             <Link href="/questions/new">
-              <Button className="mt-4">Add Question</Button>
+              <Button className="mt-4" size="sm">Add Question</Button>
             </Link>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Question Bank ({questions.length})</CardTitle>
+            <CardTitle className="text-sm font-medium">Question Bank ({questions.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable
@@ -223,7 +221,7 @@ export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
               searchKey="text"
               searchPlaceholder="Search questions..."
               showPagination
-              pageSize={10}
+              pageSize={5}
               emptyMessage="No questions found."
             />
           </CardContent>

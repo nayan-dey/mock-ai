@@ -48,16 +48,16 @@ export default function DashboardPage() {
 
   if (!stats) {
     return (
-      <div className="p-8">
-        <h1 className="mb-8 text-3xl font-bold">Dashboard</h1>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="p-6">
+        <div className="mb-6 space-y-1">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16" />
+              <CardContent className="p-4">
+                <Skeleton className="h-16 w-full" />
               </CardContent>
             </Card>
           ))}
@@ -69,36 +69,33 @@ export default function DashboardPage() {
   const isEmpty = stats.totalQuestions === 0 && stats.totalTests === 0;
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
+    <div className="p-6">
+      <div className="mb-6 space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
           Overview of your test platform
         </p>
       </div>
 
       {/* Seed Database Card - Show when empty */}
       {isEmpty && (
-        <Card className="mb-8 border-dashed">
+        <Card className="mb-6 border-dashed">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Get Started with Sample Data
-            </CardTitle>
-            <CardDescription>
-              Your database is empty. Add sample questions, tests, notes, and classes to get started quickly.
+            <CardTitle className="text-sm font-medium">Get Started with Sample Data</CardTitle>
+            <CardDescription className="text-xs">
+              Your database is empty. Add sample data to get started.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button
               onClick={handleSeedDatabase}
               disabled={isSeeding}
-              className="gap-2"
+              size="sm"
             >
               {isSeeding ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Seeding Database...
+                  Seeding...
                 </>
               ) : (
                 <>
@@ -108,7 +105,7 @@ export default function DashboardPage() {
               )}
             </Button>
             {seedResult && (
-              <p className={`mt-3 text-sm ${seedResult.includes("Error") ? "text-destructive" : "text-success"}`}>
+              <p className={`mt-3 text-xs ${seedResult.includes("Error") ? "text-destructive" : "text-emerald-600"}`}>
                 {seedResult}
               </p>
             )}
@@ -116,105 +113,109 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStudents}</div>
-            <p className="text-xs text-muted-foreground">
-              Registered students
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Tests</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTests}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.publishedTests} published
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Questions</CardTitle>
-            <FileQuestion className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalQuestions}</div>
-            <p className="text-xs text-muted-foreground">
-              In question bank
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Test Attempts</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAttempts}</div>
-            <p className="text-xs text-muted-foreground">
-              Completed attempts
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.averageScore.toFixed(1)}
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Total Students</p>
+                <p className="text-2xl font-semibold tabular-nums">{stats.totalStudents}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Across all tests
-            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Published Tests</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.publishedTests}</div>
-            <p className="text-xs text-muted-foreground">
-              Active tests
-            </p>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Total Tests</p>
+                <p className="text-2xl font-semibold tabular-nums">{stats.totalTests}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Total Questions</p>
+                <p className="text-2xl font-semibold tabular-nums">{stats.totalQuestions}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
+                <FileQuestion className="h-5 w-5 text-purple-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Test Attempts</p>
+                <p className="text-2xl font-semibold tabular-nums">{stats.totalAttempts}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
+                <Trophy className="h-5 w-5 text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Average Score</p>
+                <p className="text-2xl font-semibold tabular-nums">{stats.averageScore.toFixed(1)}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-5 w-5 text-emerald-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Published Tests</p>
+                <p className="text-2xl font-semibold tabular-nums">{stats.publishedTests}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-500/10">
+                <BarChart3 className="h-5 w-5 text-rose-500" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
       {!isEmpty && (
-        <Card className="mt-8">
+        <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-4">
-            <Button variant="outline" asChild>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
               <a href="/questions/new">Add Question</a>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <a href="/tests/new">Create Test</a>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <a href="/notes/new">Upload Notes</a>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <a href="/classes/new">Add Class</a>
             </Button>
           </CardContent>

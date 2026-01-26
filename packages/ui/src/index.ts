@@ -40,7 +40,7 @@ export {
 } from "./components/dialog";
 export { Badge, badgeVariants, type BadgeProps } from "./components/badge";
 export { Progress } from "./components/progress";
-export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/tabs";
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from "./components/tabs";
 export { Checkbox } from "./components/checkbox";
 export { RadioGroup, RadioGroupItem } from "./components/radio-group";
 export { Skeleton } from "./components/skeleton";

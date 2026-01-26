@@ -91,7 +91,7 @@ export function NotesClient({ preloadedNotes }: NotesClientProps) {
       cell: ({ row }) => {
         const note = row.original;
         return (
-          <div className="flex justify-end gap-1">
+          <div className="flex justify-end gap-0.5">
             <a
               href={note.fileUrl}
               target="_blank"
@@ -116,14 +116,14 @@ export function NotesClient({ preloadedNotes }: NotesClientProps) {
   ], []);
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Notes</h1>
-          <p className="text-muted-foreground">Manage study materials</p>
+    <div className="p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Notes</h1>
+          <p className="text-sm text-muted-foreground">Manage study materials</p>
         </div>
         <Link href="/notes/new">
-          <Button className="gap-2">
+          <Button>
             <Plus className="h-4 w-4" />
             Add Note
           </Button>
@@ -131,22 +131,24 @@ export function NotesClient({ preloadedNotes }: NotesClientProps) {
       </div>
 
       {notes.length === 0 ? (
-        <Card className="py-12 text-center">
-          <CardContent>
-            <BookOpen className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">No Notes Found</h3>
-            <p className="mt-2 text-muted-foreground">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <BookOpen className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">No notes yet</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Add your first study note.
             </p>
             <Link href="/notes/new">
-              <Button className="mt-4">Add Note</Button>
+              <Button className="mt-4" size="sm">Add Note</Button>
             </Link>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>All Notes ({notes.length})</CardTitle>
+            <CardTitle className="text-sm font-medium">All Notes ({notes.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable
@@ -155,7 +157,7 @@ export function NotesClient({ preloadedNotes }: NotesClientProps) {
               searchKey="title"
               searchPlaceholder="Search notes..."
               showPagination
-              pageSize={10}
+              pageSize={5}
               emptyMessage="No notes found."
             />
           </CardContent>

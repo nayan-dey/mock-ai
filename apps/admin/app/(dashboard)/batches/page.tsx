@@ -225,7 +225,7 @@ export default function BatchesPage() {
               searchKey="name"
               searchPlaceholder="Search batches..."
               showPagination
-              pageSize={10}
+              pageSize={5}
               emptyMessage="No batches found."
             />
           ) : (

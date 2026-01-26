@@ -22,7 +22,7 @@ export function ChartContainer({
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {description && (
           <CardDescription className="mt-0.5 text-xs">{description}</CardDescription>
         )}

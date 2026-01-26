@@ -11,7 +11,6 @@ import {
   Video,
   BarChart3,
   Trophy,
-  Settings,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -22,7 +21,6 @@ const navItems = [
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/notes", label: "Notes", icon: BookOpen },
   { href: "/classes", label: "Classes", icon: Video },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Navbar() {
@@ -69,15 +67,18 @@ export function Navbar() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
 
+            {/* UserButton - hidden on mobile since we have profile tab */}
             <SignedIn>
-              <UserButton
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    avatarBox: "h-7 w-7",
-                  },
-                }}
-              />
+              <div className="hidden md:block">
+                <UserButton
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      avatarBox: "h-7 w-7",
+                    },
+                  }}
+                />
+              </div>
             </SignedIn>
 
             <SignedOut>

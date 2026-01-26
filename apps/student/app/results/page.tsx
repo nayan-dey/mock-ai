@@ -13,14 +13,12 @@ import {
   Badge,
   Skeleton,
   formatDate,
-  ChartContainer,
-  RadarChart,
-  PageHeader,
+  Progress,
   DataTable,
   SortableHeader,
   type ColumnDef,
 } from "@repo/ui";
-import { FileText, Eye, BarChart3, ArrowRight, CheckCircle2, XCircle, Trophy } from "lucide-react";
+import { FileText, Eye, ArrowRight, CheckCircle2, XCircle, Trophy, Clock, TrendingUp, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -29,9 +27,11 @@ interface AttemptData {
   score: number;
   correct: number;
   incorrect: number;
+  unanswered: number;
   totalQuestions: number;
   submittedAt: number | null;
   accuracy: number;
+  testTitle?: string;
 }
 
 export default function ResultsPage() {
@@ -58,7 +58,8 @@ export default function ResultsPage() {
         accuracy: a.correct + a.incorrect > 0
           ? (a.correct / (a.correct + a.incorrect)) * 100
           : 0,
-      }));
+      }))
+      .sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
   }, [attempts]);
 
   // Table columns for TanStack Table
@@ -69,7 +70,7 @@ export default function ResultsPage() {
         <SortableHeader column={column} title="Date" />
       ),
       cell: ({ row }) => (
-        <span className="text-sm">
+        <span className="text-sm text-muted-foreground">
           {row.getValue("submittedAt") ? formatDate(row.getValue("submittedAt") as number) : "-"}
         </span>
       ),
@@ -80,7 +81,7 @@ export default function ResultsPage() {
         <SortableHeader column={column} title="Score" />
       ),
       cell: ({ row }) => (
-        <span className="font-serif text-lg font-bold">
+        <span className="text-base font-semibold tabular-nums">
           {(row.getValue("score") as number).toFixed(1)}
         </span>
       ),
@@ -91,8 +92,7 @@ export default function ResultsPage() {
         <SortableHeader column={column} title="Correct" />
       ),
       cell: ({ row }) => (
-        <span className="flex items-center gap-1.5 text-success">
-          <CheckCircle2 className="h-4 w-4" />
+        <span className="tabular-nums text-emerald-600">
           {row.getValue("correct")}
         </span>
       ),
@@ -103,8 +103,7 @@ export default function ResultsPage() {
         <SortableHeader column={column} title="Incorrect" />
       ),
       cell: ({ row }) => (
-        <span className="flex items-center gap-1.5 text-destructive">
-          <XCircle className="h-4 w-4" />
+        <span className="tabular-nums text-red-600">
           {row.getValue("incorrect")}
         </span>
       ),
@@ -117,21 +116,28 @@ export default function ResultsPage() {
       cell: ({ row }) => {
         const accuracy = row.getValue("accuracy") as number;
         return (
-          <Badge variant={accuracy >= 60 ? "success" : "destructive"}>
-            {accuracy.toFixed(0)}%
-          </Badge>
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full ${accuracy >= 60 ? "bg-emerald-500" : "bg-amber-500"}`}
+                style={{ width: `${accuracy}%` }}
+              />
+            </div>
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {accuracy.toFixed(0)}%
+            </span>
+          </div>
         );
       },
     },
     {
       id: "actions",
-      header: () => <div className="text-right">Action</div>,
+      header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) => (
         <div className="text-right">
           <Link href={`/results/${row.original._id}`}>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Eye className="h-4 w-4" />
-              View
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>
@@ -141,204 +147,221 @@ export default function ResultsPage() {
 
   if (!attempts || !dbUser) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <div className="mb-8">
-          <Skeleton className="mb-2 h-8 w-40" />
-          <Skeleton className="h-5 w-64" />
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        <div className="mb-6 space-y-1">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-48" />
         </div>
-        <Card>
-          <CardContent className="p-6">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="mb-4 h-16 w-full" />
-            ))}
-          </CardContent>
-        </Card>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-lg" />
+          ))}
+        </div>
+        <div className="mt-6 space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
 
   // Calculate overall stats
   const totalTests = submittedAttempts.length;
-  const avgScore = totalTests > 0
-    ? submittedAttempts.reduce((acc, a) => acc + a.score, 0) / totalTests
-    : 0;
   const totalCorrect = submittedAttempts.reduce((acc, a) => acc + a.correct, 0);
   const totalIncorrect = submittedAttempts.reduce((acc, a) => acc + a.incorrect, 0);
   const avgAccuracy = totalCorrect + totalIncorrect > 0
     ? (totalCorrect / (totalCorrect + totalIncorrect)) * 100
     : 0;
 
+  // Get subject performance data
+  const subjectData = analytics?.subjectWisePerformance
+    ? Object.entries(analytics.subjectWisePerformance).map(([subject, data]) => ({
+        subject,
+        correct: data.correct,
+        total: data.total,
+        accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+      }))
+    : [];
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <PageHeader
-        title="My Results"
-        description="View your test history and performance"
-      />
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+      {/* Header */}
+      <div className="mb-6 space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Results</h1>
+        <p className="text-sm text-muted-foreground">
+          Track your performance across all tests
+        </p>
+      </div>
 
       {submittedAttempts.length === 0 ? (
-        <Card className="border-2 border-dashed">
-          <CardContent className="py-12 sm:py-16 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-muted">
-              <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground" />
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <FileText className="h-6 w-6 text-muted-foreground" />
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">No Results Yet</h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-              Complete a test to see your results here.
+            <h3 className="font-medium">No results yet</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Complete a test to see your results here
             </p>
             <Link href="/tests">
-              <Button className="mt-6 gap-2">
+              <Button className="mt-4" size="sm">
                 Browse Tests
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </CardContent>
         </Card>
       ) : (
         <>
-          {/* Stats Grid - 2x2 on mobile, 4 cols on desktop */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            <Card className="border-0 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
+          {/* Overview Stats */}
+          <div className="mb-6 grid grid-cols-3 gap-3">
+            <Card>
               <CardContent className="p-4">
-                <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <Trophy className="h-5 w-5 text-primary" />
-                  </div>
-                  <p className="text-2xl font-bold sm:text-3xl">{totalTests}</p>
-                  <p className="text-xs text-muted-foreground">Tests Taken</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Tests</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums">{totalTests}</p>
               </CardContent>
             </Card>
-
-            <Card className="border-0 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 shadow-sm">
+            <Card>
               <CardContent className="p-4">
-                <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-emerald-600 sm:text-3xl">{totalCorrect}</p>
-                  <p className="text-xs text-muted-foreground">Correct</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Correct</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-emerald-600">
+                  {totalCorrect}
+                </p>
               </CardContent>
             </Card>
-
-            <Card className="border-0 bg-gradient-to-br from-red-500/5 to-red-500/10 shadow-sm">
+            <Card>
               <CardContent className="p-4">
-                <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  </div>
-                  <p className="text-2xl font-bold text-red-600 sm:text-3xl">{totalIncorrect}</p>
-                  <p className="text-xs text-muted-foreground">Incorrect</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 bg-gradient-to-br from-blue-500/5 to-blue-500/10 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
-                    <BarChart3 className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <p className="text-2xl font-bold sm:text-3xl">{avgAccuracy.toFixed(0)}%</p>
-                  <p className="text-xs text-muted-foreground">Avg Accuracy</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Accuracy</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums">
+                  {avgAccuracy.toFixed(0)}%
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Subject Performance Radar Chart */}
-          {analytics && Object.keys(analytics.subjectWisePerformance).length > 0 && (
-            <div className="mb-6">
-              <ChartContainer
-                title="Subject Performance"
-                description="Your accuracy across different subjects"
-              >
-                <div className="h-[180px] sm:h-[220px]">
-                  <RadarChart
-                    data={Object.entries(analytics.subjectWisePerformance).map(
-                      ([subject, data]) => ({
-                        subject,
-                        value: data.total > 0
-                          ? Math.round((data.correct / data.total) * 100)
-                          : 0,
-                        fullMark: 100,
-                      })
-                    )}
-                    height={180}
-                    color="hsl(var(--primary))"
-                    fillOpacity={0.25}
-                    legendLabel="Accuracy %"
-                  />
-                </div>
-              </ChartContainer>
-            </div>
+          {/* Subject Performance */}
+          {subjectData.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Subject Performance</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {subjectData.map((subject) => (
+                  <div key={subject.subject} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{subject.subject}</span>
+                      <span className="tabular-nums font-medium">
+                        {subject.correct}/{subject.total}
+                        <span className="ml-2 text-muted-foreground">
+                          ({subject.accuracy}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          subject.accuracy >= 70
+                            ? "bg-emerald-500"
+                            : subject.accuracy >= 40
+                              ? "bg-amber-500"
+                              : "bg-red-500"
+                        }`}
+                        style={{ width: `${subject.accuracy}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           )}
 
-          {/* Mobile Card View */}
-          <div className="space-y-2 md:hidden">
-            {submittedAttempts.map((attempt) => (
-              <Card key={attempt._id} className="overflow-hidden border-2 border-transparent transition-all hover:border-primary/20">
-                <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-serif text-xl font-bold">
-                        {attempt.score.toFixed(1)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {attempt.submittedAt
-                          ? formatDate(attempt.submittedAt)
-                          : "-"}
-                      </p>
-                      <div className="mt-2 flex items-center gap-3 text-xs">
-                        <span className="flex items-center gap-1 text-success">
-                          <CheckCircle2 className="h-3 w-3" />
-                          {attempt.correct}
-                        </span>
-                        <span className="flex items-center gap-1 text-destructive">
-                          <XCircle className="h-3 w-3" />
-                          {attempt.incorrect}
-                        </span>
+          {/* Mobile Result Cards */}
+          <div className="space-y-4 md:hidden">
+            <h2 className="text-sm font-medium text-muted-foreground">Recent Tests</h2>
+            {submittedAttempts.slice(0, 10).map((attempt) => {
+              const total = attempt.correct + attempt.incorrect + attempt.unanswered;
+              return (
+                <Link key={attempt._id} href={`/results/${attempt._id}`}>
+                  <Card className="transition-colors hover:bg-muted/50 my-3">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Score Circle */}
+                        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
+                          <svg className="h-14 w-14 -rotate-90">
+                            <circle
+                              cx="28"
+                              cy="28"
+                              r="24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              className="text-muted"
+                            />
+                            <circle
+                              cx="28"
+                              cy="28"
+                              r="24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              strokeDasharray={`${attempt.accuracy * 1.51} 151`}
+                              className={attempt.accuracy >= 60 ? "text-emerald-500" : "text-amber-500"}
+                            />
+                          </svg>
+                          <span className="absolute text-sm font-semibold tabular-nums">
+                            {attempt.accuracy.toFixed(0)}%
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-lg font-semibold tabular-nums">
+                              {attempt.score.toFixed(1)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">points</span>
+                          </div>
+                          <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                              {attempt.correct}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <XCircle className="h-3 w-3 text-red-500" />
+                              {attempt.incorrect}
+                            </span>
+                            <span>
+                              {attempt.submittedAt ? formatDate(attempt.submittedAt) : "-"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Arrow */}
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Badge
-                        variant={attempt.accuracy >= 60 ? "success" : "destructive"}
-                        className="px-2 py-0.5"
-                      >
-                        {attempt.accuracy.toFixed(0)}%
-                      </Badge>
-                      <Link href={`/results/${attempt._id}`}>
-                        <Button variant="outline" size="sm" className="h-8 gap-1">
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
 
-          {/* Desktop Table View with TanStack Table */}
-          <Card className="hidden overflow-hidden md:block">
-            <CardHeader className="border-b bg-muted/30 p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base sm:text-lg">Test History</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    {submittedAttempts.length} test{submittedAttempts.length !== 1 && "s"}{" "}
-                    completed
-                  </CardDescription>
-                </div>
-              </div>
+          {/* Desktop Table View */}
+          <Card className="hidden md:block">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Test History</CardTitle>
+              <CardDescription className="text-xs">
+                {submittedAttempts.length} test{submittedAttempts.length !== 1 && "s"} completed
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-4">
+            <CardContent>
               <DataTable
                 columns={columns}
                 data={submittedAttempts as AttemptData[]}
                 showPagination
-                pageSize={10}
+                pageSize={5}
                 emptyMessage="No test results yet."
               />
             </CardContent>

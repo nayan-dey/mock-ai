@@ -56,7 +56,7 @@ interface LeaderboardEntryData {
   isCurrentUser?: boolean;
 }
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 5;
 
 export default function LeaderboardPage() {
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -116,7 +116,7 @@ export default function LeaderboardPage() {
     (currentPage + 1) * PAGE_SIZE
   );
 
-  if (!isUserLoaded || (user && dbUser === undefined)) {
+  if (!isUserLoaded || (user && dbUser === undefined) || globalLeaderboard === undefined) {
     return <LeaderboardSkeleton />;
   }
 
@@ -129,19 +129,19 @@ export default function LeaderboardPage() {
       />
 
       {/* Top 3 Podium */}
-      <Card className="mb-4 sm:mb-6 border-2 border-transparent transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
-        <CardHeader className="border-b bg-gradient-to-r from-yellow-500/5 via-gray-400/5 to-orange-500/5 p-4 sm:p-6">
+      <Card className="mb-6">
+        <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20">
-              <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+              <Trophy className="h-4 w-4 text-amber-600" />
             </div>
-            <div>
-              <CardTitle className="text-base sm:text-lg">Top Performers</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Hall of Fame</CardDescription>
+            <div className="space-y-1">
+              <CardTitle className="text-base">Top Performers</CardTitle>
+              <CardDescription className="text-xs">Hall of Fame</CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="py-6 sm:py-8">
+        <CardContent>
           {globalLeaderboard && globalLeaderboard.length > 0 ? (
             <TopPerformers
               performers={topPerformers}
@@ -158,92 +158,68 @@ export default function LeaderboardPage() {
 
       {/* User's Position Card */}
       {userPosition && (
-        <Card className="mb-4 sm:mb-6 overflow-hidden border-2 border-primary/20">
-          <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5">
-            <CardContent className="p-0">
-              <div className="flex flex-col gap-4 p-4 sm:p-6 md:flex-row md:items-center md:justify-between">
-                {/* Rank Display */}
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className={`flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl text-lg sm:text-xl font-bold ${
-                    userPosition.rank === 1
-                      ? "bg-yellow-500/20 text-yellow-600 ring-4 ring-yellow-500/10"
-                      : userPosition.rank === 2
-                      ? "bg-gray-400/20 text-gray-500 ring-4 ring-gray-400/10"
-                      : userPosition.rank === 3
-                      ? "bg-orange-500/20 text-orange-600 ring-4 ring-orange-500/10"
-                      : "bg-primary/10 text-primary ring-4 ring-primary/10"
-                  }`}>
-                    #{userPosition.rank}
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Your Position</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg sm:text-xl font-bold">
-                        {userPosition.userName}
-                      </p>
-                      <TierBadge tier={userPosition.tier as Tier} size="sm" />
-                    </div>
-                  </div>
+        <Card className="mb-6 bg-muted/50">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              {/* Rank Display */}
+              <div className="flex items-center gap-3">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-lg font-semibold ${
+                  userPosition.rank === 1
+                    ? "bg-amber-500/10 text-amber-600"
+                    : userPosition.rank === 2
+                    ? "bg-slate-400/10 text-slate-500"
+                    : userPosition.rank === 3
+                    ? "bg-orange-500/10 text-orange-600"
+                    : "bg-primary/10 text-primary"
+                }`}>
+                  #{userPosition.rank}
                 </div>
-
-                {/* Stats - Horizontal scroll on mobile */}
-                <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                  <div className="flex gap-4 sm:gap-6 min-w-max">
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-lg bg-background p-1.5 sm:p-2">
-                        <Medal className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-lg font-bold">
-                          {userPosition.totalScore.toFixed(1)}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Total Score</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-lg bg-background p-1.5 sm:p-2">
-                        <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-lg font-bold">
-                          {userPosition.testsCompleted}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Tests</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-lg bg-background p-1.5 sm:p-2">
-                        <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-lg font-bold">
-                          {userPosition.avgAccuracy.toFixed(0)}%
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Accuracy</p>
-                      </div>
-                    </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs text-muted-foreground">Your Position</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-semibold">
+                      {userPosition.userName}
+                    </p>
+                    <TierBadge tier={userPosition.tier as Tier} size="sm" />
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </div>
+
+              {/* Stats */}
+              <div className="flex gap-6">
+                <div className="space-y-0.5">
+                  <p className="text-lg font-semibold tabular-nums">
+                    {userPosition.totalScore.toFixed(0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Score</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-lg font-semibold tabular-nums">
+                    {userPosition.testsCompleted}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Tests</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-lg font-semibold tabular-nums">
+                    {userPosition.avgAccuracy.toFixed(0)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Accuracy</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 
       {/* Full Leaderboard */}
-      <Card className="border-2 border-transparent transition-all hover:border-primary/20">
-        <CardHeader className="border-b bg-muted/30 p-4 sm:p-6">
+      <Card>
+        <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Medal className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-base sm:text-lg">Global Rankings</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  {globalLeaderboard?.length || 0} participants
-                </CardDescription>
-              </div>
+            <div className="space-y-1">
+              <CardTitle className="text-base">Global Rankings</CardTitle>
+              <CardDescription className="text-xs">
+                {globalLeaderboard?.length || 0} participants
+              </CardDescription>
             </div>
             {/* Search */}
             <div className="relative">
@@ -262,16 +238,16 @@ export default function LeaderboardPage() {
         </CardHeader>
 
         {/* Table - Full width horizontal scroll */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto border-t">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-16 whitespace-nowrap py-3 pl-4 sm:pl-6">Rank</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-16 whitespace-nowrap py-3 pl-6">Rank</TableHead>
                 <TableHead className="whitespace-nowrap py-3">Student</TableHead>
                 <TableHead className="whitespace-nowrap py-3 text-right">Score</TableHead>
                 <TableHead className="whitespace-nowrap py-3 text-right">Tests</TableHead>
                 <TableHead className="whitespace-nowrap py-3 text-right">Accuracy</TableHead>
-                <TableHead className="whitespace-nowrap py-3 pr-4 text-right sm:pr-6">Tier</TableHead>
+                <TableHead className="whitespace-nowrap py-3 pr-6 text-right">Tier</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -280,43 +256,43 @@ export default function LeaderboardPage() {
                   <TableRow
                     key={entry.userId}
                     onClick={() => handleUserClick(entry.userId)}
-                    className={`cursor-pointer transition-colors ${
-                      entry.isCurrentUser ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50"
+                    className={`cursor-pointer ${
+                      entry.isCurrentUser ? "bg-muted/50" : ""
                     }`}
                   >
-                    <TableCell className="py-3 pl-4 sm:pl-6">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${
+                    <TableCell className="py-3 pl-6">
+                      <div className={`flex h-7 w-7 items-center justify-center rounded text-xs font-medium ${
                         entry.rank === 1
-                          ? "bg-yellow-500/20 text-yellow-600"
+                          ? "bg-amber-500/10 text-amber-600"
                           : entry.rank === 2
-                          ? "bg-gray-400/20 text-gray-500"
+                          ? "bg-slate-400/10 text-slate-500"
                           : entry.rank === 3
-                          ? "bg-orange-500/20 text-orange-600"
-                          : "bg-muted text-muted-foreground"
+                          ? "bg-orange-500/10 text-orange-600"
+                          : "text-muted-foreground"
                       }`}>
-                        {entry.rank <= 3 ? <Medal className="h-4 w-4" /> : `#${entry.rank}`}
+                        {entry.rank <= 3 ? <Medal className="h-3.5 w-3.5" /> : entry.rank}
                       </div>
                     </TableCell>
                     <TableCell className="py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium whitespace-nowrap">{entry.userName}</span>
+                        <span className="font-medium">{entry.userName}</span>
                         {entry.isCurrentUser && (
-                          <Badge variant="secondary" className="text-[10px] shrink-0">You</Badge>
+                          <Badge variant="secondary" className="text-[10px]">You</Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="py-3 text-right">
-                      <span className="font-bold">{entry.totalScore.toFixed(0)}</span>
+                    <TableCell className="py-3 text-right font-medium tabular-nums">
+                      {entry.totalScore.toFixed(0)}
                     </TableCell>
-                    <TableCell className="py-3 text-right text-muted-foreground">
+                    <TableCell className="py-3 text-right text-muted-foreground tabular-nums">
                       {entry.testsCompleted}
                     </TableCell>
                     <TableCell className="py-3 text-right">
-                      <Badge variant={entry.avgAccuracy >= 60 ? "success" : "secondary"} className="font-medium">
+                      <Badge variant={entry.avgAccuracy >= 60 ? "success" : "secondary"}>
                         {entry.avgAccuracy.toFixed(0)}%
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-3 pr-4 text-right sm:pr-6">
+                    <TableCell className="py-3 pr-6 text-right">
                       <TierBadge tier={entry.tier} size="sm" />
                     </TableCell>
                   </TableRow>

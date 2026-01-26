@@ -21,24 +21,23 @@ export default function TestsPage() {
 
   if (!tests) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <div className="mb-8">
-          <Skeleton className="mb-2 h-8 w-48" />
-          <Skeleton className="h-5 w-72" />
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div className="mb-6 space-y-1">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-72" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <div className="h-2 bg-muted" />
+            <Card key={i}>
               <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-5 w-3/4" />
                 <Skeleton className="h-4 w-full" />
               </CardHeader>
               <CardContent>
                 <Skeleton className="h-20 w-full" />
               </CardContent>
               <CardFooter>
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-9 w-full" />
               </CardFooter>
             </Card>
           ))}
@@ -48,89 +47,73 @@ export default function TestsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Available Tests</h1>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+      <div className="mb-6 space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Available Tests</h1>
+        <p className="text-sm text-muted-foreground">
           Choose a test and start your preparation
         </p>
       </div>
 
       {tests.length === 0 ? (
-        <Card className="border-2 border-dashed">
-          <CardContent className="py-16 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-              <FileQuestion className="h-8 w-8 text-muted-foreground" />
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <FileQuestion className="h-6 w-6 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold">No Tests Available</h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-              New tests are being prepared. Check back soon for fresh content!
+            <h3 className="mt-4 text-sm font-medium">No tests available</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              New tests are being prepared. Check back soon!
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tests.map((test, index) => (
-            <Card
-              key={test._id}
-              className="group flex flex-col overflow-hidden border-2 border-transparent transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
-            >
-              {/* Accent bar */}
-              <div className="h-1.5 bg-gradient-to-r from-primary/60 to-primary" />
-
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {tests.map((test) => (
+            <Card key={test._id} className="flex flex-col">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                  <Badge variant="secondary" className="shrink-0 text-[10px] uppercase">
+                  <CardTitle className="text-base">{test.title}</CardTitle>
+                  <Badge variant="secondary" className="shrink-0 text-[10px]">
                     {test.status}
                   </Badge>
                 </div>
-                <CardDescription className="line-clamp-2 text-sm">
-                  {test.description}
-                </CardDescription>
+                {test.description && (
+                  <CardDescription className="line-clamp-2 text-xs">
+                    {test.description}
+                  </CardDescription>
+                )}
               </CardHeader>
 
               <CardContent className="flex-1 pb-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background">
-                      <FileQuestion className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-serif text-lg font-bold">{test.questions.length}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Questions</p>
-                    </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-muted/50 p-3 text-center">
+                    <p className="text-lg font-semibold tabular-nums">{test.questions.length}</p>
+                    <p className="text-[10px] text-muted-foreground">Questions</p>
                   </div>
-
-                  <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background">
-                      <Clock className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-serif text-lg font-bold">{test.duration}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Minutes</p>
-                    </div>
+                  <div className="rounded-lg bg-muted/50 p-3 text-center">
+                    <p className="text-lg font-semibold tabular-nums">{test.duration}</p>
+                    <p className="text-[10px] text-muted-foreground">Minutes</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-3 text-center">
+                    <p className="text-lg font-semibold tabular-nums">{test.totalMarks}</p>
+                    <p className="text-[10px] text-muted-foreground">Marks</p>
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-dashed p-3">
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium">{test.totalMarks} Marks</span>
+                {test.negativeMarking > 0 && (
+                  <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <Zap className="h-3 w-3 text-amber-500" />
+                    <span>-{test.negativeMarking} per wrong answer</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-destructive">
-                    <Zap className="h-3 w-3" />
-                    <span>-{test.negativeMarking} per wrong</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
 
-              <CardFooter className="border-t bg-muted/30 p-4">
+              <CardFooter className="pt-0">
                 <Link href={`/tests/${test._id}`} className="w-full">
-                  <Button className="w-full gap-2 transition-all group-hover:gap-3">
+                  <Button className="w-full">
                     Start Test
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </Button>
                 </Link>
               </CardFooter>

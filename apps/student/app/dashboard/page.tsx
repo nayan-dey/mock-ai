@@ -208,21 +208,18 @@ export default function DashboardPage() {
       <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
         {/* In-Progress Tests */}
         {inProgressAttempts && inProgressAttempts.length > 0 && (
-          <Card className="border-2 border-warning/30 bg-warning/5">
+          <Card className="bg-amber-50/50 dark:bg-amber-950/20">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-warning" />
-                <CardTitle className="text-base">Continue Where You Left Off</CardTitle>
+                <Clock className="h-4 w-4 text-amber-600" />
+                <CardTitle className="text-sm font-medium">Continue Where You Left Off</CardTitle>
               </div>
-              <CardDescription>
-                You have {inProgressAttempts.length} test{inProgressAttempts.length > 1 ? 's' : ''} in progress
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {inProgressAttempts.map((attempt) => (
                 <div
                   key={attempt._id}
-                  className="flex items-center justify-between gap-3 rounded-lg border bg-background p-3"
+                  className="flex items-center justify-between gap-3 rounded-md border bg-background p-3"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">Test in Progress</p>
@@ -231,8 +228,8 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <Link href={`/tests/${attempt.testId}`}>
-                    <Button size="sm" className="shrink-0 gap-1.5">
-                      Continue <ArrowRight className="h-3.5 w-3.5" />
+                    <Button size="sm">
+                      Continue
                     </Button>
                   </Link>
                 </div>
@@ -242,17 +239,17 @@ export default function DashboardPage() {
         )}
 
         {/* Available Tests */}
-        <Card className="border-2 border-transparent transition-all hover:border-primary/20">
+        <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">Available Tests</CardTitle>
-                <CardDescription>Start a new mock test</CardDescription>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-medium">Available Tests</CardTitle>
+                <CardDescription className="text-xs">Start a new mock test</CardDescription>
               </div>
               {publishedTests && publishedTests.length > 3 && (
                 <Link href="/tests">
-                  <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
-                    View All <ArrowRight className="h-3 w-3" />
+                  <Button variant="ghost" size="sm" className="h-8 text-xs">
+                    View All
                   </Button>
                 </Link>
               )}
@@ -264,18 +261,16 @@ export default function DashboardPage() {
                 {publishedTests.slice(0, 3).map((test) => (
                   <div
                     key={test._id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                    className="flex items-center justify-between gap-3 rounded-md border p-3"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{test.title}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{test.questions.length} Qs</span>
-                        <span>•</span>
-                        <span>{test.duration} min</span>
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {test.questions.length} questions · {test.duration} min
+                      </p>
                     </div>
                     <Link href={`/tests/${test._id}`}>
-                      <Button variant="outline" size="sm" className="h-8 shrink-0">
+                      <Button variant="outline" size="sm">
                         Start
                       </Button>
                     </Link>
@@ -284,21 +279,21 @@ export default function DashboardPage() {
               </div>
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                No tests available yet. Check back later!
+                No tests available yet.
               </p>
             )}
           </CardContent>
         </Card>
 
         {/* Performance Section - Toggle between Heatmap and Chart */}
-        <Card className="lg:col-span-2 border-2 border-transparent transition-all hover:border-primary/20">
-          <CardHeader className="border-b bg-muted/30 pb-4">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold">
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-medium">
                   {showHeatmap ? "Activity Overview" : "Performance Trend"}
                 </CardTitle>
-                <CardDescription className="mt-0.5 text-xs">
+                <CardDescription className="text-xs">
                   {showHeatmap
                     ? "Your test activity over the past year"
                     : "Your scores and accuracy over recent tests"}
@@ -308,14 +303,14 @@ export default function DashboardPage() {
                 value={showHeatmap ? "heatmap" : "chart"}
                 className="w-auto"
               >
-                <TabsList className="h-9">
-                  <TabsTrigger value="heatmap" className="h-7 min-w-[80px] px-3 text-xs" asChild>
+                <TabsList className="h-8">
+                  <TabsTrigger value="heatmap" className="h-7 px-3 text-xs" asChild>
                     <Link href="/settings">
                       <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
                       Heatmap
                     </Link>
                   </TabsTrigger>
-                  <TabsTrigger value="chart" className="h-7 min-w-[80px] px-3 text-xs" asChild>
+                  <TabsTrigger value="chart" className="h-7 px-3 text-xs" asChild>
                     <Link href="/settings">
                       <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
                       Chart
@@ -325,7 +320,7 @@ export default function DashboardPage() {
               </Tabs>
             </div>
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent>
             {showHeatmap ? (
               heatmapData ? (
                 <div className="overflow-x-auto">
@@ -362,14 +357,14 @@ export default function DashboardPage() {
         </Card>
 
         {/* Subject Performance - Radar Chart */}
-        <Card className="border-2 border-transparent transition-all hover:border-primary/20">
-          <CardHeader className="border-b bg-muted/30 pb-3">
-            <CardTitle className="text-base font-semibold">Subject-wise Performance</CardTitle>
-            <CardDescription className="mt-0.5 text-xs">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Subject Performance</CardTitle>
+            <CardDescription className="text-xs">
               Your accuracy across subjects
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent>
             {Object.entries(analytics.subjectWisePerformance).length > 0 ? (
               <div className="space-y-4">
                 <div className="h-[160px] sm:h-[200px]">
@@ -428,17 +423,17 @@ export default function DashboardPage() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="border-2 border-transparent transition-all hover:border-primary/20">
+        <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">Recent Activity</CardTitle>
-                <CardDescription>Your latest test attempts</CardDescription>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                <CardDescription className="text-xs">Your latest test attempts</CardDescription>
               </div>
               {analytics.recentAttempts.length > 0 && (
                 <Link href="/results">
-                  <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
-                    View All <ArrowRight className="h-3 w-3" />
+                  <Button variant="ghost" size="sm" className="h-8 text-xs">
+                    View All
                   </Button>
                 </Link>
               )}
@@ -452,22 +447,16 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={attempt._id}
-                      className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                      className="flex items-center justify-between gap-3 rounded-md border p-3"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{attempt.testTitle}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3 text-success" />
-                            {attempt.correct}/{attempt.totalQuestions}
-                          </span>
-                          <span>•</span>
-                          <span>{formatDate(attempt.submittedAt!)}</span>
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {attempt.correct}/{attempt.totalQuestions} correct · {formatDate(attempt.submittedAt!)}
+                        </p>
                       </div>
                       <Badge
-                        variant={accuracyPercent >= 60 ? "success" : "destructive"}
-                        className="shrink-0"
+                        variant={accuracyPercent >= 60 ? "success" : "secondary"}
                       >
                         {accuracyPercent.toFixed(0)}%
                       </Badge>
@@ -477,7 +466,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                No test attempts yet. Start a test to see your activity!
+                No test attempts yet.
               </p>
             )}
           </CardContent>

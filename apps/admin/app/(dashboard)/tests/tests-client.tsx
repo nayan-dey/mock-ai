@@ -117,7 +117,7 @@ export function TestsClient({ preloadedTests }: TestsClientProps) {
       cell: ({ row }) => {
         const test = row.original;
         return (
-          <div className="flex justify-end gap-1">
+          <div className="flex justify-end gap-0.5">
             <Link href={`/tests/${test._id}`}>
               <Button variant="ghost" size="icon" aria-label="View test details">
                 <Eye className="h-4 w-4" />
@@ -158,14 +158,14 @@ export function TestsClient({ preloadedTests }: TestsClientProps) {
   ], [archiveTest, getStatusBadge, publishTest]);
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Tests</h1>
-          <p className="text-muted-foreground">Manage your mock tests</p>
+    <div className="p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Tests</h1>
+          <p className="text-sm text-muted-foreground">Manage your mock tests</p>
         </div>
         <Link href="/tests/new">
-          <Button className="gap-2">
+          <Button>
             <Plus className="h-4 w-4" />
             Create Test
           </Button>
@@ -173,15 +173,17 @@ export function TestsClient({ preloadedTests }: TestsClientProps) {
       </div>
 
       {tests.length === 0 ? (
-        <Card className="py-12 text-center">
-          <CardContent>
-            <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">No Tests Found</h3>
-            <p className="mt-2 text-muted-foreground">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <FileText className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">No tests yet</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Create your first test to get started.
             </p>
             <Link href="/tests/new">
-              <Button className="mt-4">Create Test</Button>
+              <Button className="mt-4" size="sm">Create Test</Button>
             </Link>
           </CardContent>
         </Card>
@@ -197,7 +199,7 @@ export function TestsClient({ preloadedTests }: TestsClientProps) {
               searchKey="title"
               searchPlaceholder="Search tests..."
               showPagination
-              pageSize={10}
+              pageSize={5}
               emptyMessage="No tests found."
             />
           </CardContent>

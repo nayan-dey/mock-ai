@@ -261,7 +261,7 @@ export default function AnalyticsPage() {
                 searchKey="userName"
                 searchPlaceholder="Search students..."
                 showPagination
-                pageSize={10}
+                pageSize={5}
                 emptyMessage="No entries found."
               />
             </div>

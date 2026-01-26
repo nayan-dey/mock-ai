@@ -54,24 +54,19 @@ export function StatCard({
   const colors = colorClasses[color];
 
   return (
-    <Card
-      className={cn(
-        "border-2 border-transparent transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5",
-        className
-      )}
-    >
-      <CardContent className="p-3 sm:p-4">
+    <Card className={cn("", className)}>
+      <CardContent className="p-4">
         <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-xs font-medium text-muted-foreground sm:text-sm">
+          <div className="flex-1 space-y-1">
+            <p className="text-xs text-muted-foreground">
               {label}
             </p>
-            <p className="text-lg font-bold sm:text-2xl">{value}</p>
+            <p className="text-2xl font-semibold tracking-tight">{value}</p>
             {trend && (
               <p
                 className={cn(
                   "text-xs",
-                  trend.value >= 0 ? "text-emerald-500" : "text-red-500"
+                  trend.value >= 0 ? "text-emerald-600" : "text-red-600"
                 )}
               >
                 {trend.value >= 0 ? "+" : ""}
@@ -81,7 +76,7 @@ export function StatCard({
           </div>
           <div
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-xl",
+              "flex h-10 w-10 items-center justify-center rounded-lg",
               colors.bg
             )}
           >

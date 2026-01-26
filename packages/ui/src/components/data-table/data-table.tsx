@@ -65,7 +65,7 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search...",
   showColumnVisibility = false,
   showPagination = true,
-  pageSize = 10,
+  pageSize = 5,
   emptyMessage = "No results found.",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -226,7 +226,7 @@ export function DataTable<TData, TValue>({
                   />
                 </SelectTrigger>
                 <SelectContent side="top">
-                  {[10, 20, 30, 50].map((size) => (
+                  {[5, 10, 20, 50].map((size) => (
                     <SelectItem key={size} value={`${size}`}>
                       {size}
                     </SelectItem>
