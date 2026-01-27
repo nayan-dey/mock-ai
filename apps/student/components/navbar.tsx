@@ -11,6 +11,7 @@ import {
   Video,
   BarChart3,
   Trophy,
+  MessageCircle,
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -65,6 +66,19 @@ export function Navbar() {
 
           {/* Right section */}
           <div className="flex items-center gap-2">
+            <SignedIn>
+              <Link href="/chat">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="AI Assistant"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="sr-only">AI Assistant</span>
+                </Button>
+              </Link>
+            </SignedIn>
             <ThemeToggle />
 
             {/* UserButton - hidden on mobile since we have profile tab */}

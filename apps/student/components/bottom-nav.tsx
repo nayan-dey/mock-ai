@@ -10,6 +10,7 @@ import {
   Trophy,
   Video,
   User,
+  MessageCircle,
 } from "lucide-react";
 
 const navItems = [
@@ -23,8 +24,13 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Don't show bottom nav on test taking page
+  // Don't show bottom nav on test taking page or chat page
   if (pathname.match(/^\/tests\/[^/]+$/) && !pathname.endsWith("/tests")) {
+    return null;
+  }
+
+  // Hide everything on chat page
+  if (pathname === "/chat") {
     return null;
   }
 
@@ -69,6 +75,15 @@ export function BottomNav() {
         {/* Safe area for devices with home indicator */}
         <div className="h-safe-area-inset-bottom bg-transparent" />
       </nav>
+
+      {/* Floating AI Chat Button */}
+      <Link
+        href="/chat"
+        className="fixed bottom-20 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 md:hidden"
+      >
+        <MessageCircle className="h-5 w-5" />
+        <span className="sr-only">AI Chat</span>
+      </Link>
     </SignedIn>
   );
 }
