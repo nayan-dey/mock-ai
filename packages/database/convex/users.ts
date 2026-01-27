@@ -109,6 +109,14 @@ export const upsertAsAdmin = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
+    // Get allowed admin email from environment variable
+    const allowedEmail = process.env.ADMIN_EMAIL;
+
+    // Validate email against allowed admin email
+    if (allowedEmail && args.email.toLowerCase() !== allowedEmail.toLowerCase()) {
+      throw new Error("Unauthorized: This email is not authorized for admin access.");
+    }
+
     const existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))

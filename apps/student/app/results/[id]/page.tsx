@@ -29,11 +29,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
   type LeaderboardEntry,
+  fireConfetti,
 } from "@repo/ui";
-import { ArrowLeft, Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter } from "lucide-react";
+import { ArrowLeft, Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper } from "lucide-react";
 import Link from "next/link";
 import type { GenericId } from "convex/values";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 type Id<T extends string> = GenericId<T>;
 type AttemptId = Id<"attempts">;
@@ -45,6 +46,7 @@ export default function ResultDetailPage() {
   const attemptId = params.id as string;
   const { user } = useUser();
   const [filter, setFilter] = useState<FilterType>("all");
+  const hasTriggeredConfetti = useRef(false);
 
   const attemptWithDetails = useQuery(api.attempts.getWithDetails, {
     id: attemptId as AttemptId,
@@ -98,6 +100,31 @@ export default function ResultDetailPage() {
       }
     });
   }, [attemptWithDetails, filter]);
+
+// Auto-trigger confetti for good scores (60%+)
+  useEffect(() => {
+    if (attemptWithDetails && !hasTriggeredConfetti.current) {
+      const score = attemptWithDetails.score;
+      const total = attemptWithDetails.test?.totalMarks || 1;
+      const pct = (score / total) * 100;
+
+      if (pct >= 60) {
+        hasTriggeredConfetti.current = true;
+        // Slight delay for better UX
+        const timer = setTimeout(() => {
+          fireConfetti(pct >= 80 ? "enhanced" : "standard");
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [attemptWithDetails]);
+
+  const handleCelebrate = () => {
+    const pct = attemptWithDetails
+      ? (attemptWithDetails.score / attemptWithDetails.test.totalMarks) * 100
+      : 0;
+    fireConfetti(pct >= 80 ? "enhanced" : "standard");
+  };
 
   if (!attemptWithDetails) {
     return (
@@ -186,6 +213,19 @@ export default function ResultDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Celebrate Button */}
+      <div className="mb-6 flex justify-center">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCelebrate}
+          className="gap-2"
+        >
+          <PartyPopper className="h-4 w-4" />
+          Celebrate
+        </Button>
       </div>
 
       {/* Quick Stats */}

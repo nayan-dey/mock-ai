@@ -17,6 +17,7 @@ import {
   Label,
   Textarea,
 } from "@repo/ui";
+import { toast } from "sonner";
 import { ArrowLeft, Save, AlertTriangle, Lock } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -97,9 +98,11 @@ export default function EditProfilePage() {
         bio: formData.bio || undefined,
         age: formData.age ? parseInt(formData.age, 10) : undefined,
       });
+      toast.success("Profile updated successfully");
       router.push("/me");
     } catch (error) {
       console.error("Failed to update profile:", error);
+      toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);
     }

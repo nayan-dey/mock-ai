@@ -24,6 +24,7 @@ import {
   Badge,
   Skeleton,
 } from "@repo/ui";
+import { toast } from "sonner";
 import { ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { SUBJECTS } from "@repo/types";
@@ -134,9 +135,11 @@ export function NewTestClient() {
           selectedBatches.length > 0 ? (selectedBatches as any) : undefined,
         createdBy: dbUser._id,
       });
+      toast.success("Test created successfully");
       router.push("/tests");
     } catch (error) {
       console.error("Failed to create test:", error);
+      toast.error("Failed to create test");
     } finally {
       setIsSubmitting(false);
     }

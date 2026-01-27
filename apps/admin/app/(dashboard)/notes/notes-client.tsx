@@ -22,6 +22,7 @@ import {
   Skeleton,
   type ColumnDef,
 } from "@repo/ui";
+import { toast } from "sonner";
 import { Plus, Trash2, BookOpen, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import type { Id } from "@repo/database/dataModel";
@@ -45,8 +46,13 @@ export function NotesClient() {
 
   const handleDelete = useCallback(async () => {
     if (deleteId) {
-      await deleteNote({ id: deleteId as NoteId });
-      setDeleteId(null);
+      try {
+        await deleteNote({ id: deleteId as NoteId });
+        toast.success("Note deleted successfully");
+        setDeleteId(null);
+      } catch (error) {
+        toast.error("Failed to delete note");
+      }
     }
   }, [deleteId, deleteNote]);
 

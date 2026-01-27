@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "../components/providers";
 import { UserSync } from "../components/user-sync";
+import { SonnerToaster } from "@repo/ui";
 import "@repo/ui/globals.css";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
           <ConvexClientProvider>
             <UserSync />
             {children}
+            <SonnerToaster position="top-center" richColors />
           </ConvexClientProvider>
         </body>
       </html>

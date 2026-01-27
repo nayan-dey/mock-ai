@@ -22,6 +22,7 @@ import {
   Checkbox,
   Skeleton,
 } from "@repo/ui";
+import { toast } from "sonner";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { SUBJECTS, TOPICS } from "@repo/types";
@@ -93,9 +94,11 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
         topic,
         difficulty,
       });
+      toast.success("Question updated successfully");
       router.push("/questions");
     } catch (error) {
       console.error("Failed to update question:", error);
+      toast.error("Failed to update question");
     } finally {
       setIsSubmitting(false);
     }

@@ -99,9 +99,16 @@ export {
   ToastAction,
 } from "./components/toast";
 export { Toaster } from "./components/toaster";
+export { SonnerToaster } from "./components/sonner";
+
+// Confetti
+export { Confetti, ConfettiButton, fireConfetti, type ConfettiRef, type ConfettiProps } from "./components/confetti";
 
 // Hooks
 export { useToast, toast } from "./hooks/use-toast";
+
+// Re-export sonner toast for convenience
+export { toast as sonnerToast } from "sonner";
 
 // Custom test platform components
 export { QuestionCard } from "./components/question-card";

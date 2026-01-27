@@ -23,6 +23,7 @@ import {
   Skeleton,
   type ColumnDef,
 } from "@repo/ui";
+import { toast } from "sonner";
 import { Plus, Trash2, Video, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import type { Id } from "@repo/database/dataModel";
@@ -47,8 +48,13 @@ export function ClassesClient() {
 
   const handleDelete = useCallback(async () => {
     if (deleteId) {
-      await deleteClass({ id: deleteId as ClassId });
-      setDeleteId(null);
+      try {
+        await deleteClass({ id: deleteId as ClassId });
+        toast.success("Class deleted successfully");
+        setDeleteId(null);
+      } catch (error) {
+        toast.error("Failed to delete class");
+      }
     }
   }, [deleteId, deleteClass]);
 

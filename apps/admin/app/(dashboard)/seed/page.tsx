@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui";
+import { toast } from "sonner";
 import { Database, Users, Play, CheckCircle, Loader2, AlertCircle, Trash2 } from "lucide-react";
 
 export default function SeedPage() {
@@ -44,8 +45,10 @@ export default function SeedPage() {
     try {
       const result = await seedDatabase({ adminClerkId: user.id });
       setResults((prev) => ({ ...prev, database: result }));
+      toast.success("Database seeded successfully");
     } catch (error: any) {
       setResults((prev) => ({ ...prev, database: { error: error.message } }));
+      toast.error("Failed to seed database");
     } finally {
       setLoading(null);
     }
@@ -60,8 +63,10 @@ export default function SeedPage() {
         count: studentCount,
       });
       setResults((prev) => ({ ...prev, students: result }));
+      toast.success(`Created ${studentCount} mock students`);
     } catch (error: any) {
       setResults((prev) => ({ ...prev, students: { error: error.message } }));
+      toast.error("Failed to create mock students");
     } finally {
       setLoading(null);
     }
@@ -76,8 +81,10 @@ export default function SeedPage() {
         count: 15,
       });
       setResults((prev) => ({ ...prev, myAttempts: result }));
+      toast.success("Created 15 mock attempts");
     } catch (error: any) {
       setResults((prev) => ({ ...prev, myAttempts: { error: error.message } }));
+      toast.error("Failed to create mock attempts");
     } finally {
       setLoading(null);
     }
@@ -91,8 +98,10 @@ export default function SeedPage() {
     try {
       const result = await clearAllData({});
       setResults((prev) => ({ ...prev, clear: result }));
+      toast.success("All data cleared");
     } catch (error: any) {
       setResults((prev) => ({ ...prev, clear: { error: error.message } }));
+      toast.error("Failed to clear data");
     } finally {
       setLoading(null);
     }

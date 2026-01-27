@@ -5,6 +5,7 @@ import { ThemeProvider } from "../components/theme-provider";
 import { Navbar } from "../components/navbar";
 import { BottomNav } from "../components/bottom-nav";
 import { UserSync } from "../components/user-sync";
+import { SonnerToaster } from "@repo/ui";
 import "@repo/ui/globals.css";
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ export default function RootLayout({
               <Navbar />
               <main className="min-h-screen pt-14 pb-20 md:pb-0">{children}</main>
               <BottomNav />
+              <SonnerToaster position="top-center" richColors />
             </ConvexClientProvider>
           </ThemeProvider>
         </body>
