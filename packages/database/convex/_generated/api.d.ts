@@ -12,6 +12,7 @@ import type * as analytics from "../analytics.js";
 import type * as attempts from "../attempts.js";
 import type * as batchSwitch from "../batchSwitch.js";
 import type * as batches from "../batches.js";
+import type * as chat from "../chat.js";
 import type * as classes from "../classes.js";
 import type * as notes from "../notes.js";
 import type * as questions from "../questions.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   attempts: typeof attempts;
   batchSwitch: typeof batchSwitch;
   batches: typeof batches;
+  chat: typeof chat;
   classes: typeof classes;
   notes: typeof notes;
   questions: typeof questions;

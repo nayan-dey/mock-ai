@@ -2,6 +2,35 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // AI Chat conversations
+  chatConversations: defineTable({
+    userId: v.id("users"),
+    title: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_updated_at", ["updatedAt"]),
+
+  // AI Chat messages
+  chatMessages: defineTable({
+    conversationId: v.id("chatConversations"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    suggestedLinks: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          href: v.string(),
+        })
+      )
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_conversation", ["conversationId"])
+    .index("by_created_at", ["createdAt"]),
+
+
   // Batch system for organizing students
   batches: defineTable({
     name: v.string(),
