@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.9.6",
+    "@mistralai/mistralai": "^1.13.0",
     "@repo/database": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
@@ -18,7 +19,9 @@
     "lucide-react": "^0.468.0",
     "next": "^15.1.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sonner": "^2.0.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@repo/config": "workspace:*",

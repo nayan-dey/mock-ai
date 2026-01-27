@@ -35,6 +35,7 @@ interface Test {
   duration: number;
   totalMarks: number;
   status: "draft" | "published" | "archived";
+  batchIds?: string[];
   createdAt: number;
 }
 
@@ -42,9 +43,18 @@ export function TestsClient() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const tests = useQuery(api.tests.list, {});
+  const batches = useQuery(api.batches.list, { activeOnly: false });
   const deleteTest = useMutation(api.tests.remove);
   const publishTest = useMutation(api.tests.publish);
   const archiveTest = useMutation(api.tests.archive);
+
+  // Helper to get batch names
+  const getBatchNames = useCallback((batchIds?: string[]) => {
+    if (!batchIds || batchIds.length === 0 || !batches) return null;
+    return batchIds
+      .map((id) => batches.find((b) => b._id === id)?.name)
+      .filter(Boolean);
+  }, [batches]);
 
   const handleDelete = useCallback(async () => {
     if (deleteId) {
@@ -102,6 +112,30 @@ export function TestsClient() {
       cell: ({ row }) => getStatusBadge(row.getValue("status")),
     },
     {
+      accessorKey: "batchIds",
+      header: "Batches",
+      cell: ({ row }) => {
+        const batchNames = getBatchNames(row.original.batchIds);
+        if (!batchNames || batchNames.length === 0) {
+          return <span className="text-xs text-muted-foreground">All</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {batchNames.slice(0, 2).map((name) => (
+              <Badge key={name} variant="outline" className="text-xs">
+                {name}
+              </Badge>
+            ))}
+            {batchNames.length > 2 && (
+              <Badge variant="outline" className="text-xs">
+                +{batchNames.length - 2}
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: ({ column }) => (
         <SortableHeader column={column} title="Created" />
@@ -152,7 +186,7 @@ export function TestsClient() {
         );
       },
     },
-  ], [archiveTest, getStatusBadge, publishTest]);
+  ], [archiveTest, getBatchNames, getStatusBadge, publishTest]);
 
   if (tests === undefined) {
     return (

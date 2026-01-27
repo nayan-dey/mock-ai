@@ -165,6 +165,28 @@ export interface TestFilters {
   subject?: string;
 }
 
+// AI Question Extraction types
+export interface ExtractedQuestion {
+  text: string;
+  options: string[];
+  correctOptions: number[];
+  explanation?: string;
+  subject: string;
+  topic: string;
+  difficulty: Difficulty;
+  confidence: number; // 0-1 confidence score from AI
+  needsReview: boolean; // Flag for questions that may need manual review
+  reviewReason?: string; // Reason why the question needs review
+}
+
+export interface ExtractionResult {
+  success: boolean;
+  questions: ExtractedQuestion[];
+  totalExtracted: number;
+  needsReviewCount: number;
+  error?: string;
+}
+
 // Subject and topic constants
 export const SUBJECTS = [
   "Mathematics",

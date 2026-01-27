@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
+import { useState, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -22,9 +23,11 @@ import {
   TableHeader,
   TableRow,
   Skeleton,
+  Label,
 } from "@repo/ui";
-import { ArrowLeft, FileQuestion, Clock, Trophy, Users } from "lucide-react";
+import { ArrowLeft, FileQuestion, Clock, Trophy, Users, Settings, Save, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import type { Id } from "@repo/database/dataModel";
 
 interface TestDetailClientProps {
@@ -36,6 +39,10 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
   const searchParams = useSearchParams();
 
   const currentTab = searchParams.get("tab") || "questions";
+
+  // Batch selection state
+  const [selectedBatches, setSelectedBatches] = useState<string[] | null>(null);
+  const [isSavingBatches, setIsSavingBatches] = useState(false);
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -50,6 +57,41 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
   const testWithQuestions = useQuery(api.tests.getWithQuestions, { id: testId as Id<"tests"> });
   const testAnalytics = useQuery(api.analytics.getTestAnalytics, { testId: testId as Id<"tests"> });
   const leaderboard = useQuery(api.analytics.getLeaderboard, { testId: testId as Id<"tests"> });
+  const batches = useQuery(api.batches.list, { activeOnly: true });
+  const updateTest = useMutation(api.tests.update);
+
+  // Initialize selected batches from test data
+  const currentBatches = selectedBatches ?? (testWithQuestions?.batchIds as string[] | undefined) ?? [];
+
+  const handleBatchToggle = useCallback((batchId: string) => {
+    setSelectedBatches((prev) => {
+      const current = prev ?? (testWithQuestions?.batchIds as string[] | undefined) ?? [];
+      return current.includes(batchId)
+        ? current.filter((id) => id !== batchId)
+        : [...current, batchId];
+    });
+  }, [testWithQuestions?.batchIds]);
+
+  const handleSaveBatches = async () => {
+    if (!testWithQuestions) return;
+
+    setIsSavingBatches(true);
+    try {
+      await updateTest({
+        id: testId as Id<"tests">,
+        batchIds: currentBatches.length > 0 ? (currentBatches as any) : undefined,
+      });
+      toast.success("Batch assignments updated successfully");
+      setSelectedBatches(null); // Reset to use server data
+    } catch (error) {
+      console.error("Failed to update batches:", error);
+      toast.error("Failed to update batch assignments");
+    } finally {
+      setIsSavingBatches(false);
+    }
+  };
+
+  const hasUnsavedChanges = selectedBatches !== null;
 
   if (testWithQuestions === undefined) {
     return (
@@ -118,6 +160,22 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
           {getStatusBadge(testWithQuestions.status)}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{testWithQuestions.description}</p>
+        {/* Show assigned batches */}
+        {batches && (testWithQuestions.batchIds as string[] | undefined)?.length ? (
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">Batches:</span>
+            {(testWithQuestions.batchIds as string[]).map((batchId) => {
+              const batch = batches.find((b) => b._id === batchId);
+              return batch ? (
+                <Badge key={batchId} variant="secondary" className="text-xs">
+                  {batch.name}
+                </Badge>
+              ) : null;
+            })}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">Available to all students</p>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -185,6 +243,7 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
           <TabsTrigger value="questions" className="flex-1 sm:flex-none">Questions</TabsTrigger>
           <TabsTrigger value="analytics" className="flex-1 sm:flex-none">Analytics</TabsTrigger>
           <TabsTrigger value="leaderboard" className="flex-1 sm:flex-none">Leaderboard</TabsTrigger>
+          <TabsTrigger value="settings" className="flex-1 sm:flex-none">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="questions">
@@ -356,6 +415,89 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Test Settings
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Configure test visibility and batch assignments
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Batch Selection */}
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Target Batches</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Select which batches can access this test. Leave empty to make available to all students.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 rounded-lg border p-4">
+                  {batches && batches.length > 0 ? (
+                    batches.map((batch) => (
+                      <button
+                        key={batch._id}
+                        type="button"
+                        onClick={() => handleBatchToggle(batch._id)}
+                        className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <Badge
+                          variant={currentBatches.includes(batch._id) ? "default" : "outline"}
+                          className="cursor-pointer text-sm py-1 px-3"
+                        >
+                          {batch.name}
+                        </Badge>
+                      </button>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      No batches available
+                    </span>
+                  )}
+                </div>
+                {currentBatches.length > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {currentBatches.length} batch{currentBatches.length > 1 ? "es" : ""} selected -
+                    Only students in these batches can see this test
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No batches selected - All students can see this test
+                  </p>
+                )}
+              </div>
+
+              {/* Save Button */}
+              <div className="flex items-center justify-between border-t pt-4">
+                <div>
+                  {hasUnsavedChanges && (
+                    <p className="text-sm text-amber-600">You have unsaved changes</p>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSaveBatches}
+                  disabled={!hasUnsavedChanges || isSavingBatches}
+                >
+                  {isSavingBatches ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

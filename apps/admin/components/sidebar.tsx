@@ -18,6 +18,7 @@ import {
   Database,
   RefreshCw,
   UserCog,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,7 +27,8 @@ const navItems = [
   { href: "/users", label: "Users", icon: UserCog },
   { href: "/batches", label: "Batches", icon: Users },
   { href: "/batch-switches", label: "Batch Switches", icon: RefreshCw },
-  { href: "/questions", label: "Questions", icon: FileQuestion },
+  { href: "/questions", label: "Questions", icon: FileQuestion, exact: true },
+  { href: "/questions/extract", label: "AI Extract", icon: Sparkles },
   { href: "/tests", label: "Tests", icon: FileText },
   { href: "/notes", label: "Notes", icon: BookOpen },
   { href: "/classes", label: "Classes", icon: Video },
@@ -66,7 +68,9 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
+          const isActive = item.exact
+            ? pathname === item.href || pathname === item.href + "/"
+            : pathname.startsWith(item.href);
           return (
             <Link key={item.href} href={item.href}>
               <Button
