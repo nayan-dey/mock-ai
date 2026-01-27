@@ -21,7 +21,8 @@ import {
   type ChartType,
   useToast,
 } from "@repo/ui";
-import { Save } from "lucide-react";
+import { toast } from "sonner";
+import { Save, FlaskConical, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 function SettingsSkeleton() {
@@ -59,11 +60,13 @@ export default function SettingsPage() {
 
   const updateProfile = useMutation(api.users.updateProfile);
   const upsertSettings = useMutation(api.userSettings.upsert);
+  const seedMockAttempts = useMutation(api.seed.seedMockAttempts);
 
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     if (dbUser) {
@@ -168,6 +171,22 @@ export default function SettingsPage() {
     showOnLeaderboard: userSettings?.showOnLeaderboard ?? true,
   };
 
+  const handleSeedAttempts = async () => {
+    if (!dbUser?._id) return;
+    setIsSeeding(true);
+    try {
+      const result = await seedMockAttempts({
+        userId: dbUser._id,
+        count: 15,
+      });
+      toast.success(`Created ${result.attempts?.length || 15} mock test attempts`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to seed attempts");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <PageHeader
@@ -251,6 +270,45 @@ export default function SettingsPage() {
                 disabled
                 className="bg-muted"
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Developer Tools */}
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              Developer Tools
+            </CardTitle>
+            <CardDescription>
+              Testing utilities for development
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Create 15 mock test attempts spread across the last 60 days.
+                Useful for testing the dashboard, heatmap, results page, and confetti.
+              </p>
+              <Button
+                onClick={handleSeedAttempts}
+                disabled={isSeeding}
+                variant="outline"
+                className="gap-2"
+              >
+                {isSeeding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating attempts...
+                  </>
+                ) : (
+                  <>
+                    <FlaskConical className="h-4 w-4" />
+                    Seed My Attempts
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>

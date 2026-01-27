@@ -31,7 +31,9 @@ interface AttemptData {
   totalQuestions: number;
   submittedAt: number | null;
   accuracy: number;
-  testTitle?: string;
+  testTitle: string;
+  percentage?: number;
+  totalMarks?: number;
 }
 
 export default function ResultsPage() {
@@ -55,15 +57,25 @@ export default function ResultsPage() {
       .filter((a) => a.status === "submitted")
       .map((a) => ({
         ...a,
-        accuracy: a.correct + a.incorrect > 0
-          ? (a.correct / (a.correct + a.incorrect)) * 100
-          : 0,
+        // Use percentage from backend (score/totalMarks) for consistency with detail page
+        accuracy: a.percentage ?? 0,
       }))
       .sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
   }, [attempts]);
 
   // Table columns for TanStack Table
   const columns: ColumnDef<AttemptData>[] = useMemo(() => [
+    {
+      accessorKey: "testTitle",
+      header: ({ column }) => (
+        <SortableHeader column={column} title="Test" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {row.getValue("testTitle") || "Unknown Test"}
+        </span>
+      ),
+    },
     {
       accessorKey: "submittedAt",
       header: ({ column }) => (
@@ -169,9 +181,9 @@ export default function ResultsPage() {
   // Calculate overall stats
   const totalTests = submittedAttempts.length;
   const totalCorrect = submittedAttempts.reduce((acc, a) => acc + a.correct, 0);
-  const totalIncorrect = submittedAttempts.reduce((acc, a) => acc + a.incorrect, 0);
-  const avgAccuracy = totalCorrect + totalIncorrect > 0
-    ? (totalCorrect / (totalCorrect + totalIncorrect)) * 100
+  const totalQuestions = submittedAttempts.reduce((acc, a) => acc + a.totalQuestions, 0);
+  const avgAccuracy = totalQuestions > 0
+    ? (totalCorrect / totalQuestions) * 100
     : 0;
 
   // Get subject performance data
@@ -317,6 +329,9 @@ export default function ResultsPage() {
 
                         {/* Details */}
                         <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {attempt.testTitle || "Unknown Test"}
+                          </p>
                           <div className="flex items-baseline gap-2">
                             <span className="text-lg font-semibold tabular-nums">
                               {attempt.score.toFixed(1)}

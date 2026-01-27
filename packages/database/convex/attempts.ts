@@ -43,11 +43,30 @@ export const getAllByUserAndTest = query({
 export const getByUser = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const attempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .order("desc")
       .collect();
+
+    // Fetch test details for each attempt
+    const attemptsWithTests = await Promise.all(
+      attempts.map(async (attempt) => {
+        const test = await ctx.db.get(attempt.testId);
+        // Calculate percentage based on score/totalMarks (same as detail page)
+        const percentage = test && test.totalMarks > 0
+          ? (attempt.score / test.totalMarks) * 100
+          : 0;
+        return {
+          ...attempt,
+          testTitle: test?.title || "Unknown Test",
+          totalMarks: test?.totalMarks || 0,
+          percentage,
+        };
+      })
+    );
+
+    return attemptsWithTests;
   },
 });
 
