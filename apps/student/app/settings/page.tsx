@@ -20,8 +20,8 @@ import {
   type PrivacySettings,
   type ChartType,
   useToast,
+  sonnerToast,
 } from "@repo/ui";
-import { toast } from "sonner";
 import { Save, FlaskConical, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -179,9 +179,9 @@ export default function SettingsPage() {
         userId: dbUser._id,
         count: 15,
       });
-      toast.success(`Created ${result.attempts?.length || 15} mock test attempts`);
+      sonnerToast.success(`Created ${result.attempts?.length || 15} mock test attempts`);
     } catch (error: any) {
-      toast.error(error.message || "Failed to seed attempts");
+      sonnerToast.error(error.message || "Failed to seed attempts");
     } finally {
       setIsSeeding(false);
     }
