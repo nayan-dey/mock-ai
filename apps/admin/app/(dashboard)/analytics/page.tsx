@@ -19,7 +19,7 @@ import {
   SortableHeader,
   type ColumnDef,
 } from "@repo/ui";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   FileText,
@@ -40,6 +40,13 @@ export default function AnalyticsPage() {
   const stats = useQuery(api.analytics.getAdminDashboard);
   const tests = useQuery(api.tests.listPublished);
   const [selectedTestId, setSelectedTestId] = useState<string>("");
+
+  // Auto-select first test when tests are loaded
+  useEffect(() => {
+    if (tests && tests.length > 0 && !selectedTestId) {
+      setSelectedTestId(tests[0]._id);
+    }
+  }, [tests, selectedTestId]);
 
   const testAnalytics = useQuery(
     api.analytics.getTestAnalytics,

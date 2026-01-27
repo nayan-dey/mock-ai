@@ -1,6 +1,6 @@
 "use client";
 
-import { usePreloadedQuery, useMutation, Preloaded } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { useState, useMemo, useCallback } from "react";
 import {
@@ -20,6 +20,7 @@ import {
   formatDuration,
   DataTable,
   SortableHeader,
+  Skeleton,
   type ColumnDef,
 } from "@repo/ui";
 import { Plus, Trash2, Video, ExternalLink } from "lucide-react";
@@ -38,14 +39,10 @@ interface ClassItem {
   createdAt: number;
 }
 
-interface ClassesClientProps {
-  preloadedClasses: Preloaded<typeof api.classes.list>;
-}
-
-export function ClassesClient({ preloadedClasses }: ClassesClientProps) {
+export function ClassesClient() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const classes = usePreloadedQuery(preloadedClasses);
+  const classes = useQuery(api.classes.list, {});
   const deleteClass = useMutation(api.classes.remove);
 
   const handleDelete = useCallback(async () => {
@@ -123,6 +120,25 @@ export function ClassesClient({ preloadedClasses }: ClassesClientProps) {
       },
     },
   ], []);
+
+  if (classes === undefined) {
+    return (
+      <div className="p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-10 w-28" />
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

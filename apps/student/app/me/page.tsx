@@ -1,3 +1,126 @@
+// "use client";
+
+// import { useUser, SignOutButton } from "@clerk/nextjs";
+// import { useQuery } from "convex/react";
+// import { api } from "@repo/database";
+// import {
+//   Card,
+//   CardContent,
+//   Skeleton,
+//   Avatar,
+//   AvatarFallback,
+// } from "@repo/ui";
+// import {
+//   BarChart3,
+//   BookOpen,
+//   Settings,
+//   ChevronRight,
+//   LogOut,
+// } from "lucide-react";
+// import Link from "next/link";
+
+// function getInitials(name: string): string {
+//   return name
+//     .split(" ")
+//     .map((n) => n[0])
+//     .join("")
+//     .toUpperCase()
+//     .slice(0, 2);
+// }
+
+// function ProfileSkeleton() {
+//   return (
+//     <div className="mx-auto max-w-lg px-4 py-6">
+//       <div className="mb-6 flex items-center gap-4">
+//         <Skeleton className="h-16 w-16 rounded-full" />
+//         <div className="space-y-2">
+//           <Skeleton className="h-5 w-32" />
+//           <Skeleton className="h-4 w-48" />
+//         </div>
+//       </div>
+//       <div className="space-y-2">
+//         {[...Array(3)].map((_, i) => (
+//           <Skeleton key={i} className="h-14 w-full rounded-xl" />
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }
+
+// const menuItems = [
+//   { href: "/results", label: "My Results", icon: BarChart3 },
+//   { href: "/notes", label: "Study Notes", icon: BookOpen },
+//   { href: "/settings", label: "Settings", icon: Settings },
+// ];
+
+// export default function ProfilePage() {
+//   const { user, isLoaded: isUserLoaded } = useUser();
+
+//   const dbUser = useQuery(
+//     api.users.getByClerkId,
+//     user?.id ? { clerkId: user.id } : "skip"
+//   );
+
+//   if (!isUserLoaded || (user && dbUser === undefined)) {
+//     return <ProfileSkeleton />;
+//   }
+
+//   if (!dbUser) {
+//     return <ProfileSkeleton />;
+//   }
+
+//   return (
+//     <div className="mx-auto max-w-lg px-4 py-6">
+//       {/* Profile Header */}
+//       <div className="mb-6 flex items-center gap-4">
+//         <Avatar className="h-16 w-16 border">
+//           {user?.imageUrl ? (
+//             <img src={user.imageUrl} alt={dbUser.name} className="h-full w-full object-cover" />
+//           ) : (
+//             <AvatarFallback className="bg-muted text-lg font-semibold">
+//               {getInitials(dbUser.name)}
+//             </AvatarFallback>
+//           )}
+//         </Avatar>
+//         <div>
+//           <h1 className="text-lg font-semibold">{dbUser.name}</h1>
+//           <p className="text-sm text-muted-foreground">{dbUser.email}</p>
+//         </div>
+//       </div>
+
+//       {/* Menu Items */}
+//       <div className="space-y-2">
+//         {menuItems.map((item) => {
+//           const Icon = item.icon;
+//           return (
+//             <Link key={item.href} href={item.href}>
+//               <Card className="transition-colors hover:bg-muted/50">
+//                 <CardContent className="flex items-center gap-3 p-3">
+//                   <Icon className="h-5 w-5 text-muted-foreground" />
+//                   <span className="flex-1 text-sm font-medium">{item.label}</span>
+//                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
+//                 </CardContent>
+//               </Card>
+//             </Link>
+//           );
+//         })}
+//       </div>
+
+//       {/* Sign Out */}
+//       <div className="mt-4">
+//         <SignOutButton>
+//           <Card className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/20">
+//             <CardContent className="flex items-center gap-3 p-3">
+//               <LogOut className="h-5 w-5 text-red-500" />
+//               <span className="flex-1 text-sm font-medium text-red-600 dark:text-red-400">Sign Out</span>
+//             </CardContent>
+//           </Card>
+//         </SignOutButton>
+//       </div>
+//     </div>
+//   );
+// }
+
 "use client";
 
 import { useUser, UserButton, SignOutButton } from "@clerk/nextjs";
@@ -21,6 +144,8 @@ import {
   Target,
   LogOut,
   BarChart3,
+  Edit,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -51,6 +176,7 @@ function ProfileSkeleton() {
 }
 
 const menuItems = [
+  { href: "/profile/edit", label: "Edit Profile", icon: Edit, description: "Update your information" },
   { href: "/results", label: "My Results", icon: BarChart3, description: "View test history" },
   { href: "/notes", label: "Notes", icon: BookOpen, description: "Study materials" },
   { href: "/settings", label: "Settings", icon: Settings, description: "Preferences & privacy" },
@@ -69,6 +195,16 @@ export default function ProfilePage() {
     dbUser?._id ? { userId: dbUser._id } : "skip"
   );
 
+  const publicAnalytics = useQuery(
+    api.analytics.getPublicStudentAnalytics,
+    dbUser?._id ? { userId: dbUser._id } : "skip"
+  );
+
+  const batch = useQuery(
+    api.batches.getById,
+    dbUser?.batchId ? { id: dbUser.batchId } : "skip"
+  );
+
   if (!isUserLoaded || (user && dbUser === undefined)) {
     return <ProfileSkeleton />;
   }
@@ -82,7 +218,7 @@ export default function ProfilePage() {
       ? ((analytics.totalCorrect / (analytics.totalCorrect + analytics.totalIncorrect)) * 100).toFixed(0)
       : "0";
 
-  const tier: Tier | null = analytics?.tier || null;
+  const tier: Tier | null = publicAnalytics && !publicAnalytics.isPrivate && publicAnalytics.tier ? publicAnalytics.tier : null;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
@@ -106,6 +242,21 @@ export default function ProfilePage() {
         </div>
         <h1 className="mt-3 text-xl font-semibold">{dbUser.name}</h1>
         <p className="text-sm text-muted-foreground">{dbUser.email}</p>
+        {(batch || dbUser.age) && (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+            {batch && (
+              <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />
+                {batch.name}
+              </div>
+            )}
+            {dbUser.age && (
+              <div className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {dbUser.age} years old
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Stats */}

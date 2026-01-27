@@ -18,6 +18,7 @@ export function UserSync() {
     user?.id ? { clerkId: user.id } : "skip"
   );
 
+  // Sync user to database on first load
   useEffect(() => {
     if (isLoaded && user && !hasSynced.current) {
       hasSynced.current = true;
@@ -29,15 +30,39 @@ export function UserSync() {
     }
   }, [isLoaded, user, upsertUser]);
 
-  // Redirect to onboarding if user has no batch
+  // CRITICAL: Check for suspended users and redirect - runs on every render
   useEffect(() => {
-    // Skip if not loaded yet, or on auth pages, or on onboarding page
+    // Skip if auth not loaded or no user
     if (!isLoaded || !user) return;
-    if (pathname.startsWith("/sign-") || pathname === "/onboarding") return;
-    if (pathname === "/") return; // Don't redirect from landing page
 
-    // If db user exists and has no batch, redirect to onboarding
-    if (dbUser && dbUser.role === "student" && !dbUser.batchId) {
+    // Skip auth pages
+    if (pathname.startsWith("/sign-")) return;
+
+    // Wait for db data
+    if (dbUser === undefined) return;
+
+    // If user is suspended and NOT on suspended page, redirect immediately
+    if (dbUser?.isSuspended === true) {
+      if (pathname !== "/suspended") {
+        router.replace("/suspended");
+      }
+      return; // Don't run other checks for suspended users
+    }
+
+    // If user is NOT suspended but is on suspended page, redirect to home
+    if (dbUser && !dbUser.isSuspended && pathname === "/suspended") {
+      router.replace("/");
+      return;
+    }
+
+    // Onboarding check - only for non-suspended students
+    if (
+      pathname !== "/onboarding" &&
+      pathname !== "/" &&
+      dbUser &&
+      dbUser.role === "student" &&
+      !dbUser.batchId
+    ) {
       router.push("/onboarding");
     }
   }, [isLoaded, user, dbUser, pathname, router]);

@@ -16,12 +16,16 @@ import {
   ChevronRight,
   Users,
   Database,
+  RefreshCw,
+  UserCog,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/users", label: "Users", icon: UserCog },
   { href: "/batches", label: "Batches", icon: Users },
+  { href: "/batch-switches", label: "Batch Switches", icon: RefreshCw },
   { href: "/questions", label: "Questions", icon: FileQuestion },
   { href: "/tests", label: "Tests", icon: FileText },
   { href: "/notes", label: "Notes", icon: BookOpen },

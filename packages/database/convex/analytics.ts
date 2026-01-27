@@ -410,6 +410,123 @@ export const getGlobalLeaderboard = query({
 
     const topTenUserIds = new Set(sortedAll.slice(0, 10).map(s => s.userId as string));
 
+    // Fetch all users and settings in parallel
+    const [allUsers, allSettings] = await Promise.all([
+      Promise.all(sortedAll.map((stats) => ctx.db.get(stats.userId))),
+      Promise.all(
+        sortedAll.map((stats) =>
+          ctx.db
+            .query("userSettings")
+            .withIndex("by_user_id", (q) => q.eq("userId", stats.userId))
+            .first()
+        )
+      ),
+    ]);
+
+    // Filter out suspended users and users with showOnLeaderboard = false
+    const filteredStats = sortedAll.filter((stats, index) => {
+      const user = allUsers[index];
+      const settings = allSettings[index];
+      // Exclude suspended users
+      if (user?.isSuspended) return false;
+      // Include if no settings or showOnLeaderboard is true
+      return !settings || settings.showOnLeaderboard !== false;
+    });
+
+    const sorted = filteredStats.slice(0, limit);
+
+    // Get user details with tier
+    const leaderboard = await Promise.all(
+      sorted.map(async (stats, index) => {
+        const user = await ctx.db.get(stats.userId);
+        const avgAccuracy = stats.totalQuestions > 0
+          ? (stats.totalCorrect / stats.totalQuestions) * 100
+          : 0;
+        const tier = calculateTier(
+          stats.testsCompleted,
+          avgAccuracy,
+          topTenUserIds.has(stats.userId as string)
+        );
+
+        return {
+          rank: index + 1,
+          userId: stats.userId,
+          userName: user?.name || "Unknown",
+          totalScore: stats.totalScore,
+          testsCompleted: stats.testsCompleted,
+          avgAccuracy,
+          tier,
+        };
+      })
+    );
+
+    return leaderboard;
+  },
+});
+
+export const getBatchLeaderboard = query({
+  args: {
+    batchId: v.id("batches"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+
+    // Get all users in the batch
+    const batchUsers = await ctx.db
+      .query("users")
+      .withIndex("by_batch", (q) => q.eq("batchId", args.batchId))
+      .collect();
+
+    // Filter out suspended users
+    const activeUsers = batchUsers.filter((u) => !u.isSuspended);
+    const userIds = new Set(activeUsers.map((u) => u._id as string));
+
+    // Get all submitted attempts
+    const attempts = await ctx.db
+      .query("attempts")
+      .filter((q) => q.eq(q.field("status"), "submitted"))
+      .collect();
+
+    // Filter attempts to only include batch users
+    const batchAttempts = attempts.filter((a) => userIds.has(a.userId as string));
+
+    // Aggregate by user
+    const userStats: Record<
+      string,
+      {
+        userId: Id<"users">;
+        totalScore: number;
+        testsCompleted: number;
+        totalCorrect: number;
+        totalQuestions: number;
+      }
+    > = {};
+
+    for (const attempt of batchAttempts) {
+      const id = attempt.userId as string;
+      if (!userStats[id]) {
+        userStats[id] = {
+          userId: attempt.userId,
+          totalScore: 0,
+          testsCompleted: 0,
+          totalCorrect: 0,
+          totalQuestions: 0,
+        };
+      }
+      userStats[id].totalScore += attempt.score;
+      userStats[id].testsCompleted++;
+      userStats[id].totalCorrect += attempt.correct;
+      userStats[id].totalQuestions +=
+        attempt.correct + attempt.incorrect + attempt.unanswered;
+    }
+
+    // Sort by total score
+    const sortedAll = Object.values(userStats)
+      .sort((a, b) => b.totalScore - a.totalScore);
+
+    const topTenUserIds = new Set(sortedAll.slice(0, 10).map(s => s.userId as string));
+
     // Fetch all user settings in parallel
     const allSettings = await Promise.all(
       sortedAll.map((stats) =>
@@ -423,7 +540,6 @@ export const getGlobalLeaderboard = query({
     // Filter out users with showOnLeaderboard = false
     const filteredStats = sortedAll.filter((stats, index) => {
       const settings = allSettings[index];
-      // Include if no settings or showOnLeaderboard is true
       return !settings || settings.showOnLeaderboard !== false;
     });
 

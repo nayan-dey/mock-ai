@@ -2,6 +2,62 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
+// Clear all data from the database
+export const clearAllData = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get counts before deletion
+    const users = await ctx.db.query("users").collect();
+    const questions = await ctx.db.query("questions").collect();
+    const tests = await ctx.db.query("tests").collect();
+    const attempts = await ctx.db.query("attempts").collect();
+    const batches = await ctx.db.query("batches").collect();
+    const classes = await ctx.db.query("classes").collect();
+    const notes = await ctx.db.query("notes").collect();
+    const userSettings = await ctx.db.query("userSettings").collect();
+
+    // Delete all records from each table
+    for (const user of users) {
+      await ctx.db.delete(user._id);
+    }
+    for (const question of questions) {
+      await ctx.db.delete(question._id);
+    }
+    for (const test of tests) {
+      await ctx.db.delete(test._id);
+    }
+    for (const attempt of attempts) {
+      await ctx.db.delete(attempt._id);
+    }
+    for (const batch of batches) {
+      await ctx.db.delete(batch._id);
+    }
+    for (const classItem of classes) {
+      await ctx.db.delete(classItem._id);
+    }
+    for (const note of notes) {
+      await ctx.db.delete(note._id);
+    }
+    for (const setting of userSettings) {
+      await ctx.db.delete(setting._id);
+    }
+
+    return {
+      message: "All data cleared successfully!",
+      deleted: {
+        users: users.length,
+        questions: questions.length,
+        tests: tests.length,
+        attempts: attempts.length,
+        batches: batches.length,
+        classes: classes.length,
+        notes: notes.length,
+        userSettings: userSettings.length,
+      },
+    };
+  },
+});
+
 export const seedDatabase = mutation({
   args: {
     adminClerkId: v.string(),

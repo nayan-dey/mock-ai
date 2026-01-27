@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui";
-import { Database, Users, Play, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Database, Users, Play, CheckCircle, Loader2, AlertCircle, Trash2 } from "lucide-react";
 
 export default function SeedPage() {
   const { user } = useUser();
@@ -36,6 +36,7 @@ export default function SeedPage() {
   const seedDatabase = useMutation(api.seed.seedDatabase);
   const seedMockStudents = useMutation(api.seed.seedMockStudents);
   const seedMockAttempts = useMutation(api.seed.seedMockAttempts);
+  const clearAllData = useMutation(api.seed.clearAllData);
 
   const handleSeedDatabase = async () => {
     if (!user?.id) return;
@@ -77,6 +78,21 @@ export default function SeedPage() {
       setResults((prev) => ({ ...prev, myAttempts: result }));
     } catch (error: any) {
       setResults((prev) => ({ ...prev, myAttempts: { error: error.message } }));
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleClearAllData = async () => {
+    if (!confirm("Are you sure you want to delete ALL data? This cannot be undone!")) {
+      return;
+    }
+    setLoading("clear");
+    try {
+      const result = await clearAllData({});
+      setResults((prev) => ({ ...prev, clear: result }));
+    } catch (error: any) {
+      setResults((prev) => ({ ...prev, clear: { error: error.message } }));
     } finally {
       setLoading(null);
     }
@@ -308,6 +324,76 @@ export default function SeedPage() {
                         {results.myAttempts.attempts.length > 3 && (
                           <div>...and {results.myAttempts.attempts.length - 3} more attempts</div>
                         )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Clear All Data */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Clear All Data</CardTitle>
+                <CardDescription>
+                  Delete all users, questions, tests, attempts, and other data
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-destructive">Warning:</strong> This will permanently delete all data
+              from the database including users, questions, tests, attempts, batches, classes, and notes.
+              This action cannot be undone!
+            </p>
+            <Button
+              onClick={handleClearAllData}
+              disabled={loading !== null}
+              variant="destructive"
+              className="w-full gap-2"
+            >
+              {loading === "clear" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Clear All Data
+            </Button>
+            {results.clear && (
+              <div className="rounded-lg border p-3 text-sm">
+                {results.clear.error ? (
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {results.clear.error}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle className="h-4 w-4" />
+                      {results.clear.message}
+                    </div>
+                    {results.clear.deleted && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Badge variant="secondary">
+                          {results.clear.deleted.users} users
+                        </Badge>
+                        <Badge variant="secondary">
+                          {results.clear.deleted.questions} questions
+                        </Badge>
+                        <Badge variant="secondary">
+                          {results.clear.deleted.tests} tests
+                        </Badge>
+                        <Badge variant="secondary">
+                          {results.clear.deleted.attempts} attempts
+                        </Badge>
                       </div>
                     )}
                   </div>

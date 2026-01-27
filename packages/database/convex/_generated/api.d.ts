@@ -10,6 +10,7 @@
 
 import type * as analytics from "../analytics.js";
 import type * as attempts from "../attempts.js";
+import type * as batchSwitch from "../batchSwitch.js";
 import type * as batches from "../batches.js";
 import type * as classes from "../classes.js";
 import type * as notes from "../notes.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   attempts: typeof attempts;
+  batchSwitch: typeof batchSwitch;
   batches: typeof batches;
   classes: typeof classes;
   notes: typeof notes;

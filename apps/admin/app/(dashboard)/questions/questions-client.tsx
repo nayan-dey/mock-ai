@@ -1,6 +1,6 @@
 "use client";
 
-import { usePreloadedQuery, useMutation, Preloaded } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DataTable,
   SortableHeader,
+  Skeleton,
   type ColumnDef,
 } from "@repo/ui";
 import { Plus, Edit, Trash2, FileQuestion } from "lucide-react";
@@ -41,11 +42,7 @@ interface Question {
   difficulty: "easy" | "medium" | "hard";
 }
 
-interface QuestionsClientProps {
-  preloadedQuestions: Preloaded<typeof api.questions.list>;
-}
-
-export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
+export function QuestionsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -63,7 +60,10 @@ export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
     router.push(`?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
 
-  const questions = usePreloadedQuery(preloadedQuestions);
+  const questions = useQuery(api.questions.list, {
+    subject: selectedSubject || undefined,
+    difficulty: (selectedDifficulty as "easy" | "medium" | "hard") || undefined,
+  });
   const deleteQuestion = useMutation(api.questions.remove);
 
   const handleDelete = useCallback(async () => {
@@ -140,6 +140,30 @@ export function QuestionsClient({ preloadedQuestions }: QuestionsClientProps) {
       ),
     },
   ], [getDifficultyBadge]);
+
+  if (questions === undefined) {
+    return (
+      <div className="p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <Skeleton className="h-10 w-48" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

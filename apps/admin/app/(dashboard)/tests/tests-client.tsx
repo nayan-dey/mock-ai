@@ -1,6 +1,6 @@
 "use client";
 
-import { usePreloadedQuery, useMutation, Preloaded } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { useState, useMemo, useCallback } from "react";
 import {
@@ -19,6 +19,7 @@ import {
   formatDate,
   DataTable,
   SortableHeader,
+  Skeleton,
   type ColumnDef,
 } from "@repo/ui";
 import { Plus, Trash2, FileText, Eye, Globe, Archive } from "lucide-react";
@@ -37,14 +38,10 @@ interface Test {
   createdAt: number;
 }
 
-interface TestsClientProps {
-  preloadedTests: Preloaded<typeof api.tests.list>;
-}
-
-export function TestsClient({ preloadedTests }: TestsClientProps) {
+export function TestsClient() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const tests = usePreloadedQuery(preloadedTests);
+  const tests = useQuery(api.tests.list, {});
   const deleteTest = useMutation(api.tests.remove);
   const publishTest = useMutation(api.tests.publish);
   const archiveTest = useMutation(api.tests.archive);
@@ -156,6 +153,25 @@ export function TestsClient({ preloadedTests }: TestsClientProps) {
       },
     },
   ], [archiveTest, getStatusBadge, publishTest]);
+
+  if (tests === undefined) {
+    return (
+      <div className="p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="space-y-1">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

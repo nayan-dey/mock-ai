@@ -44,7 +44,7 @@ export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants } from "./co
 export { Checkbox } from "./components/checkbox";
 export { RadioGroup, RadioGroupItem } from "./components/radio-group";
 export { Skeleton } from "./components/skeleton";
-export { Avatar, AvatarImage, AvatarFallback } from "./components/avatar";
+export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount } from "./components/avatar";
 export {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -81,6 +81,12 @@ export {
   TooltipProvider,
 } from "./components/tooltip";
 export { ScrollArea, ScrollBar } from "./components/scroll-area";
+export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "./components/accordion";
 export {
   type ToastProps,
   type ToastActionElement,

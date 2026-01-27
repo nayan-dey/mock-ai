@@ -12,26 +12,39 @@ import {
   CardDescription,
   Button,
   Skeleton,
-  QuestionCard,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
   LeaderboardTable,
   Badge,
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
   type LeaderboardEntry,
 } from "@repo/ui";
-import { ArrowLeft, Trophy, Users, CheckCircle2, XCircle, Clock, MinusCircle } from "lucide-react";
+import { ArrowLeft, Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter } from "lucide-react";
 import Link from "next/link";
 import type { GenericId } from "convex/values";
+import { useState, useMemo } from "react";
 
 type Id<T extends string> = GenericId<T>;
 type AttemptId = Id<"attempts">;
+
+type FilterType = "all" | "correct" | "incorrect" | "skipped";
 
 export default function ResultDetailPage() {
   const params = useParams();
   const attemptId = params.id as string;
   const { user } = useUser();
+  const [filter, setFilter] = useState<FilterType>("all");
 
   const attemptWithDetails = useQuery(api.attempts.getWithDetails, {
     id: attemptId as AttemptId,
@@ -59,6 +72,33 @@ export default function ResultDetailPage() {
       : "skip"
   );
 
+  // Filter questions based on selected filter
+  const filteredQuestions = useMemo(() => {
+    if (!attemptWithDetails) return [];
+    const { questions, answers } = attemptWithDetails;
+
+    return questions.filter((question) => {
+      if (!question) return false;
+      const answer = answers.find((a) => a.questionId === question._id);
+      const selectedOptions = answer?.selected || [];
+      const isCorrect =
+        selectedOptions.length === question.correctOptions.length &&
+        selectedOptions.every((s) => question.correctOptions.includes(s));
+      const isSkipped = selectedOptions.length === 0;
+
+      switch (filter) {
+        case "correct":
+          return isCorrect;
+        case "incorrect":
+          return !isCorrect && !isSkipped;
+        case "skipped":
+          return isSkipped;
+        default:
+          return true;
+      }
+    });
+  }, [attemptWithDetails, filter]);
+
   if (!attemptWithDetails) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
@@ -78,6 +118,13 @@ export default function ResultDetailPage() {
   const minutes = Math.floor(timeTaken / 60000);
   const seconds = Math.floor((timeTaken % 60000) / 1000);
   const totalQuestions = questions.length;
+
+  const filterLabels: Record<FilterType, string> = {
+    all: "All Questions",
+    correct: "Correct",
+    incorrect: "Incorrect",
+    skipped: "Skipped",
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
@@ -284,91 +331,148 @@ export default function ResultDetailPage() {
 
         {/* Review Tab */}
         <TabsContent value="review" className="space-y-4">
-          {questions.filter(Boolean).map((question, index) => {
-            if (!question) return null;
-            const answer = answers.find((a) => a.questionId === question._id);
-            const selectedOptions = answer?.selected || [];
-            const isCorrect =
-              selectedOptions.length === question.correctOptions.length &&
-              selectedOptions.every((s) => question.correctOptions.includes(s));
-            const isSkipped = selectedOptions.length === 0;
+          {/* Filter Dropdown */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {filteredQuestions.length} of {totalQuestions} questions
+            </p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-2">
+                  <ListFilter className="h-3.5 w-3.5" />
+                  {filterLabels[filter]}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuLabel className="text-xs">Filter by</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setFilter("all")}>
+                  All Questions
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter("correct")}>
+                  <CheckCircle2 className="mr-2 h-3.5 w-3.5 text-emerald-500" />
+                  Correct
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter("incorrect")}>
+                  <XCircle className="mr-2 h-3.5 w-3.5 text-red-500" />
+                  Incorrect
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter("skipped")}>
+                  <MinusCircle className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                  Skipped
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-            return (
-              <Card key={question._id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded text-xs font-medium ${
-                      isCorrect
-                        ? "bg-emerald-500/10 text-emerald-600"
-                        : isSkipped
-                          ? "bg-muted text-muted-foreground"
-                          : "bg-red-500/10 text-red-600"
-                    }`}>
-                      {index + 1}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {isCorrect ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      ) : isSkipped ? (
-                        <MinusCircle className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500" />
-                      )}
-                      <span className="text-sm text-muted-foreground">
-                        {isCorrect ? "Correct" : isSkipped ? "Skipped" : "Incorrect"}
-                      </span>
-                    </div>
-                    <Badge variant="secondary" className="ml-auto text-[10px]">
-                      {question.subject}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm">{question.text}</p>
+          {/* Questions Accordion */}
+          <Card>
+            <CardContent className="p-0">
+              <Accordion type="single" collapsible className="w-full">
+                {filteredQuestions.map((question, index) => {
+                  if (!question) return null;
+                  const answer = answers.find((a) => a.questionId === question._id);
+                  const selectedOptions = answer?.selected || [];
+                  const isCorrect =
+                    selectedOptions.length === question.correctOptions.length &&
+                    selectedOptions.every((s) => question.correctOptions.includes(s));
+                  const isSkipped = selectedOptions.length === 0;
+                  const questionIndex = questions.findIndex(q => q?._id === question._id);
 
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {question.options.map((option, optIndex) => {
-                      const isSelected = selectedOptions.includes(optIndex);
-                      const isCorrectOption = question.correctOptions.includes(optIndex);
-
-                      return (
-                        <div
-                          key={optIndex}
-                          className={`rounded-lg border p-3 text-sm ${
-                            isCorrectOption
-                              ? "border-emerald-500/50 bg-emerald-500/5"
-                              : isSelected && !isCorrectOption
-                                ? "border-red-500/50 bg-red-500/5"
-                                : ""
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs font-medium ${
-                              isCorrectOption
-                                ? "bg-emerald-500 text-white"
-                                : isSelected
-                                  ? "bg-red-500 text-white"
-                                  : "bg-muted"
-                            }`}>
-                              {String.fromCharCode(65 + optIndex)}
-                            </span>
-                            <span>{option}</span>
+                  return (
+                    <AccordionItem key={question._id} value={question._id} className="border-b last:border-b-0">
+                      <AccordionTrigger className="px-4 hover:no-underline">
+                        <div className="flex items-center gap-3 text-left">
+                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs font-medium ${
+                            isCorrect
+                              ? "bg-emerald-500/10 text-emerald-600"
+                              : isSkipped
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-red-500/10 text-red-600"
+                          }`}>
+                            {questionIndex + 1}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {isCorrect ? (
+                              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                            ) : isSkipped ? (
+                              <MinusCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <XCircle className="h-4 w-4 shrink-0 text-red-500" />
+                            )}
+                            <span className="line-clamp-1 text-sm">{question.text}</span>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4">
+                        <div className="space-y-4 pt-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {question.subject}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {isCorrect ? "Answered correctly" : isSkipped ? "Not answered" : "Answered incorrectly"}
+                            </span>
+                          </div>
 
-                  {question.explanation && (
-                    <div className="rounded-lg bg-muted/50 p-3">
-                      <p className="mb-1 text-xs font-medium text-muted-foreground">Explanation</p>
-                      <p className="text-sm">{question.explanation}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                          <p className="text-sm">{question.text}</p>
+
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {question.options.map((option, optIndex) => {
+                              const isSelected = selectedOptions.includes(optIndex);
+                              const isCorrectOption = question.correctOptions.includes(optIndex);
+
+                              return (
+                                <div
+                                  key={optIndex}
+                                  className={`rounded-lg border p-3 text-sm ${
+                                    isCorrectOption
+                                      ? "border-emerald-500/50 bg-emerald-500/5"
+                                      : isSelected && !isCorrectOption
+                                        ? "border-red-500/50 bg-red-500/5"
+                                        : ""
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs font-medium ${
+                                      isCorrectOption
+                                        ? "bg-emerald-500 text-white"
+                                        : isSelected
+                                          ? "bg-red-500 text-white"
+                                          : "bg-muted"
+                                    }`}>
+                                      {String.fromCharCode(65 + optIndex)}
+                                    </span>
+                                    <span>{option}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {question.explanation && (
+                            <div className="rounded-lg bg-muted/50 p-3">
+                              <p className="mb-1 text-xs font-medium text-muted-foreground">Explanation</p>
+                              <p className="text-sm">{question.explanation}</p>
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+
+              {filteredQuestions.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Filter className="mb-2 h-5 w-5 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    No questions match this filter
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Leaderboard Tab */}

@@ -16,22 +16,23 @@ import {
   Badge,
   ActivityHeatmap,
   TierBadge,
-  AchievementList,
   type Tier,
-  type Achievement,
 } from "@repo/ui";
 import {
   User,
   Calendar,
   Trophy,
-  Target,
-  FileText,
   Lock,
   EyeOff,
-  TrendingUp,
+  Award,
+  ArrowLeft,
+  Users,
+  Ban,
 } from "lucide-react";
 import { useMemo } from "react";
 import type { GenericId } from "convex/values";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type Id<T extends string> = GenericId<T>;
 
@@ -46,32 +47,49 @@ function getInitials(name: string): string {
 
 function ProfileSkeleton() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            <Skeleton className="h-20 w-20 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-64" />
-              <Skeleton className="h-3 w-32" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="mx-auto max-w-lg px-4 py-6">
+      <Skeleton className="mb-4 h-5 w-32" />
+      <div className="mb-6 flex flex-col items-center">
+        <Skeleton className="h-24 w-24 rounded-full" />
+        <Skeleton className="mt-4 h-6 w-32" />
+        <Skeleton className="mt-2 h-4 w-48" />
+      </div>
+      <Skeleton className="mb-4 h-24 w-full rounded-xl" />
+      <div className="grid grid-cols-2 gap-3">
         {[...Array(4)].map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-lg" />
+          <Skeleton key={i} className="h-20 w-full rounded-xl" />
         ))}
       </div>
     </div>
   );
 }
 
+function getTierGradient(tier: Tier | null): string {
+  if (!tier) return "bg-gradient-to-br from-gray-300 to-gray-400";
+
+  switch (tier.tier) {
+    case 6: // Legend
+      return "bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500";
+    case 5: // Subject Master
+      return "bg-gradient-to-br from-purple-400 to-purple-600";
+    case 4: // Test Champion
+      return "bg-gradient-to-br from-orange-400 to-orange-500";
+    case 3: // Consistent Performer
+      return "bg-gradient-to-br from-yellow-400 to-yellow-500";
+    case 2: // Quick Learner
+      return "bg-gradient-to-br from-green-400 to-green-500";
+    case 1: // Rising Star
+      return "bg-gradient-to-br from-blue-400 to-blue-500";
+    default: // Newcomer
+      return "bg-gradient-to-br from-gray-300 to-gray-400";
+  }
+}
+
 export default function ProfilePage() {
   const params = useParams();
   const userId = params.userId as string;
   const { user: currentUser } = useUser();
+  const router = useRouter();
 
   const profile = useQuery(api.users.getPublicProfile, {
     userId: userId as Id<"users">,
@@ -85,15 +103,18 @@ export default function ProfilePage() {
     userId: userId as Id<"users">,
   });
 
-  // Get current user's db record to check if viewing own profile
   const currentDbUser = useQuery(
     api.users.getByClerkId,
     currentUser?.id ? { clerkId: currentUser.id } : "skip"
   );
 
+  // Get top performers for the avatar group
+  const globalLeaderboard = useQuery(api.analytics.getGlobalLeaderboard, {
+    limit: 10,
+  });
+
   const isOwnProfile = currentDbUser?._id === userId;
 
-  // Generate dates for heatmap (last year)
   const heatmapDates = useMemo(() => {
     const today = new Date();
     const yearAgo = new Date(today);
@@ -115,24 +136,62 @@ export default function ProfilePage() {
       : "skip"
   );
 
-  // Loading state
+  // Get nearby competitors (exclude current profile user)
+  const nearbyCompetitors = useMemo(() => {
+    if (!globalLeaderboard || !publicAnalytics?.rank) return [];
+    return globalLeaderboard
+      .filter((entry) => entry.userId !== userId)
+      .slice(0, 5);
+  }, [globalLeaderboard, publicAnalytics?.rank, userId]);
+
   if (profile === undefined) {
     return <ProfileSkeleton />;
   }
 
-  // User not found
   if (profile === null) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <Card className="py-8 text-center sm:py-12">
-          <CardContent>
-            <User className="mx-auto mb-4 h-10 w-10 text-muted-foreground sm:h-12 sm:w-12" />
-            <h3 className="mb-2 text-base font-medium sm:text-lg">
-              User Not Found
-            </h3>
-            <p className="text-sm text-muted-foreground">
+      <div className="mx-auto max-w-lg px-4 py-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <User className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">User Not Found</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               This profile doesn't exist or has been removed.
             </p>
+            <Link href="/leaderboard" className="mt-4 text-sm text-primary hover:underline">
+              Back to Leaderboard
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Handle suspended user
+  if (profile.isSuspended) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-6">
+        <Link
+          href="/leaderboard"
+          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Rankings
+        </Link>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-red-100 p-3 dark:bg-red-950/30">
+              <Ban className="h-6 w-6 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">Account Suspended</h3>
+            <p className="mt-1 text-center text-sm text-muted-foreground max-w-xs">
+              This user's account has been suspended and their profile is not available.
+            </p>
+            <Link href="/leaderboard" className="mt-4 text-sm text-primary hover:underline">
+              Back to Leaderboard
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -142,140 +201,194 @@ export default function ProfilePage() {
   const tier: Tier | null = publicAnalytics?.tier || null;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      {/* Profile Header Card */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            <Avatar className="h-20 w-20 border-2 border-border">
-              <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+    <div className="mx-auto max-w-lg px-4 py-6">
+      {/* Back button */}
+      <Link
+        href="/leaderboard"
+        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Rankings
+      </Link>
+
+      {/* Profile Header */}
+      <div className="mb-6 flex flex-col items-center text-center">
+        {/* Avatar with tier ring */}
+        <div className="relative">
+          <div className={`rounded-full p-1 ${getTierGradient(tier)}`}>
+            <Avatar className="h-24 w-24 border-4 border-background">
+              <AvatarFallback className="bg-muted text-2xl font-semibold">
                 {getInitials(profile.name)}
               </AvatarFallback>
             </Avatar>
-
-            <div className="flex-1 text-center sm:text-left">
-              <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap">
-                <h1 className="text-xl font-semibold">{profile.name}</h1>
-                <div className="flex items-center gap-2">
-                  {tier && <TierBadge tier={tier} size="md" />}
-                  {isOwnProfile && (
-                    <Badge variant="secondary" className="text-xs">
-                      Your Profile
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              {profile.bio && (
-                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                  {profile.bio}
-                </p>
-              )}
-              <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground sm:justify-start">
-                <Calendar className="h-3.5 w-3.5" />
-                Joined {new Date(profile.createdAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </div>
-            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <h1 className="mt-4 text-xl font-semibold">{profile.name}</h1>
+        {profile.bio && (
+          <p className="mt-1 text-sm text-muted-foreground max-w-xs">{profile.bio}</p>
+        )}
+
+        {/* Age and Batch */}
+        {(profile.age || profile.batchName) && (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+            {profile.batchName && (
+              <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />
+                {profile.batchName}
+              </div>
+            )}
+            {profile.age && (
+              <div className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {profile.age} years old
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tier & badges */}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          {tier && <TierBadge tier={tier} size="md" />}
+          {isOwnProfile && (
+            <Badge variant="secondary" className="gap-1">
+              Your Profile
+            </Badge>
+          )}
+          {publicAnalytics?.rank && (
+            <Badge variant="outline" className="gap-1">
+              <Trophy className="h-3 w-3" />
+              Rank #{publicAnalytics.rank}
+            </Badge>
+          )}
+        </div>
+
+        {/* Member since */}
+        <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
+          <Calendar className="h-3 w-3" />
+          Joined {new Date(profile.createdAt).toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          })}
+        </p>
+      </div>
 
       {/* Stats and Activity */}
       {publicAnalytics?.isPrivate ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-10 sm:py-12">
-            <Lock className="mb-4 h-10 w-10 text-muted-foreground sm:h-12 sm:w-12" />
-            <h3 className="mb-2 font-medium">Statistics Hidden</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-xs">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="rounded-full bg-muted p-3">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">Statistics Hidden</h3>
+            <p className="mt-1 text-sm text-muted-foreground text-center max-w-xs">
               This user has chosen to keep their statistics private.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Tests Taken</p>
-                    <p className="text-2xl font-semibold tabular-nums">
-                      {publicAnalytics?.totalTestsTaken || 0}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <FileText className="h-5 w-5 text-primary" />
-                  </div>
+        <div className="space-y-4">
+          {/* Stats Card */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-2xl font-bold tabular-nums">
+                    {publicAnalytics?.totalTestsTaken || 0}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Tests</p>
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums text-emerald-600">
+                    {publicAnalytics?.avgAccuracy || 0}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Accuracy</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums">
+                    {publicAnalytics?.totalScore?.toFixed(0) || 0}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Score</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums">
+                    #{publicAnalytics?.rank || "-"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Rank</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Top Competitors - Avatar Group */}
+          {nearbyCompetitors.length > 0 && (
             <Card>
-              <CardContent className="p-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Top Competitors</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Accuracy</p>
-                    <p className="text-2xl font-semibold tabular-nums text-emerald-600">
-                      {publicAnalytics?.avgAccuracy || 0}%
-                    </p>
+                  <div className="flex -space-x-2 grayscale [&>*]:ring-2 [&>*]:ring-background">
+                    {nearbyCompetitors.slice(0, 3).map((competitor) => (
+                      <Avatar
+                        key={competitor.userId}
+                        className="h-10 w-10 cursor-pointer"
+                        onClick={() => router.push(`/profile/${competitor.userId}`)}
+                      >
+                        <AvatarFallback className="bg-muted">
+                          <User className="h-5 w-5 text-muted-foreground" />
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {nearbyCompetitors.length > 3 && (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                        +{nearbyCompetitors.length - 3}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                    <Target className="h-5 w-5 text-emerald-500" />
-                  </div>
+                  <Link
+                    href="/leaderboard"
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    View all
+                  </Link>
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Total Score</p>
-                    <p className="text-2xl font-semibold tabular-nums">
-                      {publicAnalytics?.totalScore?.toFixed(0) || 0}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
-                    <Trophy className="h-5 w-5 text-purple-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Global Rank</p>
-                    <p className="text-2xl font-semibold tabular-nums">
-                      #{publicAnalytics?.rank || "-"}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                    <TrendingUp className="h-5 w-5 text-blue-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          )}
 
           {/* Achievements */}
           {achievements && achievements.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Achievements</CardTitle>
-                <CardDescription className="text-xs">
-                  {achievements.length} achievement{achievements.length !== 1 ? 's' : ''} unlocked
-                </CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Award className="h-4 w-4 text-amber-500" />
+                    <CardTitle className="text-sm font-medium">Achievements</CardTitle>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {achievements.length} unlocked
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
-                <AchievementList
-                  achievements={achievements as Achievement[]}
-                  size="md"
-                />
+              <CardContent className="pt-0">
+                <div className="flex -space-x-2 [&>*]:ring-2 [&>*]:ring-background">
+                  {achievements.slice(0, 3).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10"
+                    >
+                      <Award className="h-5 w-5 text-amber-500" />
+                    </div>
+                  ))}
+                  {achievements.length > 3 && (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                      +{achievements.length - 3}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -283,7 +396,7 @@ export default function ProfilePage() {
           {/* Activity Heatmap */}
           {profile.showHeatmap ? (
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Activity</CardTitle>
                 <CardDescription className="text-xs">
                   Test activity over the past year
@@ -291,19 +404,19 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 {heatmapData ? (
-                  <div className="overflow-x-auto">
-                    <ActivityHeatmap data={heatmapData} />
+                  <div className="overflow-x-auto -mx-2">
+                    <div className="min-w-[600px] px-2">
+                      <ActivityHeatmap data={heatmapData} />
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex h-32 items-center justify-center">
-                    <Skeleton className="h-full w-full" />
-                  </div>
+                  <Skeleton className="h-32 w-full" />
                 )}
               </CardContent>
             </Card>
           ) : (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
+              <CardContent className="flex flex-col items-center justify-center py-10">
                 <EyeOff className="mb-2 h-5 w-5 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   Activity heatmap is hidden

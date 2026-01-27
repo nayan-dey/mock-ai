@@ -26,14 +26,30 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     bio: v.optional(v.string()),
+    age: v.optional(v.number()),
     role: v.union(v.literal("student"), v.literal("teacher"), v.literal("admin")),
     batchId: v.optional(v.id("batches")),
+    isSuspended: v.optional(v.boolean()),
+    suspendedAt: v.optional(v.number()),
+    suspendedBy: v.optional(v.id("users")),
+    suspendReason: v.optional(v.string()),
+    batchLocked: v.optional(v.boolean()), // Set to true when admin assigns batch during unsuspension
     createdAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
     .index("by_role", ["role"])
-    .index("by_batch", ["batchId"]),
+    .index("by_batch", ["batchId"])
+    .index("by_suspended", ["isSuspended"]),
+
+  batchSwitchHistory: defineTable({
+    userId: v.id("users"),
+    fromBatchId: v.optional(v.id("batches")),
+    toBatchId: v.id("batches"),
+    switchedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_switched_at", ["switchedAt"]),
 
   questions: defineTable({
     text: v.string(),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { usePreloadedQuery, Preloaded } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@repo/database";
 import {
   Card,
@@ -21,21 +21,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Skeleton,
 } from "@repo/ui";
 import { ArrowLeft, FileQuestion, Clock, Trophy, Users } from "lucide-react";
 import Link from "next/link";
+import type { Id } from "@repo/database/dataModel";
 
 interface TestDetailClientProps {
-  preloadedTest: Preloaded<typeof api.tests.getWithQuestions>;
-  preloadedAnalytics: Preloaded<typeof api.analytics.getTestAnalytics>;
-  preloadedLeaderboard: Preloaded<typeof api.analytics.getLeaderboard>;
+  testId: string;
 }
 
-export function TestDetailClient({
-  preloadedTest,
-  preloadedAnalytics,
-  preloadedLeaderboard,
-}: TestDetailClientProps) {
+export function TestDetailClient({ testId }: TestDetailClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -51,9 +47,40 @@ export function TestDetailClient({
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  const testWithQuestions = usePreloadedQuery(preloadedTest);
-  const testAnalytics = usePreloadedQuery(preloadedAnalytics);
-  const leaderboard = usePreloadedQuery(preloadedLeaderboard);
+  const testWithQuestions = useQuery(api.tests.getWithQuestions, { id: testId as Id<"tests"> });
+  const testAnalytics = useQuery(api.analytics.getTestAnalytics, { testId: testId as Id<"tests"> });
+  const leaderboard = useQuery(api.analytics.getLeaderboard, { testId: testId as Id<"tests"> });
+
+  if (testWithQuestions === undefined) {
+    return (
+      <div className="p-6">
+        <Link href="/tests">
+          <Button variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Tests
+          </Button>
+        </Link>
+        <div className="mb-6">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="mb-6 grid gap-3 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!testWithQuestions) {
     return (

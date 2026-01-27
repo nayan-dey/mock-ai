@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -22,12 +22,21 @@ import {
   DialogHeader,
   DialogTitle,
   formatDuration,
-  PageHeader,
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@repo/ui";
-import { Video, Play } from "lucide-react";
+import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, Clock, ChevronRight } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery as useConvexQuery } from "convex/react";
 import { SUBJECTS, TOPICS } from "@repo/types";
+
+type SortOption = "default" | "duration-asc" | "duration-desc" | "title-asc" | "title-desc";
+type ViewMode = "grid" | "list";
 
 export default function ClassesPage() {
   const { user } = useUser();
@@ -37,6 +46,8 @@ export default function ClassesPage() {
     title: string;
     videoUrl: string;
   } | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const dbUser = useConvexQuery(
     api.users.getByClerkId,
@@ -49,67 +60,145 @@ export default function ClassesPage() {
     topic: selectedTopic || undefined,
   });
 
+  const sortedClasses = useMemo(() => {
+    if (!classes) return [];
+
+    const sorted = [...classes];
+    switch (sortBy) {
+      case "duration-asc":
+        return sorted.sort((a, b) => a.duration - b.duration);
+      case "duration-desc":
+        return sorted.sort((a, b) => b.duration - a.duration);
+      case "title-asc":
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case "title-desc":
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      default:
+        return sorted;
+    }
+  }, [classes, sortBy]);
+
   const availableTopics =
     selectedSubject && selectedSubject in TOPICS
       ? TOPICS[selectedSubject as keyof typeof TOPICS]
       : [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <PageHeader
-        title="Recorded Classes"
-        description="Watch video lectures at your own pace"
-      />
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      {/* Header */}
+      <div className="mb-6 flex items-end justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Recorded Classes</h1>
+          <p className="text-sm text-muted-foreground">
+            {classes ? `${classes.length} class${classes.length !== 1 ? "es" : ""} available` : "Loading..."}
+          </p>
+        </div>
+
+        {/* Controls */}
+        {classes && classes.length > 0 && (
+          <div className="flex items-center gap-1">
+            {/* View Toggle */}
+            <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`rounded-md p-1.5 transition-colors ${
+                  viewMode === "list" ? "bg-background shadow-sm" : "hover:bg-background/50"
+                }`}
+              >
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`rounded-md p-1.5 transition-colors ${
+                  viewMode === "grid" ? "bg-background shadow-sm" : "hover:bg-background/50"
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Sort Dropdown */}
+            {classes.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-xs">Sort by</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSortBy("default")}>
+                    Default
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSortBy("title-asc")}>
+                    <SortAsc className="mr-2 h-3.5 w-3.5" />
+                    Title (A to Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("title-desc")}>
+                    <SortDesc className="mr-2 h-3.5 w-3.5" />
+                    Title (Z to A)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSortBy("duration-asc")}>
+                    <SortAsc className="mr-2 h-3.5 w-3.5" />
+                    Duration (Short to Long)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("duration-desc")}>
+                    <SortDesc className="mr-2 h-3.5 w-3.5" />
+                    Duration (Long to Short)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:flex-wrap sm:gap-4 sm:pt-6">
-          <div className="w-full sm:w-48">
-            <Select
-              value={selectedSubject}
-              onValueChange={(value) => {
-                setSelectedSubject(value === "all" ? "" : value);
-                setSelectedTopic("");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Subjects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {SUBJECTS.map((subject) => (
-                  <SelectItem key={subject} value={subject}>
-                    {subject}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Select
+          value={selectedSubject || "all"}
+          onValueChange={(value) => {
+            setSelectedSubject(value === "all" ? "" : value);
+            setSelectedTopic("");
+          }}
+        >
+          <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectValue placeholder="All Subjects" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Subjects</SelectItem>
+            {SUBJECTS.map((subject) => (
+              <SelectItem key={subject} value={subject}>
+                {subject}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {selectedSubject && availableTopics.length > 0 && (
-            <div className="w-full sm:w-48">
-              <Select
-                value={selectedTopic}
-                onValueChange={(value) =>
-                  setSelectedTopic(value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Topics" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Topics</SelectItem>
-                  {availableTopics.map((topic) => (
-                    <SelectItem key={topic} value={topic}>
-                      {topic}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {selectedSubject && availableTopics.length > 0 && (
+          <Select
+            value={selectedTopic || "all"}
+            onValueChange={(value) =>
+              setSelectedTopic(value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue placeholder="All Topics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Topics</SelectItem>
+              {availableTopics.map((topic) => (
+                <SelectItem key={topic} value={topic}>
+                  {topic}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
       {/* Classes List */}
       {!classes ? (
@@ -125,23 +214,26 @@ export default function ClassesPage() {
           ))}
         </div>
       ) : classes.length === 0 ? (
-        <Card className="py-8 text-center sm:py-12">
-          <CardContent>
-            <Video className="mx-auto h-10 w-10 text-muted-foreground sm:h-12 sm:w-12" />
-            <h3 className="mt-4 text-base font-medium sm:text-lg">No Classes Found</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <Video className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">No classes found</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               {selectedSubject || selectedTopic
-                ? "No classes match your filters. Try adjusting your selection."
+                ? "No classes match your filters."
                 : "No recorded classes available yet."}
             </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {classes.map((classItem) => (
+      ) : viewMode === "grid" ? (
+        /* Grid View */
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedClasses.map((classItem) => (
             <Card
               key={classItem._id}
-              className="cursor-pointer overflow-hidden border-2 border-transparent transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+              className="cursor-pointer overflow-hidden transition-colors hover:bg-muted/50"
               onClick={() =>
                 setSelectedClass({
                   title: classItem.title,
@@ -159,13 +251,13 @@ export default function ClassesPage() {
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <Video className="h-10 w-10 text-muted-foreground sm:h-12 sm:w-12" />
+                    <Video className="h-10 w-10 text-muted-foreground" />
                   </div>
                 )}
                 {/* Play overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity hover:opacity-100">
-                  <div className="rounded-full bg-white/90 p-3 sm:p-4">
-                    <Play className="h-6 w-6 text-primary sm:h-8 sm:w-8" />
+                  <div className="rounded-full bg-white/90 p-3">
+                    <Play className="h-6 w-6 text-primary" />
                   </div>
                 </div>
                 {/* Duration badge */}
@@ -174,18 +266,68 @@ export default function ClassesPage() {
                 </Badge>
               </div>
 
-              <CardHeader>
-                <CardTitle className="line-clamp-1 text-base sm:text-lg">
+              <CardHeader className="pb-4">
+                <CardTitle className="line-clamp-1 text-base">
                   {classItem.title}
                 </CardTitle>
                 <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className="text-xs">{classItem.subject}</Badge>
-                  <Badge variant="secondary" className="text-xs">{classItem.topic}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{classItem.subject}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{classItem.topic}</Badge>
                 </div>
-                <CardDescription className="line-clamp-2 text-sm">
-                  {classItem.description}
-                </CardDescription>
+                {classItem.description && (
+                  <CardDescription className="line-clamp-2 text-xs">
+                    {classItem.description}
+                  </CardDescription>
+                )}
               </CardHeader>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        /* List View */
+        <div className="space-y-2">
+          {sortedClasses.map((classItem) => (
+            <Card
+              key={classItem._id}
+              className="cursor-pointer transition-colors hover:bg-muted/50 my-3"
+              onClick={() =>
+                setSelectedClass({
+                  title: classItem.title,
+                  videoUrl: classItem.videoUrl,
+                })
+              }
+            >
+              <CardContent className="flex items-center gap-4 p-4">
+                {/* Thumbnail */}
+                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-muted">
+                  {classItem.thumbnail ? (
+                    <img
+                      src={classItem.thumbnail}
+                      alt={classItem.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Video className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity hover:opacity-100">
+                    <Play className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium truncate">{classItem.title}</h3>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px]">{classItem.subject}</Badge>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {formatDuration(classItem.duration)}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              </CardContent>
             </Card>
           ))}
         </div>
