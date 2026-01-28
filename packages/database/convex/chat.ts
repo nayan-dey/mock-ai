@@ -110,6 +110,44 @@ export const deleteConversation = mutation({
   },
 });
 
+// Get user's daily message count (for rate limiting)
+export const getDailyMessageCount = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    // Get all user conversations
+    const conversations = await ctx.db
+      .query("chatConversations")
+      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    // Count messages from today
+    let count = 0;
+    for (const conv of conversations) {
+      const messages = await ctx.db
+        .query("chatMessages")
+        .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("role"), "user"),
+            q.gte(q.field("createdAt"), startOfDay.getTime())
+          )
+        )
+        .collect();
+      count += messages.length;
+    }
+
+    return {
+      count,
+      limit: 3,
+      remaining: Math.max(0, 3 - count),
+      hasReachedLimit: count >= 3,
+    };
+  },
+});
+
 // Get comprehensive student context for AI
 export const getStudentContext = query({
   args: { userId: v.id("users") },

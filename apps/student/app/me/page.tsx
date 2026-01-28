@@ -134,6 +134,13 @@ import {
   AvatarFallback,
   TierBadge,
   type Tier,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Button,
 } from "@repo/ui";
 import {
   FileText,
@@ -146,8 +153,10 @@ import {
   BarChart3,
   Edit,
   Users,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 function getInitials(name: string): string {
   return name
@@ -178,12 +187,14 @@ function ProfileSkeleton() {
 const menuItems = [
   { href: "/profile/edit", label: "Edit Profile", icon: Edit, description: "Update your information" },
   { href: "/results", label: "My Results", icon: BarChart3, description: "View test history" },
+  { href: "/classes", label: "Classes", icon: Video, description: "Video lectures" },
   { href: "/notes", label: "Notes", icon: BookOpen, description: "Study materials" },
   { href: "/settings", label: "Settings", icon: Settings, description: "Preferences & privacy" },
 ];
 
 export default function ProfilePage() {
   const { user, isLoaded: isUserLoaded } = useUser();
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   const dbUser = useQuery(
     api.users.getByClerkId,
@@ -300,20 +311,43 @@ export default function ProfilePage() {
 
       {/* Sign Out */}
       <div className="mt-6">
-        <SignOutButton>
-          <Card className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/20">
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
-                <LogOut className="h-5 w-5 text-red-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-600 dark:text-red-400">Sign Out</p>
-                <p className="text-xs text-muted-foreground">Log out of your account</p>
-              </div>
-            </CardContent>
-          </Card>
-        </SignOutButton>
+        <Card
+          className="cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+          onClick={() => setShowSignOutDialog(true)}
+        >
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
+              <LogOut className="h-5 w-5 text-red-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">Sign Out</p>
+              <p className="text-xs text-muted-foreground">Log out of your account</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Sign Out Confirmation Dialog */}
+      <Dialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Sign out?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to sign out of your account?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowSignOutDialog(false)}>
+              Cancel
+            </Button>
+            <SignOutButton>
+              <Button variant="destructive">
+                Sign Out
+              </Button>
+            </SignOutButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* View Public Profile Link */}
       <div className="mt-4 text-center">
@@ -323,6 +357,13 @@ export default function ProfilePage() {
         >
           View public profile
         </Link>
+      </div>
+
+      {/* Made by credit */}
+      <div className="mt-8 text-center">
+        <p className="text-xs text-muted-foreground/60">
+          Made by <span className="font-medium">Nayan</span>
+        </p>
       </div>
     </div>
   );

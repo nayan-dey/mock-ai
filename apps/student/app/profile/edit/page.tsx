@@ -17,8 +17,9 @@ import {
   Label,
   Textarea,
   sonnerToast as toast,
+  BackButton,
 } from "@repo/ui";
-import { ArrowLeft, Save, AlertTriangle, Lock } from "lucide-react";
+import { Save, AlertTriangle, Lock } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -118,14 +119,11 @@ export default function EditProfilePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      {/* Back button */}
-      <Link
-        href="/me"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Profile
-      </Link>
+      {/* Header with back button */}
+      <div className="mb-6 flex items-center gap-3">
+        <BackButton href="/me" />
+        <h1 className="text-2xl font-semibold">Edit Profile</h1>
+      </div>
 
       {/* Avatar */}
       <div className="mb-6 flex flex-col items-center">

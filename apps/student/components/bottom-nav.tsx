@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignedIn } from "@clerk/nextjs";
@@ -8,7 +9,6 @@ import {
   LayoutDashboard,
   FileText,
   Trophy,
-  Video,
   User,
   MessageCircle,
 } from "lucide-react";
@@ -16,23 +16,40 @@ import {
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/tests", label: "Tests", icon: FileText },
-  { href: "/classes", label: "Classes", icon: Video },
+  { href: "/chat", label: "AI Chat", icon: MessageCircle },
   { href: "/leaderboard", label: "Ranks", icon: Trophy },
   { href: "/me", label: "Profile", icon: User },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
-  // Don't show bottom nav on test taking page or chat page
+  useEffect(() => {
+    // Detect keyboard using visualViewport API
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      // If viewport height is significantly less than window height, keyboard is likely open
+      const keyboardOpen = viewport.height < window.innerHeight * 0.75;
+      setIsKeyboardOpen(keyboardOpen);
+    };
+
+    viewport.addEventListener("resize", handleResize);
+    return () => viewport.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Don't show bottom nav on test taking page
   if (pathname.match(/^\/tests\/[^/]+$/) && !pathname.endsWith("/tests")) {
     return null;
   }
 
-  // Hide everything on chat page
-  if (pathname === "/chat") {
+  // Hide bottom nav on chat page when keyboard is open
+  if (pathname === "/chat" && isKeyboardOpen) {
     return null;
   }
+
 
   return (
     <SignedIn>
@@ -76,14 +93,6 @@ export function BottomNav() {
         <div className="h-safe-area-inset-bottom bg-transparent" />
       </nav>
 
-      {/* Floating AI Chat Button */}
-      <Link
-        href="/chat"
-        className="fixed bottom-20 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95 md:hidden"
-      >
-        <MessageCircle className="h-5 w-5" />
-        <span className="sr-only">AI Chat</span>
-      </Link>
     </SignedIn>
   );
 }

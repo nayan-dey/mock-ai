@@ -28,6 +28,21 @@ export function VideoPlayer({
   const [played, setPlayed] = React.useState(0);
   const [duration, setDuration] = React.useState(0);
   const [seeking, setSeeking] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  // Detect mobile device
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) || window.innerWidth < 768
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handlePlayPause = () => setPlaying(!playing);
   const handleMute = () => setMuted(!muted);
@@ -51,11 +66,37 @@ export function VideoPlayer({
   };
 
   const handleFullscreen = () => {
-    if (containerRef.current) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        containerRef.current.requestFullscreen();
+    // Get the internal player's video element
+    const internalPlayer = playerRef.current?.getInternalPlayer();
+
+    if (isMobile) {
+      // For mobile devices, use native video fullscreen
+      if (internalPlayer) {
+        // Try different fullscreen methods for cross-browser compatibility
+        if (internalPlayer.requestFullscreen) {
+          internalPlayer.requestFullscreen();
+        } else if ((internalPlayer as any).webkitEnterFullscreen) {
+          // iOS Safari
+          (internalPlayer as any).webkitEnterFullscreen();
+        } else if ((internalPlayer as any).webkitRequestFullscreen) {
+          // Safari desktop
+          (internalPlayer as any).webkitRequestFullscreen();
+        } else if ((internalPlayer as any).mozRequestFullScreen) {
+          // Firefox
+          (internalPlayer as any).mozRequestFullScreen();
+        } else if ((internalPlayer as any).msRequestFullscreen) {
+          // IE/Edge
+          (internalPlayer as any).msRequestFullscreen();
+        }
+      }
+    } else {
+      // For desktop, use container fullscreen
+      if (containerRef.current) {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          containerRef.current.requestFullscreen();
+        }
       }
     }
   };
@@ -86,19 +127,29 @@ export function VideoPlayer({
         height="100%"
         playing={playing}
         muted={muted}
+        controls={isMobile}
         onProgress={handleProgress}
         onDuration={handleDuration}
         style={{ aspectRatio: "16/9" }}
+        playsinline={!isMobile}
+        config={{
+          file: {
+            attributes: {
+              playsInline: !isMobile,
+            },
+          },
+        }}
       />
 
-      {/* Title overlay */}
-      {title && (
+      {/* Title overlay - hide on mobile when using native controls */}
+      {title && !isMobile && (
         <div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/70 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
           <h3 className="text-lg font-semibold text-white">{title}</h3>
         </div>
       )}
 
-      {/* Controls overlay */}
+      {/* Controls overlay - hide on mobile when using native controls */}
+      {!isMobile && (
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100">
         {/* Progress bar */}
         <div
@@ -162,9 +213,10 @@ export function VideoPlayer({
           </Button>
         </div>
       </div>
+      )}
 
-      {/* Play button overlay when paused */}
-      {!playing && (
+      {/* Play button overlay when paused - hide on mobile when using native controls */}
+      {!playing && !isMobile && (
         <div
           className="absolute inset-0 flex cursor-pointer items-center justify-center"
           onClick={handlePlayPause}

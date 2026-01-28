@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -19,17 +19,28 @@ import {
   SelectTrigger,
   SelectValue,
   formatDate,
-  PageHeader,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  BackButton,
 } from "@repo/ui";
-import { FileText, Download, BookOpen } from "lucide-react";
+import { FileText, Download, BookOpen, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight, Calendar } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery as useConvexQuery } from "convex/react";
 import { SUBJECTS, TOPICS } from "@repo/types";
+
+type SortOption = "default" | "title-asc" | "title-desc" | "date-asc" | "date-desc";
+type ViewMode = "grid" | "list";
 
 export default function NotesPage() {
   const { user } = useUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
+  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const dbUser = useConvexQuery(
     api.users.getByClerkId,
@@ -42,67 +53,159 @@ export default function NotesPage() {
     topic: selectedTopic || undefined,
   });
 
+  const sortedNotes = useMemo(() => {
+    if (!notes) return [];
+
+    const sorted = [...notes];
+    switch (sortBy) {
+      case "title-asc":
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case "title-desc":
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case "date-asc":
+        return sorted.sort((a, b) => a.createdAt - b.createdAt);
+      case "date-desc":
+        return sorted.sort((a, b) => b.createdAt - a.createdAt);
+      default:
+        return sorted;
+    }
+  }, [notes, sortBy]);
+
   const availableTopics =
     selectedSubject && selectedSubject in TOPICS
       ? TOPICS[selectedSubject as keyof typeof TOPICS]
       : [];
 
+  const handleDownload = (fileUrl: string, title: string) => {
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = title;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <PageHeader
-        title="Study Notes"
-        description="Access study materials and notes by subject"
-      />
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      {/* Header */}
+      <div className="mb-6 flex items-end justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <BackButton href="/me" />
+          <div className="space-y-0.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Study Notes</h1>
+            <p className="text-sm text-muted-foreground">
+              {notes ? `${notes.length} note${notes.length !== 1 ? "s" : ""} available` : "Loading..."}
+            </p>
+          </div>
+        </div>
+
+        {/* Controls */}
+        {notes && notes.length > 0 && (
+          <div className="flex items-center gap-1">
+            {/* View Toggle */}
+            <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`rounded-md p-1.5 transition-colors ${
+                  viewMode === "list" ? "bg-background shadow-sm" : "hover:bg-background/50"
+                }`}
+              >
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`rounded-md p-1.5 transition-colors ${
+                  viewMode === "grid" ? "bg-background shadow-sm" : "hover:bg-background/50"
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Sort Dropdown */}
+            {notes.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8">
+                    <ArrowUpDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-xs">Sort by</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSortBy("default")}>
+                    Default
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSortBy("title-asc")}>
+                    <SortAsc className="mr-2 h-3.5 w-3.5" />
+                    Title (A to Z)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("title-desc")}>
+                    <SortDesc className="mr-2 h-3.5 w-3.5" />
+                    Title (Z to A)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setSortBy("date-desc")}>
+                    <SortDesc className="mr-2 h-3.5 w-3.5" />
+                    Newest First
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("date-asc")}>
+                    <SortAsc className="mr-2 h-3.5 w-3.5" />
+                    Oldest First
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:flex-wrap sm:gap-4 sm:pt-6">
-          <div className="w-full sm:w-48">
-            <Select
-              value={selectedSubject}
-              onValueChange={(value) => {
-                setSelectedSubject(value === "all" ? "" : value);
-                setSelectedTopic("");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Subjects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {SUBJECTS.map((subject) => (
-                  <SelectItem key={subject} value={subject}>
-                    {subject}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Select
+          value={selectedSubject || "all"}
+          onValueChange={(value) => {
+            setSelectedSubject(value === "all" ? "" : value);
+            setSelectedTopic("");
+          }}
+        >
+          <SelectTrigger className="w-[140px] h-8 text-xs">
+            <SelectValue placeholder="All Subjects" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Subjects</SelectItem>
+            {SUBJECTS.map((subject) => (
+              <SelectItem key={subject} value={subject}>
+                {subject}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {selectedSubject && availableTopics.length > 0 && (
-            <div className="w-full sm:w-48">
-              <Select
-                value={selectedTopic}
-                onValueChange={(value) =>
-                  setSelectedTopic(value === "all" ? "" : value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Topics" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Topics</SelectItem>
-                  {availableTopics.map((topic) => (
-                    <SelectItem key={topic} value={topic}>
-                      {topic}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {selectedSubject && availableTopics.length > 0 && (
+          <Select
+            value={selectedTopic || "all"}
+            onValueChange={(value) =>
+              setSelectedTopic(value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectValue placeholder="All Topics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Topics</SelectItem>
+              {availableTopics.map((topic) => (
+                <SelectItem key={topic} value={topic}>
+                  {topic}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
       {/* Notes List */}
       {!notes ? (
@@ -120,21 +223,27 @@ export default function NotesPage() {
           ))}
         </div>
       ) : notes.length === 0 ? (
-        <Card className="py-8 text-center sm:py-12">
-          <CardContent>
-            <BookOpen className="mx-auto h-10 w-10 text-muted-foreground sm:h-12 sm:w-12" />
-            <h3 className="mt-4 text-base font-medium sm:text-lg">No Notes Found</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-3">
+              <BookOpen className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-sm font-medium">No notes found</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               {selectedSubject || selectedTopic
-                ? "No notes match your filters. Try adjusting your selection."
+                ? "No notes match your filters."
                 : "No study notes available yet."}
             </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {notes.map((note) => (
-            <Card key={note._id} className="flex flex-col border-2 border-transparent transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+      ) : viewMode === "grid" ? (
+        /* Grid View */
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedNotes.map((note) => (
+            <Card
+              key={note._id}
+              className="flex flex-col border-2 border-transparent transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+            >
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base sm:text-lg">{note.title}</CardTitle>
@@ -154,17 +263,53 @@ export default function NotesPage() {
                 <span className="text-xs text-muted-foreground">
                   {formatDate(note.createdAt)}
                 </span>
-                <a
-                  href={note.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => handleDownload(note.fileUrl, note.title)}
                 >
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </Button>
-                </a>
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </Button>
               </CardFooter>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        /* List View */
+        <div className="space-y-2">
+          {sortedNotes.map((note) => (
+            <Card
+              key={note._id}
+              className="transition-colors hover:bg-muted/50 my-3"
+            >
+              <CardContent className="flex items-center gap-4 p-4">
+                {/* Icon */}
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <FileText className="h-6 w-6 text-muted-foreground" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium truncate">{note.title}</h3>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px]">{note.subject}</Badge>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(note.createdAt)}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 shrink-0"
+                  onClick={() => handleDownload(note.fileUrl, note.title)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </Button>
+              </CardContent>
             </Card>
           ))}
         </div>

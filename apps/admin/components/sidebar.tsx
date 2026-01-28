@@ -51,16 +51,12 @@ export function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <span className="text-lg font-bold text-primary-foreground">A</span>
-            </div>
-            <span className="text-xl font-bold">Admin</span>
+            <img src="/logo.svg" alt="Nindo" className="h-8 w-8 dark:invert" />
+            <span className="text-xl font-bold">Nindo Admin</span>
           </Link>
         )}
         {collapsed && (
-          <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">A</span>
-          </div>
+          <img src="/logo.svg" alt="Nindo" className="mx-auto h-8 w-8" />
         )}
       </div>
 

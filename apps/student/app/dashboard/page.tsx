@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import {
   Card,
@@ -88,6 +88,8 @@ export default function DashboardPage() {
     api.userSettings.getOrCreateDefault,
     dbUser?._id ? { userId: dbUser._id } : "skip"
   );
+
+  const updateSettings = useMutation(api.userSettings.upsert);
 
   // Generate dates for heatmap (last year)
   const heatmapDates = useMemo(() => {
@@ -301,20 +303,24 @@ export default function DashboardPage() {
               </div>
               <Tabs
                 value={showHeatmap ? "heatmap" : "chart"}
+                onValueChange={(value) => {
+                  if (dbUser?._id) {
+                    updateSettings({
+                      userId: dbUser._id,
+                      preferredChartType: value as "heatmap" | "chart",
+                    });
+                  }
+                }}
                 className="w-auto"
               >
                 <TabsList className="h-8">
-                  <TabsTrigger value="heatmap" className="h-7 px-3 text-xs" asChild>
-                    <Link href="/settings">
-                      <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
-                      Heatmap
-                    </Link>
+                  <TabsTrigger value="heatmap" className="h-7 px-3 text-xs">
+                    <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+                    Heatmap
                   </TabsTrigger>
-                  <TabsTrigger value="chart" className="h-7 px-3 text-xs" asChild>
-                    <Link href="/settings">
-                      <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
-                      Chart
-                    </Link>
+                  <TabsTrigger value="chart" className="h-7 px-3 text-xs">
+                    <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
+                    Chart
                   </TabsTrigger>
                 </TabsList>
               </Tabs>

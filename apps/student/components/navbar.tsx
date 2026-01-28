@@ -27,16 +27,19 @@ const navItems = [
 export function Navbar() {
   const pathname = usePathname();
 
+  // Hide navbar on chat page
+  if (pathname === "/chat") {
+    return null;
+  }
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-full items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">M</span>
-            </div>
-            <span className="text-sm font-semibold">MockTest</span>
+            <img src="/logo.svg" alt="Nindo" className="h-6 w-6 dark:invert" />
+            <span className="text-md font-semibold font-serif">Nindo</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -66,19 +69,7 @@ export function Navbar() {
 
           {/* Right section */}
           <div className="flex items-center gap-2">
-            <SignedIn>
-              <Link href="/chat">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  title="AI Assistant"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span className="sr-only">AI Assistant</span>
-                </Button>
-              </Link>
-            </SignedIn>
+            
             <ThemeToggle />
 
             {/* UserButton - hidden on mobile since we have profile tab */}

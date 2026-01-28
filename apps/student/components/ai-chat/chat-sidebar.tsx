@@ -5,6 +5,7 @@ import { Button } from "@repo/ui";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { cn } from "@repo/ui";
+import { useChatContext } from "./chat-provider";
 
 interface ChatSidebarProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
+  const { selectConversation, startNewChat, currentConversationId } = useChatContext();
+
   const conversations = useQuery(
     api.chat.getUserConversations,
     userId ? { userId: userId as any } : "skip"
@@ -20,8 +23,22 @@ export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
 
   const deleteConversation = useMutation(api.chat.deleteConversation);
 
+  const handleSelectConversation = (conversationId: string) => {
+    selectConversation(conversationId);
+    onClose();
+  };
+
+  const handleNewChat = () => {
+    startNewChat();
+    onClose();
+  };
+
   const handleDelete = async (conversationId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    // If we're deleting the current conversation, start a new chat
+    if (conversationId === currentConversationId) {
+      startNewChat();
+    }
     await deleteConversation({ conversationId: conversationId as any });
   };
 
@@ -62,7 +79,7 @@ export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
           <Button
             variant="outline"
             className="w-full justify-start gap-2 rounded-xl border-stone-200 dark:border-stone-600"
-            onClick={onClose}
+            onClick={handleNewChat}
           >
             <Plus className="h-4 w-4" />
             New Chat
@@ -84,11 +101,24 @@ export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
               {conversations.map((conv) => (
                 <div
                   key={conv._id}
-                  className="group flex items-center gap-2 rounded-lg p-2 hover:bg-stone-100 dark:hover:bg-stone-700 cursor-pointer"
-                  onClick={onClose}
+                  className={cn(
+                    "group flex items-center gap-2 rounded-lg p-2 cursor-pointer transition-colors",
+                    currentConversationId === conv._id
+                      ? "bg-primary/10 text-primary"
+                      : "hover:bg-stone-100 dark:hover:bg-stone-700"
+                  )}
+                  onClick={() => handleSelectConversation(conv._id)}
                 >
-                  <MessageSquare className="h-4 w-4 shrink-0 text-stone-400" />
-                  <span className="flex-1 truncate text-sm text-stone-600 dark:text-stone-300">
+                  <MessageSquare className={cn(
+                    "h-4 w-4 shrink-0",
+                    currentConversationId === conv._id ? "text-primary" : "text-stone-400"
+                  )} />
+                  <span className={cn(
+                    "flex-1 truncate text-sm",
+                    currentConversationId === conv._id
+                      ? "text-primary font-medium"
+                      : "text-stone-600 dark:text-stone-300"
+                  )}>
                     {conv.title || "New conversation"}
                   </span>
                   <Button

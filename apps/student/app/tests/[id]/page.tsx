@@ -25,9 +25,10 @@ import {
   DialogTitle,
   Skeleton,
   cn,
+  BackButton,
   type QuestionStatus,
 } from "@repo/ui";
-import { Clock, FileQuestion, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X } from "lucide-react";
+import { Clock, FileQuestion, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain } from "lucide-react";
 import type { GenericId } from "convex/values";
 
 type Id<T extends string> = GenericId<T>;
@@ -211,11 +212,15 @@ export default function TestPage() {
 
     return (
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="mb-4 flex items-center gap-3">
+          <BackButton href="/tests" />
+          <h1 className="text-lg font-semibold">Test Details</h1>
+        </div>
         <Card className="overflow-hidden border-2">
           {/* Gradient header */}
           <div className="bg-gradient-to-br from-primary/5 to-primary/10 px-6 py-8 text-center sm:px-8 sm:py-10">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-background shadow-lg shadow-black/5">
-              <FileQuestion className="h-8 w-8 text-primary" />
+              <Brain className="h-8 w-8 text-primary" />
             </div>
             <CardTitle className="text-xl sm:text-2xl">{testWithQuestions.title}</CardTitle>
             <CardDescription className="mx-auto mt-2 max-w-md text-sm">{testWithQuestions.description}</CardDescription>
@@ -545,11 +550,9 @@ export default function TestPage() {
           >
             <div className="relative h-5 w-5">
               {markedForReview.has(currentQ._id) ? (
-                <CheckCircle className="h-5 w-5 text-warning" />
+                <Flag className="h-5 w-5 text-warning fill-warning" />
               ) : (
-                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-current">
-                  <span className="text-[8px] font-bold">?</span>
-                </div>
+                <Flag className="h-5 w-5" />
               )}
             </div>
             <span className="text-[10px]">{markedForReview.has(currentQ._id) ? "Marked" : "Mark"}</span>

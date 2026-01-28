@@ -30,8 +30,9 @@ import {
   DropdownMenuLabel,
   type LeaderboardEntry,
   fireConfetti,
+  BackButton,
 } from "@repo/ui";
-import { ArrowLeft, Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper } from "lucide-react";
+import { Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper } from "lucide-react";
 import Link from "next/link";
 import type { GenericId } from "convex/values";
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -157,22 +158,14 @@ export default function ResultDetailPage() {
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
       {/* Header */}
       <div className="mb-6">
-        <Link href="/results">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4 -ml-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Results
-          </Button>
-        </Link>
-
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {test.title}
-            </h1>
+            <div className="flex items-center gap-3">
+              <BackButton href="/results" />
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {test.title}
+              </h1>
+            </div>
             <p className="text-sm text-muted-foreground">
               Completed in {minutes}m {seconds}s
             </p>
@@ -215,18 +208,20 @@ export default function ResultDetailPage() {
         </div>
       </div>
 
-      {/* Celebrate Button */}
-      <div className="mb-6 flex justify-center">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleCelebrate}
-          className="gap-2"
-        >
-          <PartyPopper className="h-4 w-4" />
-          Celebrate
-        </Button>
-      </div>
+      {/* Celebrate Button - only show for 60%+ */}
+      {percentage >= 60 && (
+        <div className="mb-6 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCelebrate}
+            className="gap-2"
+          >
+            <PartyPopper className="h-4 w-4" />
+            Celebrate
+          </Button>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="mb-6 grid grid-cols-4 gap-2">

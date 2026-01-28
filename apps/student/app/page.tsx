@@ -18,7 +18,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-4xl">
           <h1 className="mb-4 text-2xl font-bold tracking-tight sm:mb-6 sm:text-4xl md:text-5xl">
             Ace Your Exams with
-            <span className="text-primary"> MockTest</span>
+            <span className="text-primary"> Nindo</span>
           </h1>
           <p className="mx-auto mb-6 max-w-2xl text-sm text-muted-foreground sm:mb-8 sm:text-base">
             Practice with thousands of questions, track your progress, and improve
@@ -127,7 +127,7 @@ export default async function HomePage() {
           <h2 className="mb-3 text-xl font-bold sm:mb-4 sm:text-2xl">Ready to Start Your Journey?</h2>
           <p className="mb-6 text-sm text-muted-foreground sm:mb-8 sm:text-base">
             Join thousands of students who are already preparing smarter with
-            MockTest.
+            Nindo.
           </p>
           <Link href="/sign-up">
             <Button size="lg">Create Free Account</Button>
@@ -138,7 +138,7 @@ export default async function HomePage() {
       {/* Footer */}
       <footer className="border-t px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mx-auto max-w-6xl text-center text-xs text-muted-foreground sm:text-sm">
-          <p>2024 MockTest. Built for students, by students.</p>
+          <p>2026 Nindo. Built for students, by students.</p>
         </div>
       </footer>
     </div>

@@ -120,6 +120,7 @@ export { TestResult } from "./components/test-result";
 // Reusable UI components
 export { PageHeader } from "./components/page-header";
 export { StatCard } from "./components/stat-card";
+export { BackButton } from "./components/back-button";
 
 // Settings components
 export {

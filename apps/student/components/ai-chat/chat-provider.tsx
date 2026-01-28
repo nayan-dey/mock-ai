@@ -1,9 +1,16 @@
 "use client";
 
-import { useChat } from "ai/react";
+import { useChat, type Message } from "ai/react";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+
+interface DailyLimit {
+  count: number;
+  limit: number;
+  remaining: number;
+  hasReachedLimit: boolean;
+}
 
 interface ChatContextType {
   messages: ReturnType<typeof useChat>["messages"];
@@ -16,6 +23,10 @@ interface ChatContextType {
   stop: ReturnType<typeof useChat>["stop"];
   setInput: ReturnType<typeof useChat>["setInput"];
   isContextLoading: boolean;
+  dailyLimit: DailyLimit | undefined;
+  currentConversationId: string | null;
+  selectConversation: (conversationId: string | null) => void;
+  startNewChat: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -34,13 +45,49 @@ interface ChatProviderProps {
 }
 
 export function ChatProvider({ children, userId }: ChatProviderProps) {
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [initialMessages, setInitialMessages] = useState<Message[]>([]);
+
   // Fetch student context using Convex React hook
   const studentContext = useQuery(
     api.chat.getStudentContext,
     userId ? { userId: userId as any } : "skip"
   );
 
+  // Fetch daily message limit
+  const dailyLimit = useQuery(
+    api.chat.getDailyMessageCount,
+    userId ? { userId: userId as any } : "skip"
+  );
+
+  // Fetch messages for current conversation
+  const conversationMessages = useQuery(
+    api.chat.getMessages,
+    currentConversationId ? { conversationId: currentConversationId as any } : "skip"
+  );
+
   const isContextLoading = studentContext === undefined;
+
+  // Track if messages query is loading
+  const isMessagesLoading = currentConversationId !== null && conversationMessages === undefined;
+
+  // Convert Convex messages to AI SDK format when conversation changes
+  useEffect(() => {
+    // Only update when query is complete (not during loading)
+    if (currentConversationId && conversationMessages !== undefined) {
+      const formattedMessages: Message[] = conversationMessages.map((msg, index) => ({
+        id: msg._id || `msg-${index}`,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        createdAt: new Date(msg.createdAt),
+      }));
+      setInitialMessages(formattedMessages);
+    } else if (!currentConversationId) {
+      // Only clear messages when explicitly starting a new chat (no conversation selected)
+      setInitialMessages([]);
+    }
+    // Don't do anything while loading - keep existing messages visible
+  }, [conversationMessages, currentConversationId]);
 
   const {
     messages,
@@ -52,13 +99,35 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
     reload,
     stop,
     setInput,
+    setMessages,
   } = useChat({
     api: "/api/chat",
-    initialMessages: [],
+    initialMessages: initialMessages,
     body: {
       studentContext,
     },
   });
+
+  // Update messages when initialMessages change (when switching conversations)
+  // Remove the length > 0 check - we need to update even when switching to an empty conversation
+  useEffect(() => {
+    // Only update if we're not in a loading state
+    if (!isMessagesLoading) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages, setMessages, isMessagesLoading]);
+
+  const selectConversation = useCallback((conversationId: string | null) => {
+    setCurrentConversationId(conversationId);
+    if (!conversationId) {
+      setMessages([]);
+    }
+  }, [setMessages]);
+
+  const startNewChat = useCallback(() => {
+    setCurrentConversationId(null);
+    setMessages([]);
+  }, [setMessages]);
 
   return (
     <ChatContext.Provider
@@ -73,6 +142,10 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
         stop,
         setInput,
         isContextLoading,
+        dailyLimit,
+        currentConversationId,
+        selectConversation,
+        startNewChat,
       }}
     >
       {children}

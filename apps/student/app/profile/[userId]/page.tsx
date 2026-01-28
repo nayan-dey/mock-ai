@@ -17,6 +17,7 @@ import {
   ActivityHeatmap,
   TierBadge,
   type Tier,
+  BackButton,
 } from "@repo/ui";
 import {
   User,
@@ -25,14 +26,12 @@ import {
   Lock,
   EyeOff,
   Award,
-  ArrowLeft,
   Users,
   Ban,
 } from "lucide-react";
 import { useMemo } from "react";
 import type { GenericId } from "convex/values";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 type Id<T extends string> = GenericId<T>;
 
@@ -89,7 +88,6 @@ export default function ProfilePage() {
   const params = useParams();
   const userId = params.userId as string;
   const { user: currentUser } = useUser();
-  const router = useRouter();
 
   const profile = useQuery(api.users.getPublicProfile, {
     userId: userId as Id<"users">,
@@ -107,11 +105,6 @@ export default function ProfilePage() {
     api.users.getByClerkId,
     currentUser?.id ? { clerkId: currentUser.id } : "skip"
   );
-
-  // Get top performers for the avatar group
-  const globalLeaderboard = useQuery(api.analytics.getGlobalLeaderboard, {
-    limit: 10,
-  });
 
   const isOwnProfile = currentDbUser?._id === userId;
 
@@ -135,14 +128,6 @@ export default function ProfilePage() {
         }
       : "skip"
   );
-
-  // Get nearby competitors (exclude current profile user)
-  const nearbyCompetitors = useMemo(() => {
-    if (!globalLeaderboard || !publicAnalytics?.rank) return [];
-    return globalLeaderboard
-      .filter((entry) => entry.userId !== userId)
-      .slice(0, 5);
-  }, [globalLeaderboard, publicAnalytics?.rank, userId]);
 
   if (profile === undefined) {
     return <ProfileSkeleton />;
@@ -173,13 +158,10 @@ export default function ProfilePage() {
   if (profile.isSuspended) {
     return (
       <div className="mx-auto max-w-lg px-4 py-6">
-        <Link
-          href="/leaderboard"
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Rankings
-        </Link>
+        <div className="mb-6 flex items-center gap-3">
+          <BackButton href="/leaderboard" />
+          <h1 className="text-2xl font-semibold">Profile</h1>
+        </div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="rounded-full bg-red-100 p-3 dark:bg-red-950/30">
@@ -202,14 +184,11 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      {/* Back button */}
-      <Link
-        href="/leaderboard"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Rankings
-      </Link>
+      {/* Header with back button */}
+      <div className="mb-6 flex items-center gap-3">
+        <BackButton href="/leaderboard" />
+        <h1 className="text-2xl font-semibold">Profile</h1>
+      </div>
 
       {/* Profile Header */}
       <div className="mb-6 flex flex-col items-center text-center">
@@ -318,46 +297,6 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Top Competitors - Avatar Group */}
-          {nearbyCompetitors.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium">Top Competitors</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex -space-x-2 grayscale [&>*]:ring-2 [&>*]:ring-background">
-                    {nearbyCompetitors.slice(0, 3).map((competitor) => (
-                      <Avatar
-                        key={competitor.userId}
-                        className="h-10 w-10 cursor-pointer"
-                        onClick={() => router.push(`/profile/${competitor.userId}`)}
-                      >
-                        <AvatarFallback className="bg-muted">
-                          <User className="h-5 w-5 text-muted-foreground" />
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                    {nearbyCompetitors.length > 3 && (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                        +{nearbyCompetitors.length - 3}
-                      </div>
-                    )}
-                  </div>
-                  <Link
-                    href="/leaderboard"
-                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    View all
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Achievements */}
           {achievements && achievements.length > 0 && (

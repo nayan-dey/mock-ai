@@ -29,6 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  BackButton,
 } from "@repo/ui";
 import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, Clock, ChevronRight } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
@@ -87,11 +88,14 @@ export default function ClassesPage() {
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       {/* Header */}
       <div className="mb-6 flex items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Recorded Classes</h1>
-          <p className="text-sm text-muted-foreground">
-            {classes ? `${classes.length} class${classes.length !== 1 ? "es" : ""} available` : "Loading..."}
-          </p>
+        <div className="flex items-center gap-3">
+          <BackButton href="/me" />
+          <div className="space-y-0.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Recorded Classes</h1>
+            <p className="text-sm text-muted-foreground">
+              {classes ? `${classes.length} class${classes.length !== 1 ? "es" : ""} available` : "Loading..."}
+            </p>
+          </div>
         </div>
 
         {/* Controls */}

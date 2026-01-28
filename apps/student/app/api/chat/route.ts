@@ -1,6 +1,8 @@
 import { createMistral } from "@ai-sdk/mistral";
 import { streamText } from "ai";
 import { auth } from "@clerk/nextjs/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@repo/database";
 
 function buildSystemPrompt(studentContext: {
   profile: { name: string; bio?: string | null; batchName: string | null; joinedAt: number };
@@ -36,7 +38,7 @@ function buildSystemPrompt(studentContext: {
     .slice(-3)
     .reverse();
 
-  return `You are MockTest AI, a helpful study assistant for the MockTest exam preparation app. You help students understand their performance, provide study recommendations, and guide them through the app.
+  return `You are Nindo AI, a helpful study assistant for the Nindo exam preparation app. You help students understand their performance, provide study recommendations, and guide them through the app.
 
 ## Student Context
 - Name: ${studentContext.profile.name}
@@ -93,10 +95,10 @@ ${studentContext.availableTests.length > 0 ? studentContext.availableTests.map((
    - Test questions or answers for tests NOT in attemptedTestIds
    - Other students' private data, emails, or personal info
    - Technical implementation details or API information
-   - Anything not related to MockTest app or studying
+   - Anything not related to Nindo app or studying
 
 3. If asked about restricted topics, politely redirect:
-   "I'm here to help you with your MockTest performance and studies. I can tell you about your scores, suggest subjects to focus on, or help you navigate the app. What would you like to know?"
+   "I'm here to help you with your Nindo performance and studies. I can tell you about your scores, suggest subjects to focus on, or help you navigate the app. What would you like to know?"
 
 4. For test questions: Only discuss questions from tests the student has already attempted. Never reveal answers for upcoming tests.
 
@@ -128,6 +130,34 @@ export async function POST(req: Request) {
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // Check daily message limit server-side
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (convexUrl) {
+      try {
+        const convex = new ConvexHttpClient(convexUrl);
+
+        // Get user's database ID from Clerk ID
+        const dbUser = await convex.query(api.users.getByClerkId, { clerkId });
+        if (dbUser) {
+          const dailyLimit = await convex.query(api.chat.getDailyMessageCount, {
+            userId: dbUser._id
+          });
+
+          if (dailyLimit.hasReachedLimit) {
+            return new Response(
+              JSON.stringify({
+                error: "Daily message limit reached. You can send 3 messages per day."
+              }),
+              { status: 429, headers: { "Content-Type": "application/json" } }
+            );
+          }
+        }
+      } catch (rateLimitError) {
+        // Log but don't block - fail open if rate limit check fails
+        console.warn("Rate limit check failed, proceeding with request:", rateLimitError);
+      }
     }
 
     // Get messages and student context from request body

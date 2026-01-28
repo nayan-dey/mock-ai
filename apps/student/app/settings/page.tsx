@@ -13,17 +13,16 @@ import {
   Button,
   Input,
   Label,
-  Textarea,
-  PageHeader,
   PrivacyToggles,
   ChartTypeSelector,
+  BackButton,
   type PrivacySettings,
   type ChartType,
   useToast,
   sonnerToast,
 } from "@repo/ui";
-import { Save, FlaskConical, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { FlaskConical, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 function SettingsSkeleton() {
   return (
@@ -58,22 +57,11 @@ export default function SettingsPage() {
     dbUser?._id ? { userId: dbUser._id } : "skip"
   );
 
-  const updateProfile = useMutation(api.users.updateProfile);
   const upsertSettings = useMutation(api.userSettings.upsert);
   const seedMockAttempts = useMutation(api.seed.seedMockAttempts);
 
-  const [name, setName] = useState("");
-  const [bio, setBio] = useState("");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
-
-  useEffect(() => {
-    if (dbUser) {
-      setName(dbUser.name || "");
-      setBio(dbUser.bio || "");
-    }
-  }, [dbUser]);
 
   if (!isUserLoaded || (user && (dbUser === undefined || userSettings === undefined))) {
     return <SettingsSkeleton />;
@@ -95,29 +83,6 @@ export default function SettingsPage() {
       </div>
     );
   }
-
-  const handleSaveProfile = async () => {
-    setIsSavingProfile(true);
-    try {
-      await updateProfile({
-        userId: dbUser._id,
-        name: name.trim() || undefined,
-        bio: bio.trim() || undefined,
-      });
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been saved successfully.",
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
 
   const handlePrivacyChange = async (settings: PrivacySettings) => {
     setIsSavingSettings(true);
@@ -189,51 +154,15 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <PageHeader
-        title="Settings"
-        description="Manage your profile and preferences"
-      />
+      <div className="mb-6 flex items-center gap-3">
+        <BackButton href="/me" />
+        <div>
+          <h1 className="text-2xl font-semibold">Settings</h1>
+          <p className="text-sm text-muted-foreground">Manage your preferences</p>
+        </div>
+      </div>
 
       <div className="space-y-4 sm:space-y-6">
-        {/* Profile Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Profile Information</CardTitle>
-            <CardDescription>
-              Update your display name and bio
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Display Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tell others a bit about yourself"
-                rows={3}
-              />
-            </div>
-            <Button
-              onClick={handleSaveProfile}
-              disabled={isSavingProfile}
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isSavingProfile ? "Saving..." : "Save Profile"}
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Chart Type Selector */}
         <ChartTypeSelector
           value={(userSettings?.preferredChartType as ChartType) || "chart"}

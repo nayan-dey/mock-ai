@@ -16,6 +16,7 @@ import {
   Progress,
   DataTable,
   SortableHeader,
+  BackButton,
   type ColumnDef,
 } from "@repo/ui";
 import { FileText, Eye, ArrowRight, CheckCircle2, XCircle, Trophy, Clock, TrendingUp, ChevronRight } from "lucide-react";
@@ -199,11 +200,14 @@ export default function ResultsPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
       {/* Header */}
-      <div className="mb-6 space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Results</h1>
-        <p className="text-sm text-muted-foreground">
-          Track your performance across all tests
-        </p>
+      <div className="mb-6 flex items-center gap-3">
+        <BackButton href="/me" />
+        <div className="space-y-0.5">
+          <h1 className="text-2xl font-semibold tracking-tight">Results</h1>
+          <p className="text-sm text-muted-foreground">
+            Track your performance across all tests
+          </p>
+        </div>
       </div>
 
       {submittedAttempts.length === 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { DraftingCompass, Sparkles } from "lucide-react";
 import { useChatContext } from "./chat-provider";
 
 export function ChatWelcome() {
@@ -19,11 +19,16 @@ export function ChatWelcome() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6">
       {/* Animated Icon */}
-      <div className="mb-6">
-        <Sparkles className="h-12 w-12 text-orange-400" strokeWidth={1.5} />
+      <div className="mb-3">
+        <DraftingCompass className="h-12 w-12 text-orange-400" strokeWidth={1.5} />
       </div>
 
-      {/* Title */}
+      {/* Nindo AI Title */}
+      <h2 className="mb-6 text-lg font-serif font-medium text-stone-700 dark:text-stone-200">
+        Nindo AI
+      </h2>
+
+      {/* Subtitle */}
       <h1 className="mb-8 text-center text-2xl font-normal text-stone-700 dark:text-stone-200">
         How can I help you<br />today?
       </h1>

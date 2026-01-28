@@ -71,7 +71,7 @@ export default function LeaderboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [leaderboardMode, setLeaderboardMode] = useState<LeaderboardMode>("global");
+  const [leaderboardMode, setLeaderboardMode] = useState<LeaderboardMode>("batch");
 
   const dbUser = useQuery(
     api.users.getByClerkId,
