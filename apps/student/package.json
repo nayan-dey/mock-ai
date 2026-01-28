@@ -13,7 +13,7 @@
     "@ai-sdk/mistral": "^1.1.0",
     "@assistant-ui/react": "^0.10.0",
     "@assistant-ui/react-markdown": "^0.10.0",
-    "@clerk/nextjs": "^6.9.6",
+    "@clerk/nextjs": "^6.36.10",
     "@mistralai/mistralai": "^1.13.0",
     "@repo/database": "workspace:*",
     "@repo/types": "workspace:*",
