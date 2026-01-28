@@ -114,9 +114,9 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="min-h-[88px]">
+          <CardContent className="flex h-full items-center p-4">
+            <div className="flex w-full items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Total Students</p>
                 <p className="text-2xl font-semibold tabular-nums">{stats.totalStudents}</p>
@@ -128,9 +128,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="min-h-[88px]">
+          <CardContent className="flex h-full items-center p-4">
+            <div className="flex w-full items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Total Tests</p>
                 <p className="text-2xl font-semibold tabular-nums">{stats.totalTests}</p>
@@ -142,9 +142,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="min-h-[88px]">
+          <CardContent className="flex h-full items-center p-4">
+            <div className="flex w-full items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Total Questions</p>
                 <p className="text-2xl font-semibold tabular-nums">{stats.totalQuestions}</p>
@@ -156,9 +156,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="min-h-[88px]">
+          <CardContent className="flex h-full items-center p-4">
+            <div className="flex w-full items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Test Attempts</p>
                 <p className="text-2xl font-semibold tabular-nums">{stats.totalAttempts}</p>
@@ -170,9 +170,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="min-h-[88px]">
+          <CardContent className="flex h-full items-center p-4">
+            <div className="flex w-full items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Average Score</p>
                 <p className="text-2xl font-semibold tabular-nums">{stats.averageScore.toFixed(1)}</p>
@@ -184,9 +184,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+        <Card className="min-h-[88px]">
+          <CardContent className="flex h-full items-center p-4">
+            <div className="flex w-full items-center justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Published Tests</p>
                 <p className="text-2xl font-semibold tabular-nums">{stats.publishedTests}</p>

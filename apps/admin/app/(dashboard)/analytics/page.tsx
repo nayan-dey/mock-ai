@@ -135,8 +135,8 @@ export default function AnalyticsPage() {
 
       {/* Overview Stats */}
       <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[80px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <Users className="h-8 w-8 text-primary" />
             <div>
               <p className="text-2xl font-bold">{stats.totalStudents}</p>
@@ -144,8 +144,8 @@ export default function AnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[80px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <FileText className="h-8 w-8 text-primary" />
             <div>
               <p className="text-2xl font-bold">{stats.publishedTests}</p>
@@ -153,8 +153,8 @@ export default function AnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[80px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <Trophy className="h-8 w-8 text-primary" />
             <div>
               <p className="text-2xl font-bold">{stats.totalAttempts}</p>
@@ -162,8 +162,8 @@ export default function AnalyticsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[80px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <TrendingUp className="h-8 w-8 text-primary" />
             <div>
               <p className="text-2xl font-bold">
@@ -202,7 +202,7 @@ export default function AnalyticsPage() {
               <div className="space-y-4">
                 <h3 className="font-semibold">Performance Summary</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
                     <p className="text-2xl font-bold">
                       {testAnalytics.totalAttempts}
                     </p>
@@ -210,19 +210,19 @@ export default function AnalyticsPage() {
                       Total Attempts
                     </p>
                   </div>
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
                     <p className="text-2xl font-bold">
                       {testAnalytics.averageScore.toFixed(1)}
                     </p>
                     <p className="text-sm text-muted-foreground">Average Score</p>
                   </div>
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
                     <p className="text-2xl font-bold text-success">
                       {testAnalytics.highestScore}
                     </p>
                     <p className="text-sm text-muted-foreground">Highest Score</p>
                   </div>
-                  <div className="rounded-lg border p-4">
+                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
                     <p className="text-2xl font-bold text-destructive">
                       {testAnalytics.lowestScore}
                     </p>

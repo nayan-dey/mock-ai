@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton, SignedIn } from "@clerk/nextjs";
-import { Button, cn } from "@repo/ui";
+import {
+  Button,
+  cn,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@repo/ui";
 import {
   LayoutDashboard,
   FileQuestion,
@@ -61,28 +68,44 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.exact
-            ? pathname === item.href || pathname === item.href + "/"
-            : pathname.startsWith(item.href);
-          return (
-            <Link key={item.href} href={item.href}>
+      <TooltipProvider delayDuration={0}>
+        <nav className="flex-1 space-y-1 p-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.exact
+              ? pathname === item.href || pathname === item.href + "/"
+              : pathname.startsWith(item.href);
+
+            const button = (
               <Button
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start",
+                  "w-full justify-start transition-transform duration-200 hover:translate-x-0.5",
                   collapsed && "justify-center px-2"
                 )}
               >
                 <Icon className="h-5 w-5" />
                 {!collapsed && <span className="ml-3">{item.label}</span>}
               </Button>
-            </Link>
-          );
-        })}
-      </nav>
+            );
+
+            return (
+              <Link key={item.href} href={item.href}>
+                {collapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>{button}</TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={8}>
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  button
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </TooltipProvider>
 
       {/* Footer */}
       <div className="border-t p-4">

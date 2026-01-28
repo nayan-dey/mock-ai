@@ -274,8 +274,8 @@ export function UsersClient() {
 
       {/* Quick Stats */}
       <div className="mb-6 grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[76px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Users className="h-5 w-5 text-primary" />
             </div>
@@ -285,8 +285,8 @@ export function UsersClient() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[76px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
               <Users className="h-5 w-5 text-blue-500" />
             </div>
@@ -296,8 +296,8 @@ export function UsersClient() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
+        <Card className="min-h-[76px]">
+          <CardContent className="flex h-full items-center gap-4 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
               <Ban className="h-5 w-5 text-red-500" />
             </div>
