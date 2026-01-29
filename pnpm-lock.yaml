@@ -23,12 +23,12 @@ importers:
 
   apps/admin:
     dependencies:
+      '@ai-sdk/google':
+        specifier: ^1.0.9
+        version: 1.2.22(zod@4.3.6)
       '@clerk/nextjs':
         specifier: ^6.36.10
         version: 6.36.10(next@15.5.9(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@mistralai/mistralai':
-        specifier: ^1.13.0
-        version: 1.13.0
       '@repo/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -38,6 +38,9 @@ importers:
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      ai:
+        specifier: ^4.0.0
+        version: 4.3.19(react@19.2.3)(zod@4.3.6)
       convex:
         specifier: ^1.17.4
         version: 1.31.6(@clerk/clerk-react@5.59.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
@@ -87,9 +90,9 @@ importers:
 
   apps/student:
     dependencies:
-      '@ai-sdk/mistral':
-        specifier: ^1.1.0
-        version: 1.2.8(zod@4.3.6)
+      '@ai-sdk/google':
+        specifier: ^1.0.9
+        version: 1.2.22(zod@4.3.6)
       '@assistant-ui/react':
         specifier: ^0.10.0
         version: 0.10.50(@types/react-dom@19.2.3(@types/react@19.2.9))(@types/react@19.2.9)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
@@ -99,9 +102,6 @@ importers:
       '@clerk/nextjs':
         specifier: ^6.36.10
         version: 6.36.10(next@15.5.9(@opentelemetry/api@1.9.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@mistralai/mistralai':
-        specifier: ^1.13.0
-        version: 1.13.0
       '@repo/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -291,8 +291,8 @@ importers:
 
 packages:
 
-  '@ai-sdk/mistral@1.2.8':
-    resolution: {integrity: sha512-lv857D9UJqCVxiq2Fcu7mSPTypEHBUqLl1K+lCaP6X/7QAkcaxI36QDONG+tOhGHJOXTsS114u8lrUTaEiGXbg==}
+  '@ai-sdk/google@1.2.22':
+    resolution: {integrity: sha512-Ppxu3DIieF1G9pyQ5O1Z646GYR0gkC57YdBqXJ82qvCdhEhZHu0TWhmnOoeIWe2olSbuDeoOY+MfJrW8dzS3Hw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.0.0
@@ -712,9 +712,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@mistralai/mistralai@1.13.0':
-    resolution: {integrity: sha512-eg7/8hQp91SshYDJ5XdWDsJENdIaSu52npJfKLCPuhla8Vm6GlESv2RROQyxESglCl7b1OULWiAv1ERbsrZO7w==}
 
   '@next/env@15.5.9':
     resolution: {integrity: sha512-4GlTZ+EJM7WaW2HEZcyU317tIQDjkQIyENDLxYJfSWlfqguN+dHkZgyQTV/7ykvobU7yEH5gKvreNrH4B6QgIg==}
@@ -2545,7 +2542,7 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/mistral@1.2.8(zod@4.3.6)':
+  '@ai-sdk/google@1.2.22(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider': 1.1.3
       '@ai-sdk/provider-utils': 2.2.8(zod@4.3.6)
@@ -2884,11 +2881,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
-
-  '@mistralai/mistralai@1.13.0':
-    dependencies:
-      zod: 4.3.6
-      zod-to-json-schema: 3.25.1(zod@4.3.6)
 
   '@next/env@15.5.9': {}
 

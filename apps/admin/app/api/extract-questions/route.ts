@@ -27,14 +27,14 @@ const DOCUMENT_TYPES = [
 export async function POST(request: NextRequest): Promise<NextResponse<ExtractionResult>> {
   try {
     // Check if API key is configured
-    if (!process.env.MISTRAL_API_KEY) {
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       return NextResponse.json(
         {
           success: false,
           questions: [],
           totalExtracted: 0,
           needsReviewCount: 0,
-          error: "MISTRAL_API_KEY is not configured. Please add it to your environment variables.",
+          error: "GOOGLE_GENERATIVE_AI_API_KEY is not configured. Please add it to your environment variables.",
         },
         { status: 500 }
       );

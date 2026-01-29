@@ -1,8 +1,12 @@
-import { createMistral } from "@ai-sdk/mistral";
+import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@repo/database";
+import {
+  STUDENT_CHAT_MODEL,
+  CHAT_MODEL_CONFIG
+} from "@repo/types";
 
 function buildSystemPrompt(studentContext: {
   profile: { name: string; bio?: string | null; batchName: string | null; joinedAt: number };
@@ -114,10 +118,10 @@ Be encouraging and supportive while being factually accurate about performance d
 export async function POST(req: Request) {
   try {
     // Check for API key
-    if (!process.env.MISTRAL_API_KEY) {
-      console.error("MISTRAL_API_KEY is not set");
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      console.error("GOOGLE_GENERATIVE_AI_API_KEY is not set");
       return new Response(
-        JSON.stringify({ error: "MISTRAL_API_KEY is not configured" }),
+        JSON.stringify({ error: "Google API key is not configured" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -173,18 +177,15 @@ export async function POST(req: Request) {
     // Build system prompt with student context
     const systemPrompt = buildSystemPrompt(studentContext);
 
-    // Create Mistral provider with explicit API key
-    const mistral = createMistral({
-      apiKey: process.env.MISTRAL_API_KEY,
-    });
-
-    // Stream response using Vercel AI SDK
+    // Stream response using Vercel AI SDK with Google Gemini
     const result = await streamText({
-      model: mistral("mistral-small-latest"),
+      model: google(STUDENT_CHAT_MODEL),
       system: systemPrompt,
       messages,
-      maxTokens: 1000,
-      temperature: 0.7,
+      maxTokens: CHAT_MODEL_CONFIG.maxTokens,
+      temperature: CHAT_MODEL_CONFIG.temperature,
+      topP: CHAT_MODEL_CONFIG.topP,
+      topK: CHAT_MODEL_CONFIG.topK,
     });
 
     return result.toDataStreamResponse();

@@ -28,7 +28,7 @@ import {
   BackButton,
   type QuestionStatus,
 } from "@repo/ui";
-import { Clock, FileQuestion, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain } from "lucide-react";
+import { Clock, ClipboardList, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain, Info } from "lucide-react";
 import type { GenericId } from "convex/values";
 
 type Id<T extends string> = GenericId<T>;
@@ -69,12 +69,29 @@ export default function TestPage() {
   const [isStarted, setIsStarted] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     if (isStarted && attemptId) {
       localStorage.setItem(`test-${testId}-currentQuestion`, currentQuestion.toString());
     }
   }, [currentQuestion, isStarted, attemptId, testId]);
+
+  // Track visited questions
+  useEffect(() => {
+    if (isStarted && testWithQuestions) {
+      const q = testWithQuestions.questionDetails[currentQuestion];
+      if (q) {
+        setVisitedQuestions((prev) => {
+          if (prev.has(q._id)) return prev;
+          const next = new Set(prev);
+          next.add(q._id);
+          return next;
+        });
+      }
+    }
+  }, [currentQuestion, isStarted, testWithQuestions]);
 
   const handleStartTest = async (forceNew: boolean = false) => {
     if (!dbUser) return;
@@ -153,12 +170,17 @@ export default function TestPage() {
   const getQuestionStatuses = (): QuestionStatus[] => {
     if (!testWithQuestions) return [];
     return testWithQuestions.questionDetails.map((q, index) => {
-      if (!q) return "unanswered";
+      if (!q) return "not-visited";
       if (index === currentQuestion) return "current";
-      if (markedForReview.has(q._id)) return "marked";
-      const answer = answers.get(q._id);
-      if (answer && answer.length > 0) return "answered";
-      return "unanswered";
+      const isAnswered = answers.has(q._id) && answers.get(q._id)!.length > 0;
+      const isMarked = markedForReview.has(q._id);
+      const isVisited = visitedQuestions.has(q._id);
+
+      if (isAnswered && isMarked) return "answered-marked";
+      if (isAnswered) return "answered";
+      if (isMarked) return "marked";
+      if (isVisited) return "not-answered";
+      return "not-visited";
     });
   };
 
@@ -308,7 +330,7 @@ export default function TestPage() {
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-xl border-2 border-transparent bg-muted/50 p-4 text-center transition-colors hover:border-primary/20">
                 <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-background">
-                  <FileQuestion className="h-5 w-5 text-primary" />
+                  <ClipboardList className="h-5 w-5 text-primary" />
                 </div>
                 <p className="font-serif text-2xl font-bold">
                   {testWithQuestions.questions.length}
@@ -418,7 +440,7 @@ export default function TestPage() {
   const answeredCount = [...answers.values()].filter((a) => a.length > 0).length;
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-20 lg:pb-0">
+    <div className="-mb-20 bg-muted/30 md:-mb-0">
       {/* Header */}
       <div className="sticky top-14 z-40 border-b bg-background px-4 py-2 sm:py-3">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
@@ -428,7 +450,7 @@ export default function TestPage() {
               Q{currentQuestion + 1}/{testWithQuestions.questionDetails.length}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             {startTime && (
               <TestTimer
                 durationMinutes={testWithQuestions.duration}
@@ -437,18 +459,25 @@ export default function TestPage() {
               />
             )}
             <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowInstructions(true)}
+            >
+              <Info className="h-4 w-4" />
+            </Button>
+            <Button
               variant="destructive"
               size="sm"
-              className="hidden sm:inline-flex"
               onClick={() => setShowSubmitDialog(true)}
             >
-              Submit Test
+              Submit
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
+      <div className="mx-auto max-w-7xl px-4 py-4 pb-20 sm:py-6 md:pb-6">
         <div className="grid gap-4 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_280px] md:gap-5 lg:gap-6">
           {/* Question Area */}
           <div className="space-y-4 sm:space-y-6">
@@ -577,18 +606,10 @@ export default function TestPage() {
             <span className="text-[10px]">Next</span>
           </button>
 
-          {/* Submit Button */}
-          <button
-            onClick={() => setShowSubmitDialog(true)}
-            className="flex flex-col items-center gap-0.5 px-4 py-1.5 text-destructive active:scale-95"
-          >
-            <CheckCircle className="h-5 w-5" />
-            <span className="text-[10px] font-medium">Submit</span>
-          </button>
         </div>
       </div>
 
-      {/* Mobile Navigation Bottom Sheet */}
+      {/* Mobile Navigation Right Sidebar */}
       <div
         className={cn(
           "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-opacity md:hidden",
@@ -598,19 +619,13 @@ export default function TestPage() {
       />
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t bg-background shadow-2xl transition-transform duration-300 ease-out md:hidden",
-          showNavDrawer ? "translate-y-0" : "translate-y-full"
+          "fixed inset-y-0 right-0 z-50 w-[280px] border-l bg-background shadow-2xl transition-transform duration-300 ease-out md:hidden",
+          showNavDrawer ? "translate-x-0" : "translate-x-full"
         )}
-        style={{ maxHeight: "70vh" }}
       >
-        <div className="flex flex-col" style={{ maxHeight: "70vh" }}>
-          {/* Handle bar */}
-          <div className="flex justify-center py-2">
-            <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-          </div>
-
+        <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between border-b px-4 pb-3">
+          <div className="flex items-center justify-between border-b px-4 py-3">
             <div>
               <h2 className="text-sm font-semibold">Question Navigator</h2>
               <p className="text-xs text-muted-foreground">
@@ -641,6 +656,38 @@ export default function TestPage() {
           </div>
         </div>
       </div>
+
+      {/* Instructions Dialog */}
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Test Instructions</DialogTitle>
+          </DialogHeader>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+              Once started, the test cannot be paused
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+              Negative marking: -{testWithQuestions.negativeMarking} for each wrong answer
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+              You can mark questions for review
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+              Auto-submit when time runs out
+            </li>
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInstructions(false)} className="w-full">
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Submit Confirmation Dialog */}
       <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>

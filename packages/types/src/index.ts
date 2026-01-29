@@ -241,3 +241,6 @@ export const TOPICS: Record<Subject, string[]> = {
     "Networking",
   ],
 };
+
+// Export AI configuration
+export * from './ai-config';

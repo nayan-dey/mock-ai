@@ -4,9 +4,10 @@ import * as React from "react";
 import { cn } from "../lib/utils";
 import { Card, CardContent, CardHeader } from "./card";
 import { Checkbox } from "./checkbox";
-import { RadioGroup, RadioGroupItem } from "./radio-group";
 import { Label } from "./label";
 import { Badge } from "./badge";
+import { Button } from "./button";
+import { X } from "lucide-react";
 
 interface QuestionCardProps {
   questionNumber: number;
@@ -35,8 +36,12 @@ export function QuestionCard({
   onMarkForReview,
   className,
 }: QuestionCardProps) {
-  const handleSingleSelect = (value: string) => {
-    onSelect([parseInt(value)]);
+  const handleSingleSelect = (index: number) => {
+    if (selectedOptions.includes(index)) {
+      onSelect([]); // Deselect on re-click
+    } else {
+      onSelect([index]);
+    }
   };
 
   const handleMultiSelect = (index: number, checked: boolean) => {
@@ -136,44 +141,57 @@ export function QuestionCard({
             ))}
           </div>
         ) : (
-          <RadioGroup
-            value={selectedOptions[0]?.toString() ?? ""}
-            onValueChange={handleSingleSelect}
-            disabled={showAnswer}
-          >
-            <div className="space-y-3">
-              {options.map((option, index) => (
+          <div className="space-y-3">
+            {options.map((option, index) => (
+              <div
+                key={index}
+                onClick={() => !showAnswer && handleSingleSelect(index)}
+                className={cn(
+                  "flex items-center space-x-3 rounded-lg border p-3 transition-colors cursor-pointer",
+                  selectedOptions.includes(index) && !showAnswer
+                    ? "border-primary bg-primary/5"
+                    : "hover:bg-muted/50",
+                  getOptionStyle(index),
+                  showAnswer && "cursor-default"
+                )}
+              >
                 <div
-                  key={index}
-                  onClick={() => !showAnswer && handleSingleSelect(index.toString())}
                   className={cn(
-                    "flex items-center space-x-3 rounded-lg border p-3 transition-colors cursor-pointer",
-                    selectedOptions.includes(index) && !showAnswer
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-muted/50",
-                    getOptionStyle(index),
-                    showAnswer && "cursor-default"
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                    selectedOptions.includes(index)
+                      ? "border-primary bg-primary"
+                      : "border-muted-foreground",
+                    showAnswer && "opacity-50"
                   )}
                 >
-                  <RadioGroupItem
-                    value={index.toString()}
-                    id={`option-${questionNumber}-${index}`}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <Label
-                    htmlFor={`option-${questionNumber}-${index}`}
-                    className="flex-1 cursor-pointer text-sm"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span className="mr-2 font-medium">
-                      {String.fromCharCode(65 + index)}.
-                    </span>
-                    {option}
-                  </Label>
+                  {selectedOptions.includes(index) && (
+                    <div className="h-2 w-2 rounded-full bg-primary-foreground" />
+                  )}
                 </div>
-              ))}
-            </div>
-          </RadioGroup>
+                <Label
+                  className="flex-1 cursor-pointer text-sm"
+                >
+                  <span className="mr-2 font-medium">
+                    {String.fromCharCode(65 + index)}.
+                  </span>
+                  {option}
+                </Label>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Clear Answer Button */}
+        {selectedOptions.length > 0 && !showAnswer && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSelect([])}
+            className="mt-4 w-full gap-2 text-muted-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear Answer
+          </Button>
         )}
       </CardContent>
     </Card>

@@ -22,13 +22,7 @@ import {
 import { ArrowLeft, Upload, CheckCircle, AlertTriangle, Save, RotateCcw, FileText } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { SUBJECTS, TOPICS, type ExtractedQuestion, type ExtractionResult, type Subject } from "@repo/types";
-
-// Available Mistral vision models
-const MISTRAL_MODELS = [
-  { id: "pixtral-12b-2409", name: "Pixtral 12B (Recommended)", description: "Fast & cheap, good for most cases" },
-  { id: "pixtral-large-latest", name: "Pixtral Large", description: "More accurate, uses more quota" },
-] as const;
+import { SUBJECTS, TOPICS, type ExtractedQuestion, type ExtractionResult, type Subject, EXTRACTION_MODEL_OPTIONS } from "@repo/types";
 import { FileUploader } from "./components/file-uploader";
 import { ExtractionProgress } from "./components/extraction-progress";
 import { ExtractedQuestions } from "./components/extracted-questions";
@@ -58,7 +52,7 @@ export default function ExtractQuestionsPage() {
   const [defaultTopic, setDefaultTopic] = useState<string>("");
 
   // Model selection
-  const [selectedModel, setSelectedModel] = useState<string>("pixtral-12b-2409");
+  const [selectedModel, setSelectedModel] = useState<string>(EXTRACTION_MODEL_OPTIONS[0].id);
 
   // Create test modal
   const [showCreateTestModal, setShowCreateTestModal] = useState(false);
@@ -286,7 +280,7 @@ export default function ExtractQuestionsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MISTRAL_MODELS.map((model) => (
+                    {EXTRACTION_MODEL_OPTIONS.map((model) => (
                       <SelectItem key={model.id} value={model.id}>
                         <div className="flex flex-col">
                           <span>{model.name}</span>

@@ -10,11 +10,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/mistral": "^1.1.0",
+    "@ai-sdk/google": "^1.0.9",
     "@assistant-ui/react": "^0.10.0",
     "@assistant-ui/react-markdown": "^0.10.0",
     "@clerk/nextjs": "^6.36.10",
-    "@mistralai/mistralai": "^1.13.0",
     "@repo/database": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",

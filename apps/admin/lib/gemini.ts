@@ -1,9 +1,13 @@
-import { Mistral } from "@mistralai/mistralai";
-import { SUBJECTS, TOPICS, type ExtractedQuestion, type Subject } from "@repo/types";
-
-const mistral = new Mistral({
-  apiKey: process.env.MISTRAL_API_KEY || "",
-});
+import { google } from "@ai-sdk/google";
+import { generateText } from "ai";
+import {
+  SUBJECTS,
+  TOPICS,
+  type ExtractedQuestion,
+  type Subject,
+  ADMIN_EXTRACTION_MODEL,
+  EXTRACTION_MODEL_CONFIG,
+} from "@repo/types";
 
 const EXTRACTION_PROMPT_IMAGE = `You are an expert at extracting multiple-choice questions from educational documents.
 
@@ -107,49 +111,39 @@ Notes:
 --- DOCUMENT TEXT ---
 `;
 
-export interface MistralExtractionResult {
+export interface GeminiExtractionResult {
   questions: ExtractedQuestion[];
   error?: string;
 }
 
-// Text model options for document extraction (cheaper, no vision needed)
-const TEXT_MODELS: Record<string, string> = {
-  "pixtral-12b-2409": "mistral-small-latest",
-  "pixtral-large-latest": "mistral-large-latest",
-};
-
 export async function extractQuestionsFromText(
   text: string,
   model?: string
-): Promise<MistralExtractionResult> {
+): Promise<GeminiExtractionResult> {
   try {
-    // Map vision model to corresponding text model
-    const visionModel = model || "pixtral-12b-2409";
-    const textModel = TEXT_MODELS[visionModel] || "mistral-small-latest";
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    const response = await mistral.chat.complete({
-      model: textModel,
-      messages: [
-        {
-          role: "user",
-          content: EXTRACTION_PROMPT_TEXT + text,
-        },
-      ],
-    });
-
-    const content = response.choices?.[0]?.message?.content;
-
-    if (!content || typeof content !== "string") {
+    if (!apiKey) {
       return {
         questions: [],
-        error: "No response received from AI",
+        error: "GOOGLE_GENERATIVE_AI_API_KEY is not configured",
       };
     }
 
-    return parseAIResponse(content);
+    const selectedModel = model || ADMIN_EXTRACTION_MODEL;
+
+    const result = await generateText({
+      model: google(selectedModel),
+      prompt: EXTRACTION_PROMPT_TEXT + text,
+      temperature: EXTRACTION_MODEL_CONFIG.temperature,
+      topP: EXTRACTION_MODEL_CONFIG.topP,
+      topK: EXTRACTION_MODEL_CONFIG.topK,
+    });
+
+    return parseAIResponse(result.text);
   } catch (error) {
-    console.error("Mistral API error:", error);
-    return handleMistralError(error);
+    console.error("Gemini API error:", error);
+    return handleGeminiError(error);
   }
 }
 
@@ -157,20 +151,28 @@ export async function extractQuestionsFromFile(
   fileBase64: string,
   mimeType: string,
   model?: string
-): Promise<MistralExtractionResult> {
+): Promise<GeminiExtractionResult> {
   try {
-    // Use provided model or default to pixtral-12b-2409
-    const selectedModel = model || "pixtral-12b-2409";
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-    const response = await mistral.chat.complete({
-      model: selectedModel,
+    if (!apiKey) {
+      return {
+        questions: [],
+        error: "GOOGLE_GENERATIVE_AI_API_KEY is not configured",
+      };
+    }
+
+    const selectedModel = model || ADMIN_EXTRACTION_MODEL;
+
+    const result = await generateText({
+      model: google(selectedModel),
       messages: [
         {
           role: "user",
           content: [
             {
-              type: "image_url",
-              imageUrl: `data:${mimeType};base64,${fileBase64}`,
+              type: "image",
+              image: `data:${mimeType};base64,${fileBase64}`,
             },
             {
               type: "text",
@@ -179,25 +181,19 @@ export async function extractQuestionsFromFile(
           ],
         },
       ],
+      temperature: EXTRACTION_MODEL_CONFIG.temperature,
+      topP: EXTRACTION_MODEL_CONFIG.topP,
+      topK: EXTRACTION_MODEL_CONFIG.topK,
     });
 
-    const content = response.choices?.[0]?.message?.content;
-
-    if (!content || typeof content !== "string") {
-      return {
-        questions: [],
-        error: "No response received from AI",
-      };
-    }
-
-    return parseAIResponse(content);
+    return parseAIResponse(result.text);
   } catch (error) {
-    console.error("Mistral API error:", error);
-    return handleMistralError(error);
+    console.error("Gemini API error:", error);
+    return handleGeminiError(error);
   }
 }
 
-function parseAIResponse(content: string): MistralExtractionResult {
+function parseAIResponse(content: string): GeminiExtractionResult {
   try {
     // Try to extract JSON from the response (handle potential markdown code blocks)
     let jsonStr = content.trim();
@@ -237,11 +233,11 @@ function parseAIResponse(content: string): MistralExtractionResult {
   }
 }
 
-function handleMistralError(error: unknown): MistralExtractionResult {
+function handleGeminiError(error: unknown): GeminiExtractionResult {
   const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
   // Handle rate limit errors
-  if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("Too Many Requests")) {
+  if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
     return {
       questions: [],
       error: "Rate limit exceeded. Please wait a moment and try again.",
@@ -249,10 +245,18 @@ function handleMistralError(error: unknown): MistralExtractionResult {
   }
 
   // Handle authentication errors
-  if (errorMessage.includes("401") || errorMessage.includes("Unauthorized") || errorMessage.includes("invalid_api_key")) {
+  if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("invalid_api_key") || errorMessage.includes("API_KEY_INVALID")) {
     return {
       questions: [],
-      error: "Invalid API key. Please check your MISTRAL_API_KEY in the environment variables.",
+      error: "Invalid API key. Please check your GOOGLE_GENERATIVE_AI_API_KEY in the environment variables.",
+    };
+  }
+
+  // Handle safety filter errors (Gemini-specific)
+  if (errorMessage.includes("SAFETY") || errorMessage.includes("blocked")) {
+    return {
+      questions: [],
+      error: "Content was blocked by safety filters. Please try a different image or document.",
     };
   }
 
