@@ -190,6 +190,35 @@ export default defineSchema({
     .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
+  // Multi-admin support: maps admin clerkIds to organizations
+  orgAdmins: defineTable({
+    clerkId: v.string(),
+    organizationId: v.id("organizations"),
+    isSuperAdmin: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_organization", ["organizationId"]),
+
+  // Join requests for admins wanting to join an existing org
+  orgJoinRequests: defineTable({
+    organizationId: v.id("organizations"),
+    clerkId: v.string(),
+    userName: v.string(),
+    userEmail: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_org_status", ["organizationId", "status"]),
+
   // Fee records for students
   fees: defineTable({
     studentId: v.id("users"),

@@ -150,6 +150,19 @@ export const remove = mutation({
   },
 });
 
+export const countForOrg = query({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const batches = await ctx.db
+      .query("batches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    return batches.length;
+  },
+});
+
 export const getStudentsByBatch = query({
   args: { batchId: v.id("batches") },
   handler: async (ctx, args) => {

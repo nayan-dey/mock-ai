@@ -36,11 +36,18 @@ export const getStudentAnalytics = query({
       throw new Error("You can only view your own analytics");
     }
 
-    const attempts = await ctx.db
+    const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Fetch tests and filter out attempts where answer key is not published
+    const allTests = await Promise.all(
+      allAttempts.map((attempt) => ctx.db.get(attempt.testId))
+    );
+    const attempts = allAttempts.filter((_, i) => allTests[i]?.answerKeyPublished === true);
+    const tests = allTests.filter((t) => t?.answerKeyPublished === true);
 
     if (attempts.length === 0) {
       return {
@@ -58,10 +65,6 @@ export const getStudentAnalytics = query({
     const totalScore = attempts.reduce((sum, a) => sum + a.score, 0);
 
     const subjectWisePerformance: Record<string, { correct: number; total: number }> = {};
-
-    const tests = await Promise.all(
-      attempts.map((attempt) => ctx.db.get(attempt.testId))
-    );
 
     const allQuestionIds = new Set<Id<"questions">>();
     for (const test of tests) {
@@ -109,15 +112,12 @@ export const getStudentAnalytics = query({
       }
     }
 
-    const recentAttempts = await Promise.all(
-      attempts.slice(0, 5).map(async (attempt) => {
-        const test = await ctx.db.get(attempt.testId);
-        return {
-          ...attempt,
-          testTitle: test?.title || "Unknown Test",
-        };
-      })
-    );
+    const recentAttempts = attempts
+      .slice(0, 5)
+      .map((attempt, i) => ({
+        ...attempt,
+        testTitle: tests[attempts.indexOf(attempt)]?.title || "Unknown Test",
+      }));
 
     return {
       totalTestsTaken: attempts.length,
@@ -225,6 +225,10 @@ export const getLeaderboard = query({
   handler: async (ctx, args) => {
     await requireAuth(ctx);
 
+    // Only show leaderboard if answer key is published
+    const test = await ctx.db.get(args.testId);
+    if (!test || !test.answerKeyPublished) return [];
+
     const attempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
@@ -264,36 +268,38 @@ export const getStudentPerformanceTrend = query({
     }
 
     const limit = args.limit || 10;
-    const attempts = await ctx.db
+    const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .order("desc")
-      .take(limit);
+      .collect();
 
-    const trend = await Promise.all(
-      attempts.reverse().map(async (attempt) => {
-        const test = await ctx.db.get(attempt.testId);
-        const totalQuestions = attempt.correct + attempt.incorrect + attempt.unanswered;
-        const accuracy = totalQuestions > 0
-          ? (attempt.correct / totalQuestions) * 100
-          : 0;
-        return {
-          testTitle: test?.title || "Unknown Test",
-          score: attempt.score,
-          accuracy: Math.round(accuracy),
-          submittedAt: attempt.submittedAt,
-          date: attempt.submittedAt
-            ? new Date(attempt.submittedAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })
-            : "",
-        };
-      })
-    );
+    // Filter to only published answer key attempts, then take limit
+    const trend: { testTitle: string; score: number; accuracy: number; submittedAt: number | null; date: string }[] = [];
+    for (const attempt of allAttempts) {
+      if (trend.length >= limit) break;
+      const test = await ctx.db.get(attempt.testId);
+      if (!test || !test.answerKeyPublished) continue;
+      const totalQuestions = attempt.correct + attempt.incorrect + attempt.unanswered;
+      const accuracy = totalQuestions > 0
+        ? (attempt.correct / totalQuestions) * 100
+        : 0;
+      trend.push({
+        testTitle: test.title || "Unknown Test",
+        score: attempt.score,
+        accuracy: Math.round(accuracy),
+        submittedAt: attempt.submittedAt,
+        date: attempt.submittedAt
+          ? new Date(attempt.submittedAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
+          : "",
+      });
+    }
 
-    return trend;
+    return trend.reverse();
   },
 });
 
@@ -310,7 +316,7 @@ export const getAttemptBreakdown = query({
     }
 
     const test = await ctx.db.get(attempt.testId);
-    if (!test) return [];
+    if (!test || !test.answerKeyPublished) return [];
 
     const questions = await Promise.all(
       test.questions.map((questionId) => ctx.db.get(questionId))
@@ -372,12 +378,26 @@ export const getGlobalLeaderboard = query({
       .collect();
     const orgUserIds = new Set(orgUsers.map((u) => u._id as string));
 
-    const allAttempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
 
-    const attempts = allAttempts.filter((a) => orgUserIds.has(a.userId as string));
+    const orgAttempts = rawAttempts.filter((a) => orgUserIds.has(a.userId as string));
+
+    // Filter to only include attempts for tests with published answer keys
+    const testCache = new Map<string, boolean>();
+    const attempts: typeof orgAttempts = [];
+    for (const attempt of orgAttempts) {
+      const tid = attempt.testId as string;
+      if (!testCache.has(tid)) {
+        const t = await ctx.db.get(attempt.testId);
+        testCache.set(tid, t?.answerKeyPublished === true);
+      }
+      if (testCache.get(tid)) {
+        attempts.push(attempt);
+      }
+    }
 
     const userStats: Record<
       string,
@@ -480,12 +500,26 @@ export const getBatchLeaderboard = query({
     const activeUsers = batchUsers.filter((u) => !u.isSuspended);
     const userIds = new Set(activeUsers.map((u) => u._id as string));
 
-    const attempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
 
-    const batchAttempts = attempts.filter((a) => userIds.has(a.userId as string));
+    const batchRawAttempts = rawAttempts.filter((a) => userIds.has(a.userId as string));
+
+    // Filter to only include attempts for tests with published answer keys
+    const testCache = new Map<string, boolean>();
+    const batchAttempts: typeof batchRawAttempts = [];
+    for (const attempt of batchRawAttempts) {
+      const tid = attempt.testId as string;
+      if (!testCache.has(tid)) {
+        const t = await ctx.db.get(attempt.testId);
+        testCache.set(tid, t?.answerKeyPublished === true);
+      }
+      if (testCache.get(tid)) {
+        batchAttempts.push(attempt);
+      }
+    }
 
     const userStats: Record<
       string,
@@ -570,6 +604,12 @@ export const getUserTestRank = query({
   handler: async (ctx, args) => {
     await requireAuth(ctx);
 
+    // Only show rank if answer key is published
+    const test = await ctx.db.get(args.testId);
+    if (!test || !test.answerKeyPublished) {
+      return { rank: null, totalParticipants: 0 };
+    }
+
     const attempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
@@ -645,11 +685,25 @@ export const getActivityHeatmapData = query({
       throw new Error("You can only view your own activity data");
     }
 
-    const attempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Filter to only include attempts for tests with published answer keys
+    const testCache = new Map<string, boolean>();
+    const attempts: typeof rawAttempts = [];
+    for (const attempt of rawAttempts) {
+      const tid = attempt.testId as string;
+      if (!testCache.has(tid)) {
+        const t = await ctx.db.get(attempt.testId);
+        testCache.set(tid, t?.answerKeyPublished === true);
+      }
+      if (testCache.get(tid)) {
+        attempts.push(attempt);
+      }
+    }
 
     const activityMap: Record<string, { count: number; totalScore: number }> = {};
 
@@ -691,11 +745,25 @@ export const getPublicStudentAnalytics = query({
       return { isPrivate: true, showHeatmap };
     }
 
-    const attempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Filter to only published answer key attempts
+    const userTestCache = new Map<string, boolean>();
+    const attempts: typeof rawAttempts = [];
+    for (const attempt of rawAttempts) {
+      const tid = attempt.testId as string;
+      if (!userTestCache.has(tid)) {
+        const t = await ctx.db.get(attempt.testId);
+        userTestCache.set(tid, t?.answerKeyPublished === true);
+      }
+      if (userTestCache.get(tid)) {
+        attempts.push(attempt);
+      }
+    }
 
     const totalCorrect = attempts.reduce((sum, a) => sum + a.correct, 0);
     const totalQuestions = attempts.reduce(
@@ -715,14 +783,28 @@ export const getPublicStudentAnalytics = query({
       orgUserIds = new Set(orgUsers.map((u) => u._id as string));
     }
 
-    const allAttempts = await ctx.db
+    const allRawAttempts = await ctx.db
       .query("attempts")
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
 
+    // Filter all attempts to only published answer keys for ranking
+    const globalTestCache = new Map<string, boolean>();
+    const allPublishedAttempts: typeof allRawAttempts = [];
+    for (const attempt of allRawAttempts) {
+      const tid = attempt.testId as string;
+      if (!globalTestCache.has(tid)) {
+        const t = await ctx.db.get(attempt.testId);
+        globalTestCache.set(tid, t?.answerKeyPublished === true);
+      }
+      if (globalTestCache.get(tid)) {
+        allPublishedAttempts.push(attempt);
+      }
+    }
+
     const filteredAttempts = orgUserIds
-      ? allAttempts.filter((a) => orgUserIds!.has(a.userId as string))
-      : allAttempts;
+      ? allPublishedAttempts.filter((a) => orgUserIds!.has(a.userId as string))
+      : allPublishedAttempts;
 
     const userScores: Record<string, number> = {};
     for (const attempt of filteredAttempts) {
@@ -763,15 +845,19 @@ export const getStudentAchievements = query({
       throw new Error("You can only view your own achievements");
     }
 
-    const attempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
 
-    const tests = await Promise.all(
-      attempts.map((attempt) => ctx.db.get(attempt.testId))
+    const rawTests = await Promise.all(
+      rawAttempts.map((attempt) => ctx.db.get(attempt.testId))
     );
+
+    // Filter to only include attempts for tests with published answer keys
+    const attempts = rawAttempts.filter((_, i) => rawTests[i]?.answerKeyPublished === true);
+    const tests = rawTests.filter((t) => t?.answerKeyPublished === true);
 
     const achievements: { id: string; name: string; icon: string; earnedAt: number }[] = [];
 

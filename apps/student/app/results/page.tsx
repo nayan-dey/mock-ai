@@ -57,7 +57,7 @@ export default function ResultsPage() {
   const submittedAttempts = useMemo(() => {
     if (!attempts) return [];
     return attempts
-      .filter((a) => a.status === "submitted")
+      .filter((a) => a.status === "submitted" && a.answerKeyPublished)
       .map((a) => ({
         ...a,
         // Use percentage from backend (score/totalMarks) for consistency with detail page

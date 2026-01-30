@@ -12,21 +12,25 @@ export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
   const url = req.nextUrl;
   const ref = url.searchParams.get("ref");
-
-  // Redirect authenticated users from home page to dashboard
-  if (userId && url.pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
-
-  // Authenticated user at sign-up with ref/org → onboarding with params
   const org = url.searchParams.get("org");
-  if (userId && url.pathname.startsWith("/sign-up") && (ref || org)) {
-    const params = new URLSearchParams();
-    if (org) params.set("org", org);
-    if (ref) params.set("ref", ref);
-    return NextResponse.redirect(
-      new URL(`/onboarding?${params.toString()}`, req.url)
-    );
+
+  // Redirect authenticated users from home/auth pages to dashboard
+  if (
+    userId &&
+    (url.pathname === "/" ||
+      url.pathname.startsWith("/sign-in") ||
+      url.pathname.startsWith("/sign-up"))
+  ) {
+    // Preserve ref/org params → send to onboarding
+    if (ref || org) {
+      const params = new URLSearchParams();
+      if (org) params.set("org", org);
+      if (ref) params.set("ref", ref);
+      return NextResponse.redirect(
+        new URL(`/onboarding?${params.toString()}`, req.url)
+      );
+    }
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   if (!isPublicRoute(req)) {

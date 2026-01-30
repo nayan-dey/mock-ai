@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAdmin, requireAuth } from "./lib/auth";
+import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 function generateSlug(name: string): string {
   return name
@@ -12,29 +12,45 @@ function generateSlug(name: string): string {
 export const create = mutation({
   args: {
     name: v.string(),
-    description: v.optional(v.string()),
+    description: v.string(),
     logoUrl: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    address: v.optional(v.string()),
+    phone: v.string(),
+    address: v.string(),
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
 
-    // Derive adminClerkId from auth token
     const identity = await ctx.auth.getUserIdentity();
     const adminClerkId = identity!.subject;
 
-    // Check if org already exists for this admin
-    const existing = await ctx.db
+    // Check if this admin already belongs to an org via orgAdmins
+    const existingAdmin = await ctx.db
+      .query("orgAdmins")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", adminClerkId))
+      .first();
+
+    if (existingAdmin) {
+      return existingAdmin.organizationId;
+    }
+
+    // Also check legacy adminClerkId field
+    const existingOrg = await ctx.db
       .query("organizations")
       .withIndex("by_admin_clerk_id", (q) =>
         q.eq("adminClerkId", adminClerkId)
       )
       .first();
 
-    if (existing) {
-      return existing._id;
+    if (existingOrg) {
+      // Backfill orgAdmins entry
+      await ctx.db.insert("orgAdmins", {
+        clerkId: adminClerkId,
+        organizationId: existingOrg._id,
+        isSuperAdmin: true,
+        createdAt: Date.now(),
+      });
+      return existingOrg._id;
     }
 
     // Generate unique slug
@@ -68,6 +84,14 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
+    // Insert into orgAdmins junction table (founding admin = super admin)
+    await ctx.db.insert("orgAdmins", {
+      clerkId: adminClerkId,
+      organizationId: orgId,
+      isSuperAdmin: true,
+      createdAt: Date.now(),
+    });
+
     // Set organizationId on the admin user
     await ctx.db.patch(admin._id, { organizationId: orgId });
 
@@ -78,11 +102,20 @@ export const create = mutation({
 export const getByAdminClerkId = query({
   args: { adminClerkId: v.string() },
   handler: async (ctx, args) => {
-    // Gracefully handle missing auth — JWT may not be ready yet.
-    // Convex will reactively re-run this query once the token arrives.
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
+    // Check orgAdmins junction table first
+    const adminEntry = await ctx.db
+      .query("orgAdmins")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.adminClerkId))
+      .first();
+
+    if (adminEntry) {
+      return await ctx.db.get(adminEntry.organizationId);
+    }
+
+    // Fallback to legacy adminClerkId field
     return await ctx.db
       .query("organizations")
       .withIndex("by_admin_clerk_id", (q) =>
@@ -105,12 +138,23 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    // Verify this admin owns this org
     const org = await ctx.db.get(args.id);
     if (!org) throw new Error("Organization not found");
 
     const identity = await ctx.auth.getUserIdentity();
-    if (org.adminClerkId !== identity!.subject) {
+    const clerkId = identity!.subject;
+
+    // Verify this admin belongs to this org
+    const adminEntry = await ctx.db
+      .query("orgAdmins")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    const isAdmin =
+      (adminEntry && adminEntry.organizationId === args.id) ||
+      org.adminClerkId === clerkId;
+
+    if (!isAdmin) {
       throw new Error("You can only update your own organization");
     }
 
@@ -119,6 +163,101 @@ export const update = mutation({
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
     await ctx.db.patch(id, filteredUpdates);
+  },
+});
+
+// List all admins for the current org
+export const listAdmins = query({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    const admins = await ctx.db
+      .query("orgAdmins")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+
+    // Enrich with user data
+    return Promise.all(
+      admins.map(async (a) => {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_clerk_id", (q) => q.eq("clerkId", a.clerkId))
+          .first();
+        return {
+          _id: a._id,
+          clerkId: a.clerkId,
+          isSuperAdmin: a.isSuperAdmin,
+          createdAt: a.createdAt,
+          userName: user?.name ?? "Unknown",
+          userEmail: user?.email ?? "",
+          userId: user?._id,
+        };
+      })
+    );
+  },
+});
+
+// Remove an admin from the org (super admin only)
+export const removeAdmin = mutation({
+  args: {
+    orgAdminId: v.id("orgAdmins"),
+  },
+  handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    const identity = await ctx.auth.getUserIdentity();
+    const callerClerkId = identity!.subject;
+
+    // Verify caller is super admin
+    const callerOrgAdmin = await ctx.db
+      .query("orgAdmins")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", callerClerkId))
+      .first();
+
+    if (!callerOrgAdmin || !callerOrgAdmin.isSuperAdmin) {
+      throw new Error("Only the super admin can remove other admins");
+    }
+
+    const targetAdmin = await ctx.db.get(args.orgAdminId);
+    if (!targetAdmin) throw new Error("Admin not found");
+    if (targetAdmin.organizationId !== orgId) {
+      throw new Error("Admin does not belong to your organization");
+    }
+    if (targetAdmin.isSuperAdmin) {
+      throw new Error("Cannot remove the super admin");
+    }
+
+    // Remove the orgAdmins entry
+    await ctx.db.delete(args.orgAdminId);
+
+    // Clear the user's organizationId
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", targetAdmin.clerkId))
+      .first();
+
+    if (user) {
+      await ctx.db.patch(user._id, { organizationId: undefined });
+    }
+  },
+});
+
+// Check if current user is super admin
+export const isSuperAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return false;
+
+    const adminEntry = await ctx.db
+      .query("orgAdmins")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    return adminEntry?.isSuperAdmin ?? false;
   },
 });
 

@@ -24,9 +24,14 @@ export const getByUserAndTest = query({
       .collect();
 
     const inProgress = attempts.find(a => a.status === "in_progress");
-    if (inProgress) return inProgress;
+    if (inProgress) return { ...inProgress, answerKeyPublished: false };
 
-    return attempts[0] || null;
+    const latest = attempts[0] || null;
+    if (!latest) return null;
+
+    // Enrich with answerKeyPublished from the test
+    const test = await ctx.db.get(latest.testId);
+    return { ...latest, answerKeyPublished: test?.answerKeyPublished === true };
   },
 });
 

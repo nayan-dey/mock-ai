@@ -27,19 +27,25 @@ export function UserSync({ children }: { children: ReactNode }) {
   const upsertAsAdmin = useMutation(api.users.upsertAsAdmin);
   const hasSynced = useRef(false);
 
-  // Step 1: Check if user exists in Convex DB (no auth required — works immediately)
+  // Step 1: Check if user exists in Convex DB
   const convexUser = useQuery(
     api.users.getByClerkId,
     user?.id ? { clerkId: user.id } : "skip"
   );
 
-  // Step 2: Only query org after user is confirmed in DB
+  // Step 2: Query org after user is confirmed in DB
   const organization = useQuery(
     api.organizations.getByAdminClerkId,
     convexUser && user?.id ? { adminClerkId: user.id } : "skip"
   );
 
-  // Reset sync flag on logout so a new user gets synced
+  // Step 3: Check for pending join request (only if no org)
+  const pendingRequest = useQuery(
+    api.orgJoinRequests.getMyPendingRequest,
+    convexUser && !organization && organization !== undefined ? {} : "skip"
+  );
+
+  // Reset sync flag on logout
   useEffect(() => {
     if (!user) {
       hasSynced.current = false;
@@ -80,8 +86,10 @@ export function UserSync({ children }: { children: ReactNode }) {
     if (isPublicPath(pathname)) return;
 
     if (!organization && pathname !== "/onboarding") {
+      // No org — redirect to onboarding (whether pending request or not)
       router.replace("/onboarding");
     } else if (organization && pathname === "/onboarding") {
+      // Has org — redirect away from onboarding
       router.replace("/dashboard");
     }
   }, [isLoaded, user, convexUser, organization, pathname, router]);
@@ -96,7 +104,7 @@ export function UserSync({ children }: { children: ReactNode }) {
     return <LoadingSpinner />;
   }
 
-  // User signed out on a protected route — spinner while redirect fires
+  // User signed out on a protected route
   if (!user) {
     return <LoadingSpinner />;
   }

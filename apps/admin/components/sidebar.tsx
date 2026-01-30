@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { UserButton, SignedIn, useClerk } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "@repo/database";
 import {
   Button,
   cn,
@@ -18,7 +20,6 @@ import {
   BookOpen,
   Video,
   BarChart3,
-  Settings,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -27,6 +28,8 @@ import {
   UserCog,
   Sparkles,
   IndianRupee,
+  UserPlus,
+  Shield,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -41,6 +44,8 @@ const navItems = [
   { href: "/notes", label: "Notes", icon: BookOpen },
   { href: "/classes", label: "Classes", icon: Video },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admins", label: "Admins", icon: Shield },
+  { href: "/requests", label: "Join Requests", icon: UserPlus },
   { href: "/seed", label: "Seed Data", icon: Database },
 ];
 
@@ -49,6 +54,8 @@ export function Sidebar() {
   const router = useRouter();
   const { signOut } = useClerk();
   const [collapsed, setCollapsed] = useState(false);
+
+  const pendingCount = useQuery(api.orgJoinRequests.getPendingCount) ?? 0;
 
   const handleSignOut = () => {
     signOut().then(() => router.replace("/"));
@@ -83,6 +90,8 @@ export function Sidebar() {
               ? pathname === item.href || pathname === item.href + "/"
               : pathname.startsWith(item.href);
 
+            const showBadge = item.href === "/requests" && pendingCount > 0;
+
             const button = (
               <Button
                 variant={isActive ? "secondary" : "ghost"}
@@ -91,8 +100,24 @@ export function Sidebar() {
                   collapsed && "justify-center px-2"
                 )}
               >
-                <Icon className="h-5 w-5" />
-                {!collapsed && <span className="ml-3">{item.label}</span>}
+                <div className="relative">
+                  <Icon className="h-5 w-5" />
+                  {showBadge && collapsed && (
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                      {pendingCount}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <span className="ml-3 flex flex-1 items-center justify-between">
+                    {item.label}
+                    {showBadge && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold text-destructive-foreground">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </span>
+                )}
               </Button>
             );
 
@@ -103,6 +128,7 @@ export function Sidebar() {
                     <TooltipTrigger asChild>{button}</TooltipTrigger>
                     <TooltipContent side="right" sideOffset={8}>
                       {item.label}
+                      {showBadge && ` (${pendingCount})`}
                     </TooltipContent>
                   </Tooltip>
                 ) : (

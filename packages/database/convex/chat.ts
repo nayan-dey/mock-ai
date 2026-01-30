@@ -217,16 +217,22 @@ export const getStudentContext = query({
     const batch = user.batchId ? await ctx.db.get(user.batchId) : null;
 
     // Get all submitted attempts
-    const attempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", user._id))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
 
     // Get tests for the attempts
-    const testIds = [...new Set(attempts.map((a) => a.testId))];
+    const testIds = [...new Set(rawAttempts.map((a) => a.testId))];
     const tests = await Promise.all(testIds.map((id) => ctx.db.get(id)));
     const testsMap = new Map(tests.filter(Boolean).map((t) => [t!._id, t!]));
+
+    // Filter to only include attempts where answer key is published
+    const attempts = rawAttempts.filter((a) => {
+      const test = testsMap.get(a.testId);
+      return test?.answerKeyPublished === true;
+    });
 
     // Calculate analytics
     const totalCorrect = attempts.reduce((sum, a) => sum + a.correct, 0);

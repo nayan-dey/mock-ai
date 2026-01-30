@@ -102,9 +102,9 @@ export default function ResultDetailPage() {
     });
   }, [attemptWithDetails, filter]);
 
-// Auto-trigger confetti for good scores (60%+)
+// Auto-trigger confetti for good scores (60%+) — only if answer key is published
   useEffect(() => {
-    if (attemptWithDetails && !hasTriggeredConfetti.current) {
+    if (attemptWithDetails && !hasTriggeredConfetti.current && attemptWithDetails.answerKeyPublished) {
       const score = attemptWithDetails.score;
       const total = attemptWithDetails.test?.totalMarks || 1;
       const pct = (score / total) * 100;

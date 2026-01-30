@@ -22,11 +22,15 @@ import {
   BarChart3,
   Database,
   Loader2,
+  Layers,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const { user } = useUser();
   const stats = useQuery(api.analytics.getAdminDashboard);
+  const batchCount = useQuery(api.batches.countForOrg);
   const seedDatabase = useMutation(api.seed.seedDatabase);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
@@ -46,7 +50,8 @@ export default function DashboardPage() {
     }
   };
 
-  if (!stats) {
+  // Loading state
+  if (stats === undefined || batchCount === undefined) {
     return (
       <div className="p-6">
         <div className="mb-6 space-y-1">
@@ -62,6 +67,34 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // Batch gate: block all dashboard content until at least one batch exists
+  if (batchCount === 0) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center p-6">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Layers className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-xl">Create Your First Batch</CardTitle>
+            <CardDescription>
+              Before you can manage your organization, you need to create at
+              least one student batch. Batches help you organize students and
+              assign tests, notes, and classes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="gap-2">
+              <Link href="/batches/new">
+                Create Batch <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
