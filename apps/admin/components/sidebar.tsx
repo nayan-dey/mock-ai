@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { UserButton, SignedIn } from "@clerk/nextjs";
+import { usePathname, useRouter } from "next/navigation";
+import { UserButton, SignedIn, useClerk } from "@clerk/nextjs";
 import {
   Button,
   cn,
@@ -21,6 +21,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut,
   Users,
   Database,
   UserCog,
@@ -45,7 +46,13 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useClerk();
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleSignOut = () => {
+    signOut().then(() => router.replace("/"));
+  };
 
   return (
     <aside
@@ -128,6 +135,17 @@ export function Sidebar() {
               <span className="text-sm text-muted-foreground">Admin</span>
             )}
           </div>
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full justify-start gap-2 text-muted-foreground"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          )}
         </SignedIn>
       </div>
 

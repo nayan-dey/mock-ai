@@ -157,6 +157,7 @@ export function VideoPlayer({
           onClick={handleSeekChange}
           onMouseDown={() => setSeeking(true)}
           onMouseUp={() => setSeeking(false)}
+          onMouseLeave={() => setSeeking(false)}
         >
           <Progress value={played} className="h-1.5" />
         </div>

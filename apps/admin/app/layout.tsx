@@ -25,8 +25,9 @@ export default function RootLayout({
         <body>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <ConvexClientProvider>
-              <UserSync />
-              {children}
+              <UserSync>
+                {children}
+              </UserSync>
               <SonnerToaster position="top-center" richColors />
             </ConvexClientProvider>
           </ThemeProvider>

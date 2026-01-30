@@ -86,7 +86,7 @@ export default function DashboardPage() {
 
   const userSettings = useQuery(
     api.userSettings.getOrCreateDefault,
-    dbUser?._id ? { userId: dbUser._id } : "skip"
+    dbUser?._id ? {} : "skip"
   );
 
   const updateSettings = useMutation(api.userSettings.upsert);
@@ -306,7 +306,6 @@ export default function DashboardPage() {
                 onValueChange={(value) => {
                   if (dbUser?._id) {
                     updateSettings({
-                      userId: dbUser._id,
                       preferredChartType: value as "heatmap" | "chart",
                     });
                   }

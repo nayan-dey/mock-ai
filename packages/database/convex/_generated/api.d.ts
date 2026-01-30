@@ -14,6 +14,7 @@ import type * as batches from "../batches.js";
 import type * as chat from "../chat.js";
 import type * as classes from "../classes.js";
 import type * as fees from "../fees.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as notes from "../notes.js";
 import type * as organizations from "../organizations.js";
 import type * as questions from "../questions.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   classes: typeof classes;
   fees: typeof fees;
+  "lib/auth": typeof lib_auth;
   notes: typeof notes;
   organizations: typeof organizations;
   questions: typeof questions;

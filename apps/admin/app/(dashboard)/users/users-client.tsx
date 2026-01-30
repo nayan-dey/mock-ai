@@ -92,7 +92,6 @@ export function UsersClient() {
     if (suspendUserId && currentAdmin) {
       await suspendUser({
         userId: suspendUserId as Id<"users">,
-        adminId: currentAdmin._id,
         reason: suspendReason || undefined,
       });
       setSuspendUserId(null);
@@ -104,7 +103,6 @@ export function UsersClient() {
     if (unsuspendUserId && currentAdmin && unsuspendBatchId) {
       await unsuspendUser({
         userId: unsuspendUserId as Id<"users">,
-        adminId: currentAdmin._id,
         batchId: unsuspendBatchId as Id<"batches">,
       });
       setUnsuspendUserId(null);

@@ -132,7 +132,6 @@ export function UserDetailSheet({
     if (!currentAdmin || !userId) return;
     await suspendUser({
       userId: userId as Id<"users">,
-      adminId: currentAdmin._id,
       reason: suspendReason || undefined,
     });
     setShowSuspendDialog(false);
@@ -143,7 +142,6 @@ export function UserDetailSheet({
     if (!currentAdmin || !selectedBatchId || !userId) return;
     await unsuspendUser({
       userId: userId as Id<"users">,
-      adminId: currentAdmin._id,
       batchId: selectedBatchId as Id<"batches">,
     });
     setShowUnsuspendDialog(false);
@@ -198,7 +196,6 @@ export function UserDetailSheet({
           dueDate: dueDateTimestamp,
           paidDate: paidDateTimestamp,
           description: description || undefined,
-          updatedBy: currentAdmin._id,
         });
         toast({ title: "Fee updated" });
       } else {
@@ -209,7 +206,6 @@ export function UserDetailSheet({
           dueDate: dueDateTimestamp,
           paidDate: paidDateTimestamp,
           description: description || undefined,
-          createdBy: currentAdmin._id,
         });
         toast({ title: "Fee record added" });
       }
@@ -229,7 +225,6 @@ export function UserDetailSheet({
     try {
       await markAsPaid({
         id: feeId as Id<"fees">,
-        updatedBy: currentAdmin._id,
       });
       toast({ title: "Marked as paid" });
     } catch (err: any) {
@@ -247,7 +242,6 @@ export function UserDetailSheet({
     try {
       await removeFee({
         id: feeId as Id<"fees">,
-        deletedBy: currentAdmin._id,
       });
       toast({ title: "Fee record deleted" });
     } catch (err: any) {

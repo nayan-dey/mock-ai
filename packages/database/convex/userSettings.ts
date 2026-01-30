@@ -1,28 +1,34 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuth } from "./lib/auth";
 
 export const getByUserId = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    // Derive userId from auth — users can only see their own settings
+    const user = await requireAuth(ctx);
+
     return await ctx.db
       .query("userSettings")
-      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
       .first();
   },
 });
 
 export const upsert = mutation({
   args: {
-    userId: v.id("users"),
     preferredChartType: v.optional(v.union(v.literal("heatmap"), v.literal("chart"))),
     showHeatmap: v.optional(v.boolean()),
     showStats: v.optional(v.boolean()),
     showOnLeaderboard: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // Derive userId from auth — users can only update their own settings
+    const user = await requireAuth(ctx);
+
     const existing = await ctx.db
       .query("userSettings")
-      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
       .first();
 
     const updates = {
@@ -32,7 +38,6 @@ export const upsert = mutation({
       showOnLeaderboard: args.showOnLeaderboard,
     };
 
-    // Filter out undefined values
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
@@ -45,9 +50,8 @@ export const upsert = mutation({
       return existing._id;
     }
 
-    // Create new settings with defaults
     return await ctx.db.insert("userSettings", {
-      userId: args.userId,
+      userId: user._id,
       preferredChartType: args.preferredChartType ?? "chart",
       showHeatmap: args.showHeatmap ?? true,
       showStats: args.showStats ?? true,
@@ -58,21 +62,23 @@ export const upsert = mutation({
 });
 
 export const getOrCreateDefault = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    // Derive userId from auth
+    const user = await requireAuth(ctx);
+
     const settings = await ctx.db
       .query("userSettings")
-      .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
       .first();
 
     if (settings) {
       return settings;
     }
 
-    // Return default settings (without persisting)
     return {
       _id: null,
-      userId: args.userId,
+      userId: user._id,
       preferredChartType: "chart" as const,
       showHeatmap: true,
       showStats: true,

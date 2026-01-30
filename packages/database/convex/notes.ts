@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 export const list = query({
   args: {
@@ -7,30 +8,26 @@ export const list = query({
     topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    let notes = await ctx.db
+      .query("notes")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .order("desc")
+      .collect();
+
     if (args.subject && args.topic) {
-      return await ctx.db
-        .query("notes")
-        .withIndex("by_subject_topic", (q) =>
-          q.eq("subject", args.subject!).eq("topic", args.topic!)
-        )
-        .order("desc")
-        .collect();
+      notes = notes.filter(
+        (n) => n.subject === args.subject && n.topic === args.topic
+      );
+    } else if (args.subject) {
+      notes = notes.filter((n) => n.subject === args.subject);
+    } else if (args.topic) {
+      notes = notes.filter((n) => n.topic === args.topic);
     }
-    if (args.subject) {
-      return await ctx.db
-        .query("notes")
-        .withIndex("by_subject", (q) => q.eq("subject", args.subject!))
-        .order("desc")
-        .collect();
-    }
-    if (args.topic) {
-      return await ctx.db
-        .query("notes")
-        .withIndex("by_topic", (q) => q.eq("topic", args.topic!))
-        .order("desc")
-        .collect();
-    }
-    return await ctx.db.query("notes").order("desc").collect();
+
+    return notes;
   },
 });
 
@@ -41,32 +38,26 @@ export const listForBatch = query({
     topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let notes;
+    const user = await requireAuth(ctx);
+
+    if (!user.organizationId) return [];
+
+    let notes = await ctx.db
+      .query("notes")
+      .withIndex("by_organization", (q) => q.eq("organizationId", user.organizationId!))
+      .order("desc")
+      .collect();
+
     if (args.subject && args.topic) {
-      notes = await ctx.db
-        .query("notes")
-        .withIndex("by_subject_topic", (q) =>
-          q.eq("subject", args.subject!).eq("topic", args.topic!)
-        )
-        .order("desc")
-        .collect();
+      notes = notes.filter(
+        (n) => n.subject === args.subject && n.topic === args.topic
+      );
     } else if (args.subject) {
-      notes = await ctx.db
-        .query("notes")
-        .withIndex("by_subject", (q) => q.eq("subject", args.subject!))
-        .order("desc")
-        .collect();
+      notes = notes.filter((n) => n.subject === args.subject);
     } else if (args.topic) {
-      notes = await ctx.db
-        .query("notes")
-        .withIndex("by_topic", (q) => q.eq("topic", args.topic!))
-        .order("desc")
-        .collect();
-    } else {
-      notes = await ctx.db.query("notes").order("desc").collect();
+      notes = notes.filter((n) => n.topic === args.topic);
     }
 
-    // Filter by batch
     if (args.batchId) {
       return notes.filter(
         (note) =>
@@ -82,6 +73,7 @@ export const listForBatch = query({
 export const getById = query({
   args: { id: v.id("notes") },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     return await ctx.db.get(args.id);
   },
 });
@@ -94,11 +86,14 @@ export const create = mutation({
     topic: v.string(),
     fileUrl: v.string(),
     batchIds: v.optional(v.array(v.id("batches"))),
-    createdBy: v.id("users"),
   },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
     return await ctx.db.insert("notes", {
       ...args,
+      organizationId: orgId,
+      createdBy: admin._id,
       createdAt: Date.now(),
     });
   },
@@ -115,6 +110,10 @@ export const update = mutation({
     batchIds: v.optional(v.array(v.id("batches"))),
   },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const note = await ctx.db.get(args.id);
+    if (note && note.organizationId !== orgId) throw new Error("Access denied");
     const { id, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([, value]) => value !== undefined)
@@ -126,6 +125,10 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("notes") },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const note = await ctx.db.get(args.id);
+    if (note && note.organizationId !== orgId) throw new Error("Access denied");
     await ctx.db.delete(args.id);
   },
 });

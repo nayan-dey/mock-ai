@@ -62,7 +62,6 @@ export default function NewBatchPage() {
       await createBatch({
         name: name.trim(),
         description: description.trim() || undefined,
-        createdBy: dbUser._id,
       });
       toast({
         title: "Batch created",

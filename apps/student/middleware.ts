@@ -18,10 +18,14 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  // Authenticated user at sign-up with ref → onboarding with ref
-  if (userId && url.pathname.startsWith("/sign-up") && ref) {
+  // Authenticated user at sign-up with ref/org → onboarding with params
+  const org = url.searchParams.get("org");
+  if (userId && url.pathname.startsWith("/sign-up") && (ref || org)) {
+    const params = new URLSearchParams();
+    if (org) params.set("org", org);
+    if (ref) params.set("ref", ref);
     return NextResponse.redirect(
-      new URL(`/onboarding?ref=${ref}`, req.url)
+      new URL(`/onboarding?${params.toString()}`, req.url)
     );
   }
 

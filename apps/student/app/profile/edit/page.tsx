@@ -88,7 +88,6 @@ export default function EditProfilePage() {
     setIsSaving(true);
     try {
       await updateProfile({
-        userId: dbUser._id,
         name: formData.name || undefined,
         bio: formData.bio || undefined,
         age: formData.age ? parseInt(formData.age, 10) : undefined,

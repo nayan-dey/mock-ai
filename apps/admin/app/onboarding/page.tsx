@@ -83,7 +83,6 @@ export default function AdminOnboardingPage() {
         contactEmail: formData.contactEmail.trim() || undefined,
         phone: formData.phone.trim() || undefined,
         address: formData.address.trim() || undefined,
-        adminClerkId: user.id,
       });
       toast.success("Organization created! Welcome to Nindo.");
       router.push("/dashboard");

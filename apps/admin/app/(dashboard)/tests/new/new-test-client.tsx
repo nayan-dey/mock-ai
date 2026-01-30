@@ -37,9 +37,10 @@ const QUESTIONS_PER_PAGE = 10;
 export function NewTestClient() {
   const router = useRouter();
   const { user } = useUser();
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
   const createTest = useMutation(api.tests.create);
 
   const [title, setTitle] = useState("");
@@ -133,7 +134,6 @@ export function NewTestClient() {
         status,
         batchIds:
           selectedBatches.length > 0 ? (selectedBatches as any) : undefined,
-        createdBy: dbUser._id,
       });
       toast.success("Test created successfully");
       router.push("/tests");

@@ -28,9 +28,10 @@ export default function SeedPage() {
   const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [studentCount, setStudentCount] = useState(5);
 
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
 
   const batches = useQuery(api.batches.list, { activeOnly: false });
 
@@ -43,7 +44,7 @@ export default function SeedPage() {
     if (!user?.id) return;
     setLoading("database");
     try {
-      const result = await seedDatabase({ adminClerkId: user.id });
+      const result = await seedDatabase({});
       setResults((prev) => ({ ...prev, database: result }));
       toast.success("Database seeded successfully");
     } catch (error: any) {

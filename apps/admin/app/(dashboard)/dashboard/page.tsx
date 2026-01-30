@@ -37,7 +37,7 @@ export default function DashboardPage() {
     setIsSeeding(true);
     setSeedResult(null);
     try {
-      const result = await seedDatabase({ adminClerkId: user.id });
+      const result = await seedDatabase({});
       setSeedResult(result.message);
     } catch (error) {
       setSeedResult("Error seeding database: " + (error as Error).message);

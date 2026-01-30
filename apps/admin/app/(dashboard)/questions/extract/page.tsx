@@ -33,9 +33,10 @@ type ExtractionState = "upload" | "processing" | "review" | "saving" | "complete
 export default function ExtractQuestionsPage() {
   const router = useRouter();
   const { user } = useUser();
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
   const bulkCreate = useMutation(api.questions.bulkCreate);
   const createTest = useMutation(api.tests.create);
 
@@ -171,7 +172,6 @@ export default function ExtractQuestionsPage() {
 
       await bulkCreate({
         questions: questionsToSave,
-        createdBy: dbUser._id,
       });
 
       setState("complete");
@@ -204,7 +204,6 @@ export default function ExtractQuestionsPage() {
 
       const questionIds = await bulkCreate({
         questions: questionsToSave,
-        createdBy: dbUser._id,
       });
 
       // Then create the test with those question IDs
@@ -217,7 +216,6 @@ export default function ExtractQuestionsPage() {
         negativeMarking: testData.negativeMarking,
         status: testData.status,
         batchIds: testData.batchIds.length > 0 ? (testData.batchIds as any) : undefined,
-        createdBy: dbUser._id,
       });
 
       setShowCreateTestModal(false);

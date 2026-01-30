@@ -43,9 +43,10 @@ export default function TestPage() {
   const { user } = useUser();
   const testId = params.id as string;
 
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
   const testWithQuestions = useQuery(api.tests.getWithQuestions, {
     id: testId as TestId,
   });
@@ -253,7 +254,6 @@ export default function TestPage() {
       }
       const id = await startAttempt({
         testId: testId as TestId,
-        userId: dbUser._id,
         forceNew,
       });
       setAttemptId(id);

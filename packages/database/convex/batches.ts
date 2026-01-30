@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 function generateReferralCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -15,19 +16,41 @@ export const list = query({
     activeOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    if (args.activeOnly) {
-      return await ctx.db
+    const user = await requireAuth(ctx);
+
+    // Admin sees only their org's batches
+    if (user.role === "admin") {
+      const orgId = getOrgId(user);
+      const batches = await ctx.db
         .query("batches")
-        .withIndex("by_active", (q) => q.eq("isActive", true))
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
         .collect();
+      if (args.activeOnly) {
+        return batches.filter((b) => b.isActive);
+      }
+      return batches;
     }
-    return await ctx.db.query("batches").collect();
+
+    // Students see batches in their org
+    if (user.organizationId) {
+      const batches = await ctx.db
+        .query("batches")
+        .withIndex("by_organization", (q) => q.eq("organizationId", user.organizationId!))
+        .collect();
+      if (args.activeOnly) {
+        return batches.filter((b) => b.isActive);
+      }
+      return batches;
+    }
+
+    return [];
   },
 });
 
 export const getById = query({
   args: { id: v.id("batches") },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     return await ctx.db.get(args.id);
   },
 });
@@ -35,6 +58,7 @@ export const getById = query({
 export const getByReferralCode = query({
   args: { referralCode: v.string() },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     return await ctx.db
       .query("batches")
       .withIndex("by_referral_code", (q) =>
@@ -48,10 +72,11 @@ export const create = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
-    organizationId: v.optional(v.id("organizations")),
-    createdBy: v.id("users"),
   },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
     // Generate unique referral code
     let referralCode = generateReferralCode();
     let attempts = 0;
@@ -67,13 +92,17 @@ export const create = mutation({
       attempts++;
     }
 
+    if (attempts >= 10) {
+      throw new Error("Failed to generate unique referral code. Please try again.");
+    }
+
     return await ctx.db.insert("batches", {
       name: args.name,
       description: args.description,
       isActive: true,
       referralCode,
-      organizationId: args.organizationId,
-      createdBy: args.createdBy,
+      organizationId: orgId,
+      createdBy: admin._id,
       createdAt: Date.now(),
     });
   },
@@ -87,6 +116,10 @@ export const update = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const batch = await ctx.db.get(args.id);
+    if (batch && batch.organizationId !== orgId) throw new Error("Access denied");
     const { id, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)
@@ -98,6 +131,21 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("batches") },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const batch = await ctx.db.get(args.id);
+    if (batch && batch.organizationId !== orgId) throw new Error("Access denied");
+
+    // Clear batchId from users in this batch before deleting
+    const usersInBatch = await ctx.db
+      .query("users")
+      .withIndex("by_batch", (q) => q.eq("batchId", args.id))
+      .collect();
+
+    for (const user of usersInBatch) {
+      await ctx.db.patch(user._id, { batchId: undefined });
+    }
+
     await ctx.db.delete(args.id);
   },
 });
@@ -105,6 +153,7 @@ export const remove = mutation({
 export const getStudentsByBatch = query({
   args: { batchId: v.id("batches") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("users")
       .withIndex("by_batch", (q) => q.eq("batchId", args.batchId))
@@ -118,6 +167,7 @@ export const assignUserToBatch = mutation({
     batchId: v.id("batches"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.userId, { batchId: args.batchId });
   },
 });
@@ -125,16 +175,19 @@ export const assignUserToBatch = mutation({
 export const removeUserFromBatch = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.userId, { batchId: undefined });
   },
 });
 
 export const joinByReferralCode = mutation({
   args: {
-    userId: v.id("users"),
     referralCode: v.string(),
+    organizationId: v.id("organizations"),
   },
   handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
     const batch = await ctx.db
       .query("batches")
       .withIndex("by_referral_code", (q) =>
@@ -150,16 +203,20 @@ export const joinByReferralCode = mutation({
       throw new Error("This batch is no longer active.");
     }
 
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found.");
+    // Verify batch belongs to the selected organization
+    if (batch.organizationId !== args.organizationId) {
+      throw new Error("This batch code does not belong to the selected institution.");
     }
 
     if (user.batchId) {
       throw new Error("You are already assigned to a batch.");
     }
 
-    await ctx.db.patch(args.userId, { batchId: batch._id });
+    // Set both batchId and organizationId on the student
+    await ctx.db.patch(user._id, {
+      batchId: batch._id,
+      organizationId: args.organizationId,
+    });
 
     return { success: true, batchName: batch.name };
   },

@@ -51,13 +51,13 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
   // Fetch student context using Convex React hook
   const studentContext = useQuery(
     api.chat.getStudentContext,
-    userId ? { userId: userId as any } : "skip"
+    userId ? {} : "skip"
   );
 
   // Fetch daily message limit
   const dailyLimit = useQuery(
     api.chat.getDailyMessageCount,
-    userId ? { userId: userId as any } : "skip"
+    userId ? {} : "skip"
   );
 
   // Fetch messages for current conversation

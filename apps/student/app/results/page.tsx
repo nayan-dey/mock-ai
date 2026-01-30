@@ -40,9 +40,10 @@ interface AttemptData {
 
 export default function ResultsPage() {
   const { user } = useUser();
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,

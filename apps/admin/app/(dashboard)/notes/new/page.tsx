@@ -29,9 +29,10 @@ import { SUBJECTS, TOPICS } from "@repo/types";
 export default function NewNotePage() {
   const router = useRouter();
   const { user } = useUser();
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
   const createNote = useMutation(api.notes.create);
 
   const [title, setTitle] = useState("");
@@ -68,7 +69,6 @@ export default function NewNotePage() {
         topic,
         fileUrl,
         batchIds: selectedBatches.length > 0 ? (selectedBatches as any) : undefined,
-        createdBy: dbUser._id,
       });
       router.push("/notes");
     } catch (error) {

@@ -54,7 +54,7 @@ export default function SettingsPage() {
 
   const userSettings = useQuery(
     api.userSettings.getOrCreateDefault,
-    dbUser?._id ? { userId: dbUser._id } : "skip"
+    dbUser?._id ? {} : "skip"
   );
 
   const upsertSettings = useMutation(api.userSettings.upsert);
@@ -88,7 +88,6 @@ export default function SettingsPage() {
     setIsSavingSettings(true);
     try {
       await upsertSettings({
-        userId: dbUser._id,
         showHeatmap: settings.showHeatmap,
         showStats: settings.showStats,
         showOnLeaderboard: settings.showOnLeaderboard,
@@ -112,7 +111,6 @@ export default function SettingsPage() {
     setIsSavingSettings(true);
     try {
       await upsertSettings({
-        userId: dbUser._id,
         preferredChartType: chartType,
       });
       toast({

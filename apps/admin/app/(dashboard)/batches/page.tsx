@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import {
@@ -41,6 +42,11 @@ interface Batch {
 }
 
 export default function BatchesPage() {
+  const { user } = useUser();
+  const organization = useQuery(
+    api.organizations.getByAdminClerkId,
+    user?.id ? { adminClerkId: user.id } : "skip"
+  );
   const batches = useQuery(api.batches.list, {});
   const updateBatch = useMutation(api.batches.update);
   const removeBatch = useMutation(api.batches.remove);
@@ -109,7 +115,10 @@ export default function BatchesPage() {
         const code = row.getValue("referralCode") as string;
         const studentBaseUrl =
           process.env.NEXT_PUBLIC_STUDENT_APP_URL || "http://localhost:3000";
-        const referralUrl = `${studentBaseUrl}/sign-up?ref=${code}`;
+        const orgSlug = organization?.slug;
+        const referralUrl = orgSlug
+          ? `${studentBaseUrl}/sign-up?org=${orgSlug}&ref=${code}`
+          : `${studentBaseUrl}/sign-up?ref=${code}`;
         return (
           <div className="flex items-center gap-2">
             <code className="rounded bg-muted px-2 py-1 text-sm font-mono">

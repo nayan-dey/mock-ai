@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     }
 
     // Authenticate user
-    const { userId: clerkId } = await auth();
+    const { userId: clerkId, getToken } = await auth();
     if (!clerkId) {
       console.error("No clerkId found - user not authenticated");
       return new Response(
@@ -136,45 +136,59 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check daily message limit server-side
+    // Set up authenticated Convex client
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (convexUrl) {
-      try {
-        const convex = new ConvexHttpClient(convexUrl);
-
-        // Get user's database ID from Clerk ID
-        const dbUser = await convex.query(api.users.getByClerkId, { clerkId });
-        if (dbUser) {
-          const dailyLimit = await convex.query(api.chat.getDailyMessageCount, {
-            userId: dbUser._id
-          });
-
-          if (dailyLimit.hasReachedLimit) {
-            return new Response(
-              JSON.stringify({
-                error: "Daily message limit reached. You can send 3 messages per day."
-              }),
-              { status: 429, headers: { "Content-Type": "application/json" } }
-            );
-          }
-        }
-      } catch (rateLimitError) {
-        // Log but don't block - fail open if rate limit check fails
-        console.warn("Rate limit check failed, proceeding with request:", rateLimitError);
-      }
-    }
-
-    // Get messages and student context from request body
-    const { messages, studentContext } = await req.json();
-
-    if (!studentContext) {
+    if (!convexUrl) {
       return new Response(
-        JSON.stringify({ error: "Student context is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Build system prompt with student context
+    const convex = new ConvexHttpClient(convexUrl);
+
+    // Get Clerk token for Convex auth and set it on the client
+    const convexToken = await getToken({ template: "convex" });
+    if (convexToken) {
+      convex.setAuth(convexToken);
+    }
+
+    // Check daily message limit server-side (fail closed)
+    try {
+      const dailyLimit = await convex.query(api.chat.getDailyMessageCount, {});
+      if (dailyLimit.hasReachedLimit) {
+        return new Response(
+          JSON.stringify({
+            error: "Daily message limit reached. You can send 3 messages per day."
+          }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    } catch (rateLimitError) {
+      // Fail closed — deny request if rate limit check fails
+      console.error("Rate limit check failed, denying request:", rateLimitError);
+      return new Response(
+        JSON.stringify({ error: "Unable to verify rate limit. Please try again." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fetch student context server-side (don't trust client)
+    let studentContext;
+    try {
+      studentContext = await convex.query(api.chat.getStudentContext, {});
+    } catch (ctxError) {
+      console.error("Failed to fetch student context:", ctxError);
+      return new Response(
+        JSON.stringify({ error: "Failed to load student context" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get messages from request body (context no longer trusted from client)
+    const { messages } = await req.json();
+
+    // Build system prompt with server-fetched student context
     const systemPrompt = buildSystemPrompt(studentContext);
 
     // Stream response using Vercel AI SDK with Google Gemini

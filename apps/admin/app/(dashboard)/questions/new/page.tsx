@@ -29,9 +29,10 @@ import { SUBJECTS, TOPICS } from "@repo/types";
 export default function NewQuestionPage() {
   const router = useRouter();
   const { user } = useUser();
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
   const createQuestion = useMutation(api.questions.create);
 
   const [text, setText] = useState("");
@@ -74,7 +75,6 @@ export default function NewQuestionPage() {
         subject,
         topic,
         difficulty,
-        createdBy: dbUser._id,
       });
       router.push("/questions");
     } catch (error) {
