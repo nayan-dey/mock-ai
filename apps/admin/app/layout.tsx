@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning style={{ colorScheme: "light dark" }}>
         <head>
           <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         </head>

@@ -301,7 +301,7 @@ export function NewTestClient() {
                 </Button>
               </Link>
               <Button type="submit" disabled={!isValid || isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Test"}
+                {isSubmitting ? "Creating\u2026" : "Create Test"}
               </Button>
             </div>
           </CardContent>

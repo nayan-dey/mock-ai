@@ -14,6 +14,7 @@ import { Users, Pencil, Trash2, ToggleRight, Copy } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { BatchEditSheet } from "./batch-edit-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface Batch {
   _id: string;
@@ -37,6 +38,7 @@ export default function BatchesPage() {
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+  const [deleteBatchId, setDeleteBatchId] = useState<string | null>(null);
 
   const handleActivate = async (id: string) => {
     try {
@@ -48,13 +50,13 @@ export default function BatchesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this batch?")) return;
     try {
       await removeBatch({ id: id as any });
       toast({ title: "Batch deleted" });
     } catch {
       toast({ title: "Error", description: "Failed to delete batch.", variant: "destructive" });
     }
+    setDeleteBatchId(null);
   };
 
   const columns: ColumnDef<Batch, any>[] = [
@@ -132,7 +134,7 @@ export default function BatchesPage() {
       actions.push({
         label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
-        onClick: () => handleDelete(batch._id),
+        onClick: () => setDeleteBatchId(batch._id),
         variant: "destructive" as const,
         separator: true,
       });
@@ -174,6 +176,15 @@ export default function BatchesPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         batch={editingBatch}
+      />
+
+      <ConfirmDialog
+        open={!!deleteBatchId}
+        onOpenChange={(open) => { if (!open) setDeleteBatchId(null); }}
+        title="Delete Batch"
+        description="Are you sure you want to delete this batch? Students in this batch will be unassigned."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteBatchId) return handleDelete(deleteBatchId); }}
       />
     </>
   );

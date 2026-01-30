@@ -127,8 +127,8 @@ export default function DashboardPage() {
             >
               {isSeeding ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Seeding...
+                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                  Seeding\u2026
                 </>
               ) : (
                 <>

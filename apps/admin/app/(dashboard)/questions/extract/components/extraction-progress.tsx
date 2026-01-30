@@ -16,7 +16,7 @@ export function ExtractionProgress({ fileName }: ExtractionProgressProps) {
             <Sparkles className="h-12 w-12 text-primary" />
           </div>
           <div className="absolute -bottom-1 -right-1 rounded-full bg-background p-1">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin motion-reduce:animate-none text-primary" />
           </div>
         </div>
 

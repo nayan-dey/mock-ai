@@ -14,6 +14,7 @@ import {
 import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { ClassSheet } from "./class-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface ClassItem {
   _id: string;
@@ -36,6 +37,7 @@ export function ClassesClient() {
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
+  const [deleteClassId, setDeleteClassId] = useState<string | null>(null);
 
   const batchMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -48,13 +50,13 @@ export function ClassesClient() {
   }, [batches]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this class?")) return;
     try {
       await deleteClass({ id: id as any });
       toast({ title: "Class deleted" });
     } catch {
       toast({ title: "Error", description: "Failed to delete class.", variant: "destructive" });
     }
+    setDeleteClassId(null);
   };
 
   const columns: ColumnDef<ClassItem, any>[] = [
@@ -138,7 +140,7 @@ export function ClassesClient() {
       {
         label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
-        onClick: () => handleDelete(classItem._id),
+        onClick: () => setDeleteClassId(classItem._id),
         variant: "destructive",
         separator: true,
       },
@@ -178,6 +180,15 @@ export function ClassesClient() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         classItem={editingClass}
+      />
+
+      <ConfirmDialog
+        open={!!deleteClassId}
+        onOpenChange={(open) => { if (!open) setDeleteClassId(null); }}
+        title="Delete Class"
+        description="Are you sure you want to delete this class? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteClassId) return handleDelete(deleteClassId); }}
       />
     </>
   );

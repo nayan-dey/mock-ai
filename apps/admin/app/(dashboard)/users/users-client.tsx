@@ -17,6 +17,7 @@ import {
 import { Eye, Users } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
+import { useUrlState } from "@/hooks/use-url-state";
 
 interface UserData {
   _id: string;
@@ -31,8 +32,8 @@ interface UserData {
 
 export function UsersClient() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [batchFilter, setBatchFilter] = useState<string>("all");
-  const [joinedFilter, setJoinedFilter] = useState<string>("all");
+  const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
+  const [joinedFilter, setJoinedFilter] = useUrlState("joined", "all");
 
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});

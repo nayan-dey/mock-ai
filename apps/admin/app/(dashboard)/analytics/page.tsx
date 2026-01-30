@@ -19,13 +19,14 @@ import {
   SortableHeader,
   type ColumnDef,
 } from "@repo/ui";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import {
   Users,
   FileText,
   Trophy,
   TrendingUp,
 } from "lucide-react";
+import { useUrlState } from "@/hooks/use-url-state";
 
 interface LeaderboardEntry {
   userId: string;
@@ -39,7 +40,7 @@ interface LeaderboardEntry {
 export default function AnalyticsPage() {
   const stats = useQuery(api.analytics.getAdminDashboard);
   const tests = useQuery(api.tests.listPublished);
-  const [selectedTestId, setSelectedTestId] = useState<string>("");
+  const [selectedTestId, setSelectedTestId] = useUrlState("test", "");
 
   // Auto-select first test when tests are loaded
   useEffect(() => {
@@ -106,7 +107,10 @@ export default function AnalyticsPage() {
       ),
       cell: ({ row }) => {
         const timeTaken = row.getValue("timeTaken") as number;
-        return `${Math.floor(timeTaken / 60000)}m ${Math.floor((timeTaken % 60000) / 1000)}s`;
+        const minutes = Math.floor(timeTaken / 60000);
+        const seconds = Math.floor((timeTaken % 60000) / 1000);
+        const nf = new Intl.NumberFormat();
+        return `${nf.format(minutes)} min ${nf.format(seconds)} sec`;
       },
     },
   ];

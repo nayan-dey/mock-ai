@@ -45,6 +45,7 @@ import {
   Pencil,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
+import { ConfirmDialog } from "./confirm-dialog";
 
 interface UserDetailSheetProps {
   userId: string | null;
@@ -86,6 +87,8 @@ export function UserDetailSheet({
   const [showUnsuspendDialog, setShowUnsuspendDialog] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
+
+  const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
 
   // Fee form state
   const [showAddFeeDialog, setShowAddFeeDialog] = useState(false);
@@ -238,7 +241,6 @@ export function UserDetailSheet({
 
   const handleDeleteFee = async (feeId: string) => {
     if (!currentAdmin) return;
-    if (!confirm("Are you sure you want to delete this fee record?")) return;
     try {
       await removeFee({
         id: feeId as Id<"fees">,
@@ -251,6 +253,7 @@ export function UserDetailSheet({
         variant: "destructive",
       });
     }
+    setDeleteFeeId(null);
   };
 
   const totalDue =
@@ -275,7 +278,7 @@ export function UserDetailSheet({
           <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
             {user === undefined ? (
               <div className="flex items-center justify-center py-12">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
               </div>
             ) : user === null ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -290,7 +293,7 @@ export function UserDetailSheet({
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <h2 className="mt-3 text-lg font-semibold">{user.name}</h2>
+                  <h2 className="mt-3 text-lg font-semibold truncate max-w-full">{user.name}</h2>
                   <div className="mt-2 flex items-center gap-2">
                     <Badge
                       variant={
@@ -492,7 +495,7 @@ export function UserDetailSheet({
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteFee(fee._id)}
+                                onClick={() => setDeleteFeeId(fee._id)}
                               >
                                 <Trash2 className="h-3 w-3" />
                                 Delete
@@ -513,7 +516,7 @@ export function UserDetailSheet({
                       </div>
                     ) : (
                       <div className="flex items-center justify-center py-8">
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
                       </div>
                     )}
                   </>
@@ -606,6 +609,16 @@ export function UserDetailSheet({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Fee Confirmation */}
+      <ConfirmDialog
+        open={!!deleteFeeId}
+        onOpenChange={(open) => { if (!open) setDeleteFeeId(null); }}
+        title="Delete Fee Record"
+        description="Are you sure you want to delete this fee record? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteFeeId) return handleDeleteFee(deleteFeeId); }}
+      />
 
       {/* Add/Edit Fee Dialog */}
       <Dialog

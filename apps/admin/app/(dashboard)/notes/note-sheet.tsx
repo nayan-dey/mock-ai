@@ -212,9 +212,9 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Subject *</Label>
+            <Label htmlFor="note-subject">Subject *</Label>
             <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger>
+              <SelectTrigger id="note-subject">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>
               <SelectContent>
@@ -225,9 +225,9 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Topic *</Label>
+            <Label htmlFor="note-topic">Topic *</Label>
             <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger>
+              <SelectTrigger id="note-topic">
                 <SelectValue placeholder="Select topic" />
               </SelectTrigger>
               <SelectContent>
@@ -241,7 +241,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
 
         {/* PDF Upload */}
         <div className="space-y-2">
-          <Label>PDF File *</Label>
+          <Label htmlFor="note-file">PDF File *</Label>
           {hasFile ? (
             <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
               <FileText className="h-8 w-8 text-red-500 shrink-0" />
@@ -265,7 +265,8 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
                   setUploadedStorageId(null);
                   if (!isEdit) setUploadedFileUrl(null);
                 }}
-                className="text-muted-foreground hover:text-foreground"
+                aria-label="Remove file"
+                className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -286,6 +287,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
           )}
           <input
             ref={fileInputRef}
+            id="note-file"
             type="file"
             accept=".pdf,application/pdf"
             className="hidden"
@@ -300,22 +302,28 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
         {/* Batch Selection */}
         {batches && batches.length > 0 && (
           <div className="space-y-2">
-            <Label>Batches</Label>
+            <Label id="note-batches-label">Batches</Label>
             <p className="text-xs text-muted-foreground">
               Leave empty to make available to all batches
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="note-batches-label">
               {batches.map((batch) => {
                 const selected = selectedBatchIds.includes(batch._id);
                 return (
-                  <Badge
+                  <button
                     key={batch._id}
-                    variant={selected ? "default" : "outline"}
-                    className="cursor-pointer"
+                    type="button"
                     onClick={() => toggleBatch(batch._id)}
+                    aria-pressed={selected}
+                    className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    {batch.name}
-                  </Badge>
+                    <Badge
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer"
+                    >
+                      {batch.name}
+                    </Badge>
+                  </button>
                 );
               })}
             </div>

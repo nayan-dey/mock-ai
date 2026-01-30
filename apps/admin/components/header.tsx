@@ -55,6 +55,7 @@ export function Header() {
           size="icon"
           className="relative"
           onClick={() => setSheetOpen(true)}
+          aria-label={dueCount > 0 ? `Notifications (${dueCount} overdue)` : "Notifications"}
         >
           <Bell className="h-5 w-5" />
           {dueCount > 0 && (

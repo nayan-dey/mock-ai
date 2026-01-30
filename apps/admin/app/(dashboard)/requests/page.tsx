@@ -99,7 +99,7 @@ export default function JoinRequestsPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Requested{" "}
-                      {new Date(request.createdAt).toLocaleDateString()}
+                      {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(request.createdAt))}
                     </p>
                   </div>
                 </div>

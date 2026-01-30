@@ -177,9 +177,9 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Subject *</Label>
+            <Label htmlFor="class-subject">Subject *</Label>
             <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger>
+              <SelectTrigger id="class-subject">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>
               <SelectContent>
@@ -190,9 +190,9 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Topic *</Label>
+            <Label htmlFor="class-topic">Topic *</Label>
             <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger>
+              <SelectTrigger id="class-topic">
                 <SelectValue placeholder="Select topic" />
               </SelectTrigger>
               <SelectContent>
@@ -243,22 +243,28 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
         {/* Batch Selection */}
         {batches && batches.length > 0 && (
           <div className="space-y-2">
-            <Label>Batches</Label>
+            <Label id="class-batches-label">Batches</Label>
             <p className="text-xs text-muted-foreground">
               Leave empty to make available to all batches
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="class-batches-label">
               {batches.map((batch) => {
                 const selected = selectedBatchIds.includes(batch._id);
                 return (
-                  <Badge
+                  <button
                     key={batch._id}
-                    variant={selected ? "default" : "outline"}
-                    className="cursor-pointer"
+                    type="button"
                     onClick={() => toggleBatch(batch._id)}
+                    aria-pressed={selected}
+                    className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    {batch.name}
-                  </Badge>
+                    <Badge
+                      variant={selected ? "default" : "outline"}
+                      className="cursor-pointer"
+                    >
+                      {batch.name}
+                    </Badge>
+                  </button>
                 );
               })}
             </div>

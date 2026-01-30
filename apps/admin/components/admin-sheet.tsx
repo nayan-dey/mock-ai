@@ -82,8 +82,8 @@ export function AdminSheet({
                 onClick={handleSubmit}
                 disabled={submitDisabled || isSubmitting}
               >
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? "Saving..." : submitLabel}
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
+                {isSubmitting ? "Saving\u2026" : submitLabel}
               </Button>
             </div>
           </>

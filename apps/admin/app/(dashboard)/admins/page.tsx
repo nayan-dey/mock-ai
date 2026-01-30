@@ -93,7 +93,7 @@ export default function AdminsPage() {
                       {admin.userEmail}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Joined {new Date(admin.createdAt).toLocaleDateString()}
+                      Joined {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(admin.createdAt))}
                     </p>
                   </div>
                 </div>

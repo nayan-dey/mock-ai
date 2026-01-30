@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useUrlState } from "@/hooks/use-url-state";
 
 interface Test {
   _id: string;
@@ -43,8 +45,9 @@ export function TestsClient() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [batchFilter, setBatchFilter] = useState("all");
-  const [durationFilter, setDurationFilter] = useState("all");
+  const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
+  const [durationFilter, setDurationFilter] = useUrlState("duration", "all");
+  const [deleteTestId, setDeleteTestId] = useState<string | null>(null);
 
   const tests = useQuery(api.tests.list, {});
   const batches = useQuery(api.batches.list, {});
@@ -92,13 +95,13 @@ export function TestsClient() {
   }, [tests, batchFilter, durationFilter]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this test?")) return;
     try {
       await deleteTest({ id: id as any });
       toast({ title: "Test deleted" });
     } catch {
       toast({ title: "Error", description: "Failed to delete test.", variant: "destructive" });
     }
+    setDeleteTestId(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -259,7 +262,7 @@ export function TestsClient() {
       actions.push({
         label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
-        onClick: () => handleDelete(test._id),
+        onClick: () => setDeleteTestId(test._id),
         variant: "destructive",
         separator: true,
       });
@@ -269,6 +272,7 @@ export function TestsClient() {
   ];
 
   return (
+    <>
     <AdminTable<Test>
       columns={columns}
       data={filteredTests}
@@ -316,5 +320,15 @@ export function TestsClient() {
         </>
       }
     />
+
+    <ConfirmDialog
+      open={!!deleteTestId}
+      onOpenChange={(open) => { if (!open) setDeleteTestId(null); }}
+      title="Delete Test"
+      description="Are you sure you want to delete this test? This action cannot be undone."
+      confirmLabel="Delete"
+      onConfirm={() => { if (deleteTestId) return handleDelete(deleteTestId); }}
+    />
+    </>
   );
 }

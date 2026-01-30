@@ -13,6 +13,7 @@ import {
 import { BookOpen, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { NoteSheet } from "./note-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface Note {
   _id: string;
@@ -34,6 +35,7 @@ export function NotesClient() {
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
 
   const batchMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -46,13 +48,13 @@ export function NotesClient() {
   }, [batches]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this note?")) return;
     try {
       await deleteNote({ id: id as any });
       toast({ title: "Note deleted" });
     } catch {
       toast({ title: "Error", description: "Failed to delete note.", variant: "destructive" });
     }
+    setDeleteNoteId(null);
   };
 
   const columns: ColumnDef<Note, any>[] = [
@@ -127,7 +129,7 @@ export function NotesClient() {
       {
         label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
-        onClick: () => handleDelete(note._id),
+        onClick: () => setDeleteNoteId(note._id),
         variant: "destructive",
         separator: true,
       },
@@ -167,6 +169,15 @@ export function NotesClient() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         note={editingNote}
+      />
+
+      <ConfirmDialog
+        open={!!deleteNoteId}
+        onOpenChange={(open) => { if (!open) setDeleteNoteId(null); }}
+        title="Delete Note"
+        description="Are you sure you want to delete this note? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteNoteId) return handleDelete(deleteNoteId); }}
       />
     </>
   );

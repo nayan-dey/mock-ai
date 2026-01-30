@@ -243,6 +243,7 @@ export default function AdminOnboardingPage() {
                     setFormData((prev) => ({ ...prev, name: e.target.value }))
                   }
                   placeholder="e.g. Nindo Academy"
+                  autoComplete="organization"
                   required
                 />
               </div>
@@ -291,6 +292,7 @@ export default function AdminOnboardingPage() {
                     setFormData((prev) => ({ ...prev, phone: e.target.value }))
                   }
                   placeholder="+91 9876543210"
+                  autoComplete="tel"
                   required
                 />
               </div>
@@ -324,6 +326,7 @@ export default function AdminOnboardingPage() {
                     }))
                   }
                   placeholder="contact@yourorg.com"
+                  autoComplete="email"
                 />
               </div>
 
@@ -349,7 +352,7 @@ export default function AdminOnboardingPage() {
                   }
                 >
                   {isSubmitting ? (
-                    "Creating..."
+                    "Creating\u2026"
                   ) : (
                     <>
                       Continue <ArrowRight className="h-4 w-4" />

@@ -64,7 +64,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "sticky top-0 flex h-screen flex-col border-r bg-background transition-all",
+        "sticky top-0 flex h-screen flex-col border-r bg-background transition-[width]",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -72,12 +72,12 @@ export function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Nindo" className="h-8 w-8 dark:invert" />
+            <img src="/logo.svg" alt="Nindo" width={32} height={32} className="h-8 w-8 dark:invert" />
             <span className="text-xl font-bold">Nindo Admin</span>
           </Link>
         )}
         {collapsed && (
-          <img src="/logo.svg" alt="Nindo" className="mx-auto h-8 w-8" />
+          <img src="/logo.svg" alt="Nindo" width={32} height={32} className="mx-auto h-8 w-8 dark:invert" />
         )}
       </div>
 
@@ -92,22 +92,24 @@ export function Sidebar() {
 
             const showBadge = item.href === "/requests" && pendingCount > 0;
 
-            const button = (
-              <Button
-                variant={isActive ? "secondary" : "ghost"}
+            const linkContent = (
+              <span
                 className={cn(
-                  "w-full justify-start transition-transform duration-200 hover:translate-x-0.5",
+                  "flex h-9 w-full items-center rounded-md px-3 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground",
                   collapsed && "justify-center px-2"
                 )}
               >
-                <div className="relative">
+                <span className="relative">
                   <Icon className="h-5 w-5" />
                   {showBadge && collapsed && (
                     <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
                       {pendingCount}
                     </span>
                   )}
-                </div>
+                </span>
                 {!collapsed && (
                   <span className="ml-3 flex flex-1 items-center justify-between">
                     {item.label}
@@ -118,21 +120,21 @@ export function Sidebar() {
                     )}
                   </span>
                 )}
-              </Button>
+              </span>
             );
 
             return (
-              <Link key={item.href} href={item.href}>
+              <Link key={item.href} href={item.href} className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 {collapsed ? (
                   <Tooltip>
-                    <TooltipTrigger asChild>{button}</TooltipTrigger>
+                    <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
                     <TooltipContent side="right" sideOffset={8}>
                       {item.label}
                       {showBadge && ` (${pendingCount})`}
                     </TooltipContent>
                   </Tooltip>
                 ) : (
-                  button
+                  linkContent
                 )}
               </Link>
             );
@@ -178,7 +180,8 @@ export function Sidebar() {
       {/* Collapse Toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         {collapsed ? (
           <ChevronRight className="h-4 w-4" />

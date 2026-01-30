@@ -18,6 +18,8 @@ import { FileQuestion, Pencil, Trash2 } from "lucide-react";
 import { SUBJECTS } from "@repo/types";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { QuestionSheet } from "./question-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useUrlState } from "@/hooks/use-url-state";
 
 interface Question {
   _id: string;
@@ -32,11 +34,12 @@ interface Question {
 
 export function QuestionsClient() {
   const { toast } = useToast();
-  const [subjectFilter, setSubjectFilter] = useState("all");
-  const [difficultyFilter, setDifficultyFilter] = useState("all");
+  const [subjectFilter, setSubjectFilter] = useUrlState("subject", "all");
+  const [difficultyFilter, setDifficultyFilter] = useUrlState("difficulty", "all");
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
 
   const questions = useQuery(api.questions.list, {
     subject: subjectFilter !== "all" ? subjectFilter : undefined,
@@ -45,13 +48,13 @@ export function QuestionsClient() {
   const deleteQuestion = useMutation(api.questions.remove);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this question?")) return;
     try {
       await deleteQuestion({ id: id as any });
       toast({ title: "Question deleted" });
     } catch {
       toast({ title: "Error", description: "Failed to delete question.", variant: "destructive" });
     }
+    setDeleteQuestionId(null);
   };
 
   const getDifficultyBadge = (difficulty: string) => {
@@ -102,7 +105,7 @@ export function QuestionsClient() {
       {
         label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
-        onClick: () => handleDelete(q._id),
+        onClick: () => setDeleteQuestionId(q._id),
         variant: "destructive",
         separator: true,
       },
@@ -168,6 +171,15 @@ export function QuestionsClient() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         questionId={editingQuestionId}
+      />
+
+      <ConfirmDialog
+        open={!!deleteQuestionId}
+        onOpenChange={(open) => { if (!open) setDeleteQuestionId(null); }}
+        title="Delete Question"
+        description="Are you sure you want to delete this question? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteQuestionId) return handleDelete(deleteQuestionId); }}
       />
     </>
   );

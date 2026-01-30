@@ -170,8 +170,9 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
       <div className="space-y-4">
         {/* Question Text */}
         <div className="space-y-2">
-          <Label>Question Text *</Label>
+          <Label htmlFor="question-text">Question Text *</Label>
           <Textarea
+            id="question-text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={3}
@@ -181,12 +182,13 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
 
         {/* Options */}
         <div className="space-y-3">
-          <Label>Options * (check correct answers)</Label>
+          <Label id="options-label">Options * (check correct answers)</Label>
           {options.map((option, index) => (
             <div key={index} className="flex items-center gap-2">
               <Checkbox
                 checked={correctOptions.includes(index)}
                 onCheckedChange={() => handleCorrectToggle(index)}
+                aria-label={`Mark option ${String.fromCharCode(65 + index)} as correct`}
               />
               <span className="w-6 text-sm font-medium text-muted-foreground">
                 {String.fromCharCode(65 + index)}.
@@ -196,12 +198,14 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
                 onChange={(e) => handleOptionChange(index, e.target.value)}
                 className="flex-1"
                 placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                aria-label={`Option ${String.fromCharCode(65 + index)} text`}
               />
               {options.length > 2 && (
                 <button
                   type="button"
                   onClick={() => removeOption(index)}
-                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove option ${String.fromCharCode(65 + index)}`}
+                  className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -225,7 +229,7 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
         {/* Subject & Topic */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Subject *</Label>
+            <Label htmlFor="q-subject">Subject *</Label>
             <Select
               value={subject}
               onValueChange={(v) => {
@@ -233,7 +237,7 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
                 setTopic("");
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id="q-subject">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>
               <SelectContent>
@@ -244,9 +248,9 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Topic *</Label>
+            <Label htmlFor="q-topic">Topic *</Label>
             <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger>
+              <SelectTrigger id="q-topic">
                 <SelectValue placeholder="Select topic" />
               </SelectTrigger>
               <SelectContent>
@@ -260,9 +264,9 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
 
         {/* Difficulty */}
         <div className="space-y-2">
-          <Label>Difficulty *</Label>
+          <Label htmlFor="q-difficulty">Difficulty *</Label>
           <Select value={difficulty} onValueChange={(v: any) => setDifficulty(v)}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger id="q-difficulty" className="w-full sm:w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -275,8 +279,9 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
 
         {/* Explanation */}
         <div className="space-y-2">
-          <Label>Explanation (optional)</Label>
+          <Label htmlFor="q-explanation">Explanation (optional)</Label>
           <Textarea
+            id="q-explanation"
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
             rows={2}

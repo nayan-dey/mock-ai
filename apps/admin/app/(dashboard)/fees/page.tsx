@@ -3,7 +3,8 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const MONTH_NAMES = [
   "January",
@@ -80,19 +82,46 @@ export default function FeesPage() {
   const { user: clerkUser } = useUser();
   const { toast } = useToast();
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [selectedStudent, setSelectedStudent] = useState<{
     id: string;
     name: string;
   } | null>(null);
+  const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
 
-  // Filters
-  const [selectedBatches, setSelectedBatches] = useState<Set<string>>(
-    new Set()
-  );
-  const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(
-    new Set()
-  );
+  // URL-synced filters
+  const selectedBatches = useMemo(() => new Set(searchParams.get("batches")?.split(",").filter(Boolean) ?? []), [searchParams]);
+  const selectedMonths = useMemo(() => new Set(searchParams.get("months")?.split(",").filter(Boolean) ?? []), [searchParams]);
+  const selectedStatuses = useMemo(() => new Set(searchParams.get("statuses")?.split(",").filter(Boolean) ?? []), [searchParams]);
+
+  const updateUrlSet = useCallback((key: string, newSet: Set<string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newSet.size === 0) {
+      params.delete(key);
+    } else {
+      params.set(key, Array.from(newSet).join(","));
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  const setSelectedBatches = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const newSet = typeof v === "function" ? v(selectedBatches) : v;
+    updateUrlSet("batches", newSet);
+  }, [selectedBatches, updateUrlSet]);
+
+  const setSelectedMonths = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const newSet = typeof v === "function" ? v(selectedMonths) : v;
+    updateUrlSet("months", newSet);
+  }, [selectedMonths, updateUrlSet]);
+
+  const setSelectedStatuses = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const newSet = typeof v === "function" ? v(selectedStatuses) : v;
+    updateUrlSet("statuses", newSet);
+  }, [selectedStatuses, updateUrlSet]);
 
   const currentAdmin = useQuery(
     api.users.getByClerkId,
@@ -186,7 +215,6 @@ export default function FeesPage() {
 
   const handleDelete = async (feeId: string) => {
     if (!currentAdmin) return;
-    if (!confirm("Are you sure you want to delete this fee record?")) return;
     try {
       await removeFee({
         id: feeId as Id<"fees">,
@@ -200,6 +228,7 @@ export default function FeesPage() {
         variant: "destructive",
       });
     }
+    setDeleteFeeId(null);
   };
 
   // Toggle helpers for multi-select
@@ -224,9 +253,9 @@ export default function FeesPage() {
         <SortableHeader column={column} title="Student" />
       ),
       cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.getValue("studentName")}</p>
-          <p className="text-xs text-muted-foreground">
+        <div className="max-w-[200px]">
+          <p className="font-medium truncate">{row.getValue("studentName")}</p>
+          <p className="text-xs text-muted-foreground truncate">
             {row.original.studentEmail}
           </p>
         </div>
@@ -321,7 +350,7 @@ export default function FeesPage() {
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="ghost" size="icon-sm" aria-label="Fee actions">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -347,7 +376,7 @@ export default function FeesPage() {
               )}
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => handleDelete(fee._id)}
+                onClick={() => setDeleteFeeId(fee._id)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -671,6 +700,15 @@ export default function FeesPage() {
         onOpenChange={(open) => {
           if (!open) setSelectedStudent(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteFeeId}
+        onOpenChange={(open) => { if (!open) setDeleteFeeId(null); }}
+        title="Delete Fee Record"
+        description="Are you sure you want to delete this fee record? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteFeeId) return handleDelete(deleteFeeId); }}
       />
     </div>
   );

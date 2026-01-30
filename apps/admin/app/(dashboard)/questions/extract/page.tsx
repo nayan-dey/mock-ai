@@ -447,7 +447,7 @@ export default function ExtractQuestionsPage() {
           {/* Saving State */}
           {state === "saving" && (
             <div className="flex flex-col items-center justify-center gap-4 py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent motion-reduce:animate-none" />
               <p className="text-muted-foreground">Saving questions to the database...</p>
             </div>
           )}
