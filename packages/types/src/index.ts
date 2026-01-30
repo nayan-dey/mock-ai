@@ -189,56 +189,67 @@ export interface ExtractionResult {
 
 // Subject and topic constants
 export const SUBJECTS = [
+  "General Knowledge",
   "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Biology",
+  "Reasoning",
+  "Bengali",
   "English",
-  "History",
+  "General Science",
+  "Indian History",
   "Geography",
-  "Computer Science",
 ] as const;
 
 export type Subject = (typeof SUBJECTS)[number];
 
 export const TOPICS: Record<Subject, string[]> = {
+  "General Knowledge": [
+    "Current Affairs",
+    "Indian Polity",
+    "Indian Economy",
+    "Sports",
+    "Awards & Honours",
+    "West Bengal GK",
+  ],
   Mathematics: [
+    "Number System",
+    "Percentage",
+    "Profit & Loss",
+    "Time & Work",
+    "Time & Distance",
     "Algebra",
-    "Geometry",
-    "Calculus",
-    "Trigonometry",
-    "Statistics",
-    "Probability",
   ],
-  Physics: [
-    "Mechanics",
-    "Thermodynamics",
-    "Electromagnetism",
-    "Optics",
-    "Modern Physics",
-    "Waves",
+  Reasoning: [
+    "Analogy",
+    "Series",
+    "Coding-Decoding",
+    "Blood Relations",
+    "Direction Sense",
+    "Syllogism",
   ],
-  Chemistry: [
-    "Organic Chemistry",
-    "Inorganic Chemistry",
-    "Physical Chemistry",
-    "Biochemistry",
+  Bengali: [
+    "ব্যাকরণ (Grammar)",
+    "সাহিত্য (Literature)",
+    "পদ্যাংশ (Comprehension)",
+    "শব্দভাণ্ডার (Vocabulary)",
   ],
-  Biology: ["Cell Biology", "Genetics", "Ecology", "Human Physiology", "Botany", "Zoology"],
-  English: ["Grammar", "Comprehension", "Vocabulary", "Writing Skills"],
-  History: ["Ancient History", "Medieval History", "Modern History", "World History"],
+  English: ["Grammar", "Comprehension", "Vocabulary", "Error Spotting"],
+  "General Science": [
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "Environmental Science",
+  ],
+  "Indian History": [
+    "Ancient India",
+    "Medieval India",
+    "Modern India",
+    "Freedom Movement",
+  ],
   Geography: [
     "Physical Geography",
-    "Human Geography",
-    "Economic Geography",
     "Indian Geography",
-  ],
-  "Computer Science": [
-    "Programming",
-    "Data Structures",
-    "Algorithms",
-    "Databases",
-    "Networking",
+    "West Bengal Geography",
+    "World Geography",
   ],
 };
 

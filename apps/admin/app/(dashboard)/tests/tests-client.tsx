@@ -22,7 +22,7 @@ import {
   Skeleton,
   type ColumnDef,
 } from "@repo/ui";
-import { Plus, Trash2, FileText, Eye, Globe, Archive } from "lucide-react";
+import { Plus, Trash2, FileText, Eye, Globe, Archive, BookOpen } from "lucide-react";
 import Link from "next/link";
 import type { Id } from "@repo/database/dataModel";
 
@@ -35,6 +35,7 @@ interface Test {
   duration: number;
   totalMarks: number;
   status: "draft" | "published" | "archived";
+  answerKeyPublished?: boolean;
   batchIds?: string[];
   createdAt: number;
 }
@@ -47,6 +48,7 @@ export function TestsClient() {
   const deleteTest = useMutation(api.tests.remove);
   const publishTest = useMutation(api.tests.publish);
   const archiveTest = useMutation(api.tests.archive);
+  const toggleAnswerKey = useMutation(api.tests.toggleAnswerKey);
 
   // Helper to get batch names
   const getBatchNames = useCallback((batchIds?: string[]) => {
@@ -109,7 +111,16 @@ export function TestsClient() {
       header: ({ column }) => (
         <SortableHeader column={column} title="Status" />
       ),
-      cell: ({ row }) => getStatusBadge(row.getValue("status")),
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-1">
+          {getStatusBadge(row.getValue("status"))}
+          {row.original.status !== "draft" && (
+            <Badge variant={row.original.answerKeyPublished ? "success" : "outline"} className="text-[10px] w-fit">
+              {row.original.answerKeyPublished ? "Key Published" : "Key Hidden"}
+            </Badge>
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: "batchIds",
@@ -174,6 +185,17 @@ export function TestsClient() {
                 <Archive className="h-4 w-4 text-warning" />
               </Button>
             )}
+            {test.status !== "draft" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={test.answerKeyPublished ? "Unpublish answer key" : "Publish answer key"}
+                title={test.answerKeyPublished ? "Unpublish answer key" : "Publish answer key"}
+                onClick={() => toggleAnswerKey({ id: test._id as TestId })}
+              >
+                <BookOpen className={`h-4 w-4 ${test.answerKeyPublished ? "text-emerald-500" : "text-muted-foreground"}`} />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -186,7 +208,7 @@ export function TestsClient() {
         );
       },
     },
-  ], [archiveTest, getBatchNames, getStatusBadge, publishTest]);
+  ], [archiveTest, getBatchNames, getStatusBadge, publishTest, toggleAnswerKey]);
 
   if (tests === undefined) {
     return (

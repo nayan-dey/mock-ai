@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "../components/providers";
 import { UserSync } from "../components/user-sync";
+import { ThemeProvider } from "../components/theme-provider";
 import { SonnerToaster } from "@repo/ui";
 import "@repo/ui/globals.css";
 
@@ -17,16 +18,18 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <head>
           <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         </head>
         <body>
-          <ConvexClientProvider>
-            <UserSync />
-            {children}
-            <SonnerToaster position="top-center" richColors />
-          </ConvexClientProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <ConvexClientProvider>
+              <UserSync />
+              {children}
+              <SonnerToaster position="top-center" richColors />
+            </ConvexClientProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

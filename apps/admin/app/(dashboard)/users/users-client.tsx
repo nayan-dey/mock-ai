@@ -30,9 +30,9 @@ import {
   SelectValue,
   type ColumnDef,
 } from "@repo/ui";
-import { Users, Ban, CheckCircle, Eye, AlertTriangle } from "lucide-react";
-import Link from "next/link";
+import { Users, Ban, CheckCircle, Eye } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
+import { UserDetailSheet } from "../../../components/user-detail-sheet";
 
 interface UserData {
   _id: string;
@@ -42,12 +42,12 @@ interface UserData {
   batchId?: string;
   batchName?: string;
   isSuspended?: boolean;
-  switchCount?: number;
   createdAt: number;
 }
 
 export function UsersClient() {
   const { user: clerkUser } = useUser();
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [suspendUserId, setSuspendUserId] = useState<string | null>(null);
   const [unsuspendUserId, setUnsuspendUserId] = useState<string | null>(null);
   const [suspendReason, setSuspendReason] = useState("");
@@ -61,10 +61,6 @@ export function UsersClient() {
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});
   const activeBatches = useQuery(api.batches.list, { activeOnly: true });
-  const suspiciousUsers = useQuery(api.batchSwitch.getUsersWithMultipleSwitches, {
-    minSwitches: 1,
-  });
-
   const suspendUser = useMutation(api.users.suspendUser);
   const unsuspendUser = useMutation(api.users.unsuspendUser);
 
@@ -77,14 +73,6 @@ export function UsersClient() {
     return map;
   }, [batches]);
 
-  const switchCountMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    suspiciousUsers?.forEach((u) => {
-      map[u.userId] = u.switchCount;
-    });
-    return map;
-  }, [suspiciousUsers]);
-
   // Enrich users data
   const enrichedUsers: UserData[] = useMemo(() => {
     if (!users) return [];
@@ -96,10 +84,9 @@ export function UsersClient() {
       batchId: user.batchId,
       batchName: user.batchId ? batchMap[user.batchId] : undefined,
       isSuspended: user.isSuspended,
-      switchCount: switchCountMap[user._id] || 0,
       createdAt: user.createdAt,
     }));
-  }, [users, batchMap, switchCountMap]);
+  }, [users, batchMap]);
 
   const handleSuspend = useCallback(async () => {
     if (suspendUserId && currentAdmin) {
@@ -171,23 +158,6 @@ export function UsersClient() {
         cell: ({ row }) => row.getValue("batchName") || "-",
       },
       {
-        accessorKey: "switchCount",
-        header: ({ column }) => (
-          <SortableHeader column={column} title="Switches" />
-        ),
-        cell: ({ row }) => {
-          const count = row.getValue("switchCount") as number;
-          return (
-            <div className="flex items-center gap-1">
-              {count}
-              {count >= 2 && (
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-              )}
-            </div>
-          );
-        },
-      },
-      {
         accessorKey: "createdAt",
         header: ({ column }) => (
           <SortableHeader column={column} title="Joined" />
@@ -203,15 +173,14 @@ export function UsersClient() {
 
           return (
             <div className="flex justify-end gap-0.5">
-              <Link href={`/users/${userData._id}`}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="View user profile"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="View user profile"
+                onClick={() => setSelectedUserId(userData._id)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
               {!isAdmin &&
                 (userData.isSuspended ? (
                   <Button
@@ -372,6 +341,15 @@ export function UsersClient() {
         </DialogContent>
       </Dialog>
 
+      {/* User Detail Sheet */}
+      <UserDetailSheet
+        userId={selectedUserId}
+        open={!!selectedUserId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserId(null);
+        }}
+      />
+
       {/* Unsuspend Dialog with Batch Selection */}
       <Dialog
         open={!!unsuspendUserId}
@@ -385,7 +363,7 @@ export function UsersClient() {
             <DialogTitle>Unsuspend User</DialogTitle>
             <DialogDescription>
               Restore the user's access to the platform. You must assign them to
-              a batch - they will not be able to change it afterwards.
+              a batch.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -409,7 +387,7 @@ export function UsersClient() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                The user's batch will be locked after unsuspension.
+                The user will be assigned to this batch.
               </p>
             </div>
           </div>

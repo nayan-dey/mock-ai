@@ -19,11 +19,9 @@ import {
   sonnerToast as toast,
   BackButton,
 } from "@repo/ui";
-import { Save, AlertTriangle, Lock } from "lucide-react";
-import Link from "next/link";
+import { Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BatchSwitchDialog } from "../../../components/batch-switch-dialog";
 
 function getInitials(name: string): string {
   return name
@@ -54,7 +52,6 @@ export default function EditProfilePage() {
   const { user, isLoaded: isUserLoaded } = useUser();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-  const [showBatchDialog, setShowBatchDialog] = useState(false);
 
   const dbUser = useQuery(
     api.users.getByClerkId,
@@ -67,9 +64,6 @@ export default function EditProfilePage() {
   );
 
   const updateProfile = useMutation(api.users.updateProfile);
-
-  // Disable batch switching if user's batch is locked (set by admin during unsuspension)
-  const isBatchLocked = dbUser?.batchLocked === true;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -202,53 +196,17 @@ export default function EditProfilePage() {
         </Card>
 
         {/* Current Batch */}
-        <Card className={isBatchLocked ? "opacity-75" : ""}>
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Current Batch</CardTitle>
-            <CardDescription className="text-xs">
-              Your assigned batch for tests and classes
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="font-medium">
-                {batch?.name || "No batch assigned"}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowBatchDialog(true)}
-                disabled={isBatchLocked}
-                className={isBatchLocked ? "grayscale" : ""}
-              >
-                {isBatchLocked ? (
-                  <>
-                    <Lock className="mr-1 h-3 w-3" />
-                    Locked
-                  </>
-                ) : (
-                  "Switch Batch"
-                )}
-              </Button>
-            </div>
-            {isBatchLocked ? (
-              <div className="mt-2 flex items-start gap-2 rounded-lg bg-muted p-2 text-xs text-muted-foreground">
-                <Lock className="h-4 w-4 shrink-0" />
-                <span>
-                  Your batch has been assigned by an administrator and cannot be
-                  changed. Contact support if you need assistance.
-                </span>
-              </div>
-            ) : (
-              <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>
-                  Batch switching is logged. Multiple switches may result in
-                  account suspension for anti-theft protection.
-                </span>
-              </div>
-            )}
+            <span className="font-medium">
+              {batch?.name || "No batch assigned"}
+            </span>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Contact your admin to change your batch.
+            </p>
           </CardContent>
         </Card>
 
@@ -265,13 +223,6 @@ export default function EditProfilePage() {
         </Button>
       </form>
 
-      {/* Batch Switch Dialog */}
-      <BatchSwitchDialog
-        open={showBatchDialog}
-        onOpenChange={setShowBatchDialog}
-        currentBatchId={dbUser.batchId}
-        userId={dbUser._id}
-      />
     </div>
   );
 }

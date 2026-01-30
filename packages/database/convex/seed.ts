@@ -15,6 +15,7 @@ export const clearAllData = mutation({
     const classes = await ctx.db.query("classes").collect();
     const notes = await ctx.db.query("notes").collect();
     const userSettings = await ctx.db.query("userSettings").collect();
+    const organizations = await ctx.db.query("organizations").collect();
 
     // Delete all records from each table
     for (const user of users) {
@@ -41,6 +42,9 @@ export const clearAllData = mutation({
     for (const setting of userSettings) {
       await ctx.db.delete(setting._id);
     }
+    for (const org of organizations) {
+      await ctx.db.delete(org._id);
+    }
 
     return {
       message: "All data cleared successfully!",
@@ -53,6 +57,7 @@ export const clearAllData = mutation({
         classes: classes.length,
         notes: notes.length,
         userSettings: userSettings.length,
+        organizations: organizations.length,
       },
     };
   },
@@ -90,231 +95,473 @@ export const seedDatabase = mutation({
       throw new Error("Failed to create admin user");
     }
 
+    // ==================== ORGANIZATION ====================
+    const existingOrg = await ctx.db
+      .query("organizations")
+      .withIndex("by_admin_clerk_id", (q) =>
+        q.eq("adminClerkId", args.adminClerkId)
+      )
+      .first();
+
+    if (!existingOrg) {
+      await ctx.db.insert("organizations", {
+        name: "Bengal Competitive Academy",
+        description:
+          "West Bengal's leading coaching institute for competitive exams — WB Police, Railway NTPC, SSC, and Bengali language preparation.",
+        contactEmail: "admin@bengalacademy.com",
+        phone: "+91 98300 00000",
+        address: "Salt Lake Sector V, Kolkata, West Bengal 700091",
+        adminClerkId: args.adminClerkId,
+        createdAt: Date.now(),
+      });
+    }
+
     // ==================== BATCHES ====================
-    const batch2024 = await ctx.db.insert("batches", {
-      name: "JEE 2024",
-      description: "JEE Main & Advanced preparation batch for 2024",
+    const batchWBPolice = await ctx.db.insert("batches", {
+      name: "WB Police 2025",
+      description:
+        "West Bengal Police Constable & SI recruitment exam preparation batch",
       isActive: true,
+      referralCode: "WBPOL25",
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
 
-    const batch2025 = await ctx.db.insert("batches", {
-      name: "JEE 2025",
-      description: "JEE Main & Advanced preparation batch for 2025",
+    const batchNTPC = await ctx.db.insert("batches", {
+      name: "Railway NTPC 2025",
+      description:
+        "Indian Railway NTPC (Non-Technical Popular Categories) exam preparation",
       isActive: true,
+      referralCode: "NTPC25",
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
 
-    const batchNEET = await ctx.db.insert("batches", {
-      name: "NEET 2024",
-      description: "NEET preparation batch for 2024",
+    const batchSSC = await ctx.db.insert("batches", {
+      name: "SSC 2025",
+      description:
+        "Staff Selection Commission CGL/CHSL/MTS exam preparation batch",
       isActive: true,
+      referralCode: "SSC25A",
+      createdBy: adminUser._id,
+      createdAt: Date.now(),
+    });
+
+    const batchBengali = await ctx.db.insert("batches", {
+      name: "Bengali Language 2025",
+      description:
+        "Bengali language and literature preparation for WBCS, WB Police, and other state-level exams",
+      isActive: true,
+      referralCode: "BNGL25",
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
 
     // ==================== QUESTIONS ====================
 
-    // Mathematics Questions
+    // General Knowledge Questions
+    const gkQuestions = [
+      {
+        text: "Who is the current Chief Minister of West Bengal?",
+        options: ["Mamata Banerjee", "Buddhadeb Bhattacharjee", "Jyoti Basu", "Bidhan Chandra Roy"],
+        correctOptions: [0],
+        explanation: "Mamata Banerjee has been serving as the Chief Minister of West Bengal since 2011.",
+        subject: "General Knowledge",
+        topic: "West Bengal GK",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "Kolkata is situated on the banks of which river?",
+        options: ["Hooghly", "Ganga", "Damodar", "Teesta"],
+        correctOptions: [0],
+        explanation: "Kolkata is situated on the eastern bank of the Hooghly River (a distributary of the Ganges).",
+        subject: "General Knowledge",
+        topic: "West Bengal GK",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "Which article of the Indian Constitution deals with the Right to Equality?",
+        options: ["Article 14", "Article 19", "Article 21", "Article 32"],
+        correctOptions: [0],
+        explanation: "Article 14 guarantees equality before the law and equal protection of laws within the territory of India.",
+        subject: "General Knowledge",
+        topic: "Indian Polity",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "The Reserve Bank of India was established in which year?",
+        options: ["1935", "1947", "1950", "1929"],
+        correctOptions: [0],
+        explanation: "The RBI was established on April 1, 1935, based on the recommendations of the Hilton Young Commission.",
+        subject: "General Knowledge",
+        topic: "Indian Economy",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "Which district of West Bengal is famous for Darjeeling tea?",
+        options: ["Darjeeling", "Jalpaiguri", "Cooch Behar", "Alipurduar"],
+        correctOptions: [0],
+        explanation: "Darjeeling district is world-famous for its tea, often called the 'Champagne of Teas'.",
+        subject: "General Knowledge",
+        topic: "West Bengal GK",
+        difficulty: "easy" as const,
+      },
+    ];
+
+    // Mathematics Questions (Quantitative Aptitude)
     const mathQuestions = [
       {
-        text: "What is the derivative of x² + 3x + 5?",
-        options: ["2x + 3", "x² + 3", "2x + 5", "x + 3"],
+        text: "A shopkeeper sells an article for ₹450, making a profit of 25%. What is the cost price?",
+        options: ["₹360", "₹400", "₹350", "₹375"],
         correctOptions: [0],
-        explanation: "The derivative of x² is 2x, derivative of 3x is 3, and derivative of constant 5 is 0. So the answer is 2x + 3.",
+        explanation: "CP = SP / (1 + Profit%) = 450 / 1.25 = ₹360",
         subject: "Mathematics",
-        topic: "Calculus",
+        topic: "Profit & Loss",
         difficulty: "easy" as const,
       },
       {
-        text: "If sin(θ) = 3/5, what is cos(θ) in the first quadrant?",
-        options: ["4/5", "3/4", "5/4", "5/3"],
+        text: "If A can do a work in 12 days and B can do it in 18 days, how many days will they take working together?",
+        options: ["7.2 days", "8 days", "6 days", "9 days"],
         correctOptions: [0],
-        explanation: "Using sin²θ + cos²θ = 1, we get cos²θ = 1 - 9/25 = 16/25, so cosθ = 4/5 in the first quadrant.",
+        explanation: "A's rate = 1/12, B's rate = 1/18. Combined = 1/12 + 1/18 = 5/36. Time = 36/5 = 7.2 days.",
         subject: "Mathematics",
-        topic: "Trigonometry",
+        topic: "Time & Work",
         difficulty: "medium" as const,
       },
       {
-        text: "Solve: 2x + 5 = 15",
-        options: ["x = 5", "x = 10", "x = 7.5", "x = 4"],
+        text: "What is 35% of 800?",
+        options: ["280", "320", "260", "300"],
         correctOptions: [0],
-        explanation: "2x + 5 = 15 → 2x = 10 → x = 5",
+        explanation: "35% of 800 = (35/100) × 800 = 280",
         subject: "Mathematics",
-        topic: "Algebra",
+        topic: "Percentage",
         difficulty: "easy" as const,
       },
       {
-        text: "What is the integral of 2x dx?",
-        options: ["x² + C", "2x² + C", "x + C", "2 + C"],
+        text: "A train 200m long passes a pole in 10 seconds. What is its speed in km/h?",
+        options: ["72 km/h", "60 km/h", "80 km/h", "54 km/h"],
         correctOptions: [0],
-        explanation: "The integral of 2x is x² + C (constant of integration).",
+        explanation: "Speed = 200/10 = 20 m/s. In km/h = 20 × 18/5 = 72 km/h.",
         subject: "Mathematics",
-        topic: "Calculus",
-        difficulty: "easy" as const,
+        topic: "Time & Distance",
+        difficulty: "medium" as const,
       },
       {
-        text: "In a right triangle, if the two legs are 3 and 4, what is the hypotenuse?",
-        options: ["5", "6", "7", "12"],
+        text: "Find the HCF of 36 and 48.",
+        options: ["12", "6", "24", "8"],
         correctOptions: [0],
-        explanation: "Using Pythagorean theorem: √(3² + 4²) = √(9 + 16) = √25 = 5",
+        explanation: "36 = 2² × 3², 48 = 2⁴ × 3. HCF = 2² × 3 = 12.",
         subject: "Mathematics",
-        topic: "Geometry",
+        topic: "Number System",
         difficulty: "easy" as const,
       },
     ];
 
-    // Physics Questions
-    const physicsQuestions = [
+    // Reasoning Questions
+    const reasoningQuestions = [
       {
-        text: "What is the SI unit of force?",
-        options: ["Newton", "Joule", "Watt", "Pascal"],
+        text: "Complete the series: 2, 6, 12, 20, 30, ?",
+        options: ["42", "40", "36", "44"],
         correctOptions: [0],
-        explanation: "The SI unit of force is Newton (N), named after Sir Isaac Newton.",
-        subject: "Physics",
-        topic: "Mechanics",
+        explanation: "Differences: 4, 6, 8, 10, 12. The next term = 30 + 12 = 42.",
+        subject: "Reasoning",
+        topic: "Series",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "If CLOUD is coded as DMPVE, how is RAIN coded?",
+        options: ["SBJO", "SBJM", "QZHO", "RBJN"],
+        correctOptions: [0],
+        explanation: "Each letter is shifted by +1: R→S, A→B, I→J, N→O. So RAIN = SBJO.",
+        subject: "Reasoning",
+        topic: "Coding-Decoding",
         difficulty: "easy" as const,
       },
       {
-        text: "A car accelerates from 0 to 20 m/s in 4 seconds. What is its acceleration?",
-        options: ["5 m/s²", "4 m/s²", "20 m/s²", "80 m/s²"],
+        text: "Doctor : Hospital :: Teacher : ?",
+        options: ["School", "Student", "Book", "Chalk"],
         correctOptions: [0],
-        explanation: "Acceleration = (final velocity - initial velocity) / time = (20 - 0) / 4 = 5 m/s²",
-        subject: "Physics",
-        topic: "Mechanics",
+        explanation: "A doctor works at a hospital, similarly a teacher works at a school.",
+        subject: "Reasoning",
+        topic: "Analogy",
         difficulty: "easy" as const,
       },
       {
-        text: "Which of the following is a vector quantity?",
-        options: ["Velocity", "Speed", "Mass", "Temperature"],
+        text: "Pointing to a girl, Ramesh said, 'She is the daughter of my father's only son.' How is the girl related to Ramesh?",
+        options: ["Daughter", "Sister", "Niece", "Mother"],
         correctOptions: [0],
-        explanation: "Velocity is a vector quantity as it has both magnitude and direction. Speed, mass, and temperature are scalar quantities.",
-        subject: "Physics",
-        topic: "Mechanics",
+        explanation: "My father's only son = Ramesh himself. So the girl is Ramesh's daughter.",
+        subject: "Reasoning",
+        topic: "Blood Relations",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "All statements: All roses are flowers. Some flowers are red. Conclusion: Some roses are red.",
+        options: ["Does not follow", "Follows", "Both follow", "Neither follows"],
+        correctOptions: [0],
+        explanation: "The conclusion does not necessarily follow. 'Some flowers are red' doesn't mean the roses specifically are red.",
+        subject: "Reasoning",
+        topic: "Syllogism",
+        difficulty: "hard" as const,
+      },
+    ];
+
+    // Bengali Language Questions
+    const bengaliQuestions = [
+      {
+        text: "'পথের পাঁচালী' উপন্যাসটি কার লেখা?",
+        options: ["বিভূতিভূষণ বন্দ্যোপাধ্যায়", "শরৎচন্দ্র চট্টোপাধ্যায়", "বঙ্কিমচন্দ্র চট্টোপাধ্যায়", "রবীন্দ্রনাথ ঠাকুর"],
+        correctOptions: [0],
+        explanation: "পথের পাঁচালী বিভূতিভূষণ বন্দ্যোপাধ্যায়ের লেখা একটি বিখ্যাত বাংলা উপন্যাস (১৯২৯)।",
+        subject: "Bengali",
+        topic: "সাহিত্য (Literature)",
         difficulty: "easy" as const,
       },
       {
-        text: "What is the formula for kinetic energy?",
-        options: ["½mv²", "mgh", "mv", "ma"],
+        text: "'গীতাঞ্জলি' কাব্যগ্রন্থের রচয়িতা কে?",
+        options: ["রবীন্দ্রনাথ ঠাকুর", "কাজী নজরুল ইসলাম", "মাইকেল মধুসূদন দত্ত", "জীবনানন্দ দাশ"],
         correctOptions: [0],
-        explanation: "Kinetic energy = ½ × mass × velocity² = ½mv²",
-        subject: "Physics",
-        topic: "Mechanics",
+        explanation: "গীতাঞ্জলি রবীন্দ্রনাথ ঠাকুরের কাব্যগ্রন্থ, যার জন্য তিনি ১৯১৩ সালে নোবেল পুরস্কার পান।",
+        subject: "Bengali",
+        topic: "সাহিত্য (Literature)",
         difficulty: "easy" as const,
       },
       {
-        text: "Light travels fastest in which medium?",
-        options: ["Vacuum", "Air", "Water", "Glass"],
+        text: "'সন্ধি' শব্দের অর্থ কী?",
+        options: ["মিলন", "বিচ্ছেদ", "সমাস", "প্রত্যয়"],
         correctOptions: [0],
-        explanation: "Light travels fastest in vacuum at approximately 3 × 10⁸ m/s. It slows down in denser media.",
-        subject: "Physics",
-        topic: "Optics",
+        explanation: "সন্ধি শব্দের অর্থ হলো মিলন। দুটি ধ্বনি পাশাপাশি এলে তাদের মিলনকে সন্ধি বলে।",
+        subject: "Bengali",
+        topic: "ব্যাকরণ (Grammar)",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "'অগ্নি' শব্দের সমার্থক শব্দ কোনটি?",
+        options: ["আগুন", "জল", "বায়ু", "মাটি"],
+        correctOptions: [0],
+        explanation: "অগ্নি শব্দের সমার্থক শব্দ হলো আগুন, অনল, বহ্নি, পাবক ইত্যাদি।",
+        subject: "Bengali",
+        topic: "শব্দভাণ্ডার (Vocabulary)",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "'বাংলা ভাষায় প্রথম উপন্যাস কোনটি?",
+        options: ["আলালের ঘরের দুলাল", "দুর্গেশনন্দিনী", "কপালকুণ্ডলা", "রাজসিংহ"],
+        correctOptions: [0],
+        explanation: "প্যারীচাঁদ মিত্র রচিত 'আলালের ঘরের দুলাল' (১৮৫৮) বাংলা ভাষায় প্রথম উপন্যাস।",
+        subject: "Bengali",
+        topic: "সাহিত্য (Literature)",
+        difficulty: "medium" as const,
+      },
+    ];
+
+    // English Language Questions
+    const englishQuestions = [
+      {
+        text: "Choose the correct spelling:",
+        options: ["Accommodation", "Accomodation", "Acomodation", "Accommadation"],
+        correctOptions: [0],
+        explanation: "The correct spelling is 'Accommodation' with double 'c' and double 'm'.",
+        subject: "English",
+        topic: "Vocabulary",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "Find the error: 'He go to school every day.'",
+        options: ["'go' should be 'goes'", "'to' should be 'at'", "'every' should be 'each'", "No error"],
+        correctOptions: [0],
+        explanation: "With third-person singular subject 'He', the verb should be 'goes' (present simple).",
+        subject: "English",
+        topic: "Error Spotting",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "The synonym of 'Abundant' is:",
+        options: ["Plentiful", "Scarce", "Rare", "Meagre"],
+        correctOptions: [0],
+        explanation: "'Abundant' means present in large quantities, similar to 'Plentiful'.",
+        subject: "English",
+        topic: "Vocabulary",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "Choose the correct voice: 'The letter was written by her.'",
+        options: ["Passive Voice", "Active Voice", "Imperative", "Exclamatory"],
+        correctOptions: [0],
+        explanation: "The sentence uses passive voice (subject receives the action). Active: 'She wrote the letter.'",
+        subject: "English",
+        topic: "Grammar",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "Fill in the blank: 'He has been working here ___ 2015.'",
+        options: ["since", "for", "from", "by"],
+        correctOptions: [0],
+        explanation: "'Since' is used with a specific point in time (2015). 'For' is used with a duration.",
+        subject: "English",
+        topic: "Grammar",
         difficulty: "easy" as const,
       },
     ];
 
-    // Chemistry Questions
-    const chemistryQuestions = [
+    // General Science Questions
+    const scienceQuestions = [
       {
-        text: "What is the chemical symbol for Gold?",
-        options: ["Au", "Ag", "Fe", "Cu"],
+        text: "Which vitamin is produced when our body is exposed to sunlight?",
+        options: ["Vitamin D", "Vitamin A", "Vitamin C", "Vitamin B12"],
         correctOptions: [0],
-        explanation: "Au comes from the Latin word 'Aurum' meaning gold.",
-        subject: "Chemistry",
-        topic: "Inorganic Chemistry",
+        explanation: "Vitamin D is synthesized in the skin when exposed to ultraviolet B (UVB) radiation from sunlight.",
+        subject: "General Science",
+        topic: "Biology",
         difficulty: "easy" as const,
       },
       {
-        text: "What is the pH of a neutral solution?",
-        options: ["7", "0", "14", "1"],
+        text: "What is the chemical formula of common salt?",
+        options: ["NaCl", "KCl", "CaCl₂", "NaOH"],
         correctOptions: [0],
-        explanation: "A neutral solution has a pH of 7. Below 7 is acidic, above 7 is basic.",
-        subject: "Chemistry",
-        topic: "Physical Chemistry",
+        explanation: "Common salt (Sodium Chloride) has the chemical formula NaCl.",
+        subject: "General Science",
+        topic: "Chemistry",
         difficulty: "easy" as const,
       },
       {
-        text: "Which gas is released when an acid reacts with a metal?",
-        options: ["Hydrogen", "Oxygen", "Nitrogen", "Carbon dioxide"],
+        text: "The SI unit of electric current is:",
+        options: ["Ampere", "Volt", "Ohm", "Watt"],
         correctOptions: [0],
-        explanation: "When acids react with metals, hydrogen gas is released. Example: Zn + 2HCl → ZnCl₂ + H₂",
-        subject: "Chemistry",
-        topic: "Inorganic Chemistry",
+        explanation: "The SI unit of electric current is the Ampere (A), named after André-Marie Ampère.",
+        subject: "General Science",
+        topic: "Physics",
         difficulty: "easy" as const,
       },
       {
-        text: "What is the molecular formula of water?",
-        options: ["H₂O", "H₂O₂", "HO", "H₃O"],
+        text: "Which gas do plants absorb during photosynthesis?",
+        options: ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"],
         correctOptions: [0],
-        explanation: "Water consists of 2 hydrogen atoms and 1 oxygen atom, giving H₂O.",
-        subject: "Chemistry",
-        topic: "Inorganic Chemistry",
+        explanation: "During photosynthesis, plants absorb CO₂ and release O₂ using sunlight energy.",
+        subject: "General Science",
+        topic: "Biology",
         difficulty: "easy" as const,
       },
       {
-        text: "Which of the following is an organic compound?",
-        options: ["Methane (CH₄)", "Sodium chloride (NaCl)", "Water (H₂O)", "Sulfuric acid (H₂SO₄)"],
+        text: "Ozone layer depletion is primarily caused by:",
+        options: ["CFCs", "CO₂", "SO₂", "NO₂"],
         correctOptions: [0],
-        explanation: "Methane (CH₄) is an organic compound as it contains carbon-hydrogen bonds.",
-        subject: "Chemistry",
-        topic: "Organic Chemistry",
+        explanation: "Chlorofluorocarbons (CFCs) are the primary cause of ozone layer depletion.",
+        subject: "General Science",
+        topic: "Environmental Science",
+        difficulty: "medium" as const,
+      },
+    ];
+
+    // Indian History Questions
+    const historyQuestions = [
+      {
+        text: "Who was the first Governor-General of independent India?",
+        options: ["Lord Mountbatten", "C. Rajagopalachari", "Jawaharlal Nehru", "Dr. Rajendra Prasad"],
+        correctOptions: [0],
+        explanation: "Lord Mountbatten was the first Governor-General of independent India (1947-1948).",
+        subject: "Indian History",
+        topic: "Modern India",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "The Battle of Plassey was fought in which year?",
+        options: ["1757", "1764", "1857", "1947"],
+        correctOptions: [0],
+        explanation: "The Battle of Plassey (1757) was fought in Bengal between the British East India Company and the Nawab of Bengal, Siraj ud-Daulah.",
+        subject: "Indian History",
+        topic: "Modern India",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "Who founded the Indian National Congress?",
+        options: ["A.O. Hume", "Mahatma Gandhi", "Bal Gangadhar Tilak", "Dadabhai Naoroji"],
+        correctOptions: [0],
+        explanation: "Allan Octavian Hume, a retired British civil servant, founded the INC in 1885.",
+        subject: "Indian History",
+        topic: "Freedom Movement",
+        difficulty: "easy" as const,
+      },
+      {
+        text: "The Harappan civilization belongs to which age?",
+        options: ["Bronze Age", "Iron Age", "Stone Age", "Copper Age"],
+        correctOptions: [0],
+        explanation: "The Indus Valley/Harappan civilization (3300-1300 BCE) belongs to the Bronze Age.",
+        subject: "Indian History",
+        topic: "Ancient India",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "Who was the founder of the Mughal Empire in India?",
+        options: ["Babur", "Akbar", "Humayun", "Shah Jahan"],
+        correctOptions: [0],
+        explanation: "Babur founded the Mughal Empire in 1526 after winning the First Battle of Panipat.",
+        subject: "Indian History",
+        topic: "Medieval India",
         difficulty: "easy" as const,
       },
     ];
 
-    // Computer Science Questions
-    const csQuestions = [
+    // Geography Questions
+    const geographyQuestions = [
       {
-        text: "What does CPU stand for?",
-        options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Computer Processing Unit"],
+        text: "Sundarbans, the largest mangrove forest in the world, is located in:",
+        options: ["West Bengal & Bangladesh", "Kerala", "Odisha", "Tamil Nadu"],
         correctOptions: [0],
-        explanation: "CPU stands for Central Processing Unit, the primary component that executes instructions.",
-        subject: "Computer Science",
-        topic: "Programming",
+        explanation: "The Sundarbans is the largest mangrove forest, spanning West Bengal (India) and Bangladesh in the Ganges delta.",
+        subject: "Geography",
+        topic: "West Bengal Geography",
         difficulty: "easy" as const,
       },
       {
-        text: "Which data structure uses LIFO (Last In First Out)?",
-        options: ["Stack", "Queue", "Array", "Linked List"],
+        text: "What is the total number of districts in West Bengal?",
+        options: ["23", "19", "21", "25"],
         correctOptions: [0],
-        explanation: "Stack follows LIFO - the last element added is the first one to be removed.",
-        subject: "Computer Science",
-        topic: "Data Structures",
+        explanation: "West Bengal has 23 districts after the bifurcation of several districts.",
+        subject: "Geography",
+        topic: "West Bengal Geography",
+        difficulty: "medium" as const,
+      },
+      {
+        text: "Which is the longest river of India?",
+        options: ["Ganga", "Godavari", "Brahmaputra", "Yamuna"],
+        correctOptions: [0],
+        explanation: "The Ganga is the longest river in India, flowing approximately 2,525 km.",
+        subject: "Geography",
+        topic: "Indian Geography",
         difficulty: "easy" as const,
       },
       {
-        text: "What is the time complexity of binary search?",
-        options: ["O(log n)", "O(n)", "O(n²)", "O(1)"],
+        text: "The highest peak in West Bengal is:",
+        options: ["Sandakphu", "Phalut", "Tiger Hill", "Tonglu"],
         correctOptions: [0],
-        explanation: "Binary search divides the search space in half each time, giving O(log n) complexity.",
-        subject: "Computer Science",
-        topic: "Algorithms",
+        explanation: "Sandakphu (3,636m) in the Darjeeling district is the highest peak in West Bengal.",
+        subject: "Geography",
+        topic: "West Bengal Geography",
         difficulty: "medium" as const,
       },
       {
-        text: "Which of the following is NOT a programming paradigm?",
-        options: ["Sequential", "Object-Oriented", "Functional", "Procedural"],
+        text: "Which line divides India and Pakistan?",
+        options: ["Radcliffe Line", "Durand Line", "McMahon Line", "Line of Control"],
         correctOptions: [0],
-        explanation: "Sequential is not a programming paradigm. The main paradigms are procedural, object-oriented, functional, and logical.",
-        subject: "Computer Science",
-        topic: "Programming",
-        difficulty: "medium" as const,
-      },
-      {
-        text: "What is the output of: print(2 ** 3) in Python?",
-        options: ["8", "6", "9", "5"],
-        correctOptions: [0],
-        explanation: "In Python, ** is the exponentiation operator. 2 ** 3 = 2³ = 8",
-        subject: "Computer Science",
-        topic: "Programming",
+        explanation: "The Radcliffe Line, drawn by Sir Cyril Radcliffe in 1947, divides India and Pakistan.",
+        subject: "Geography",
+        topic: "Indian Geography",
         difficulty: "easy" as const,
       },
     ];
 
     // Insert all questions
-    const allQuestions = [...mathQuestions, ...physicsQuestions, ...chemistryQuestions, ...csQuestions];
+    const allQuestions = [
+      ...gkQuestions,
+      ...mathQuestions,
+      ...reasoningQuestions,
+      ...bengaliQuestions,
+      ...englishQuestions,
+      ...scienceQuestions,
+      ...historyQuestions,
+      ...geographyQuestions,
+    ];
     const questionIds: string[] = [];
 
     for (const q of allQuestions) {
@@ -328,71 +575,109 @@ export const seedDatabase = mutation({
 
     // ==================== TESTS ====================
 
-    // Test 1: Mathematics Quiz
-    const mathTest = await ctx.db.insert("tests", {
-      title: "Mathematics Fundamentals",
-      description: "Test your basic mathematics skills including algebra, calculus, and geometry.",
-      questions: questionIds.slice(0, 5) as any, // Math questions
-      duration: 15,
-      totalMarks: 50,
+    // Test 1: WB Police Prelims Mock
+    await ctx.db.insert("tests", {
+      title: "WB Police Prelims Mock Test",
+      description:
+        "Mock test for West Bengal Police Constable preliminary exam — GK, Math, Reasoning.",
+      questions: [
+        ...questionIds.slice(0, 5),  // GK
+        ...questionIds.slice(5, 10), // Math
+        ...questionIds.slice(10, 15), // Reasoning
+      ] as any,
+      duration: 30,
+      totalMarks: 150,
       negativeMarking: 0.5,
       status: "published",
-      batchIds: [batch2024, batch2025],
+      batchIds: [batchWBPolice],
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
 
-    // Test 2: Physics Quiz
-    const physicsTest = await ctx.db.insert("tests", {
-      title: "Physics Basics",
-      description: "Test your understanding of fundamental physics concepts.",
-      questions: questionIds.slice(5, 10) as any, // Physics questions
-      duration: 15,
-      totalMarks: 50,
-      negativeMarking: 0.5,
+    // Test 2: Railway NTPC Mock
+    await ctx.db.insert("tests", {
+      title: "Railway NTPC CBT-1 Mock",
+      description:
+        "Mock test for Railway NTPC first stage — GK, Math, Reasoning, General Science.",
+      questions: [
+        ...questionIds.slice(0, 5),   // GK
+        ...questionIds.slice(5, 10),  // Math
+        ...questionIds.slice(10, 15), // Reasoning
+        ...questionIds.slice(25, 30), // Science
+      ] as any,
+      duration: 45,
+      totalMarks: 200,
+      negativeMarking: 0.33,
       status: "published",
-      batchIds: [batch2024, batch2025],
+      batchIds: [batchNTPC],
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
 
-    // Test 3: Science Combined
-    const scienceTest = await ctx.db.insert("tests", {
-      title: "Science Combined Test",
-      description: "A comprehensive test covering Physics and Chemistry.",
-      questions: questionIds.slice(5, 15) as any, // Physics + Chemistry
+    // Test 3: SSC CGL Tier-1 Mock
+    await ctx.db.insert("tests", {
+      title: "SSC CGL Tier-1 Mock",
+      description:
+        "Mock test for SSC CGL Tier-1 exam — GK, Quantitative Aptitude, English, Reasoning.",
+      questions: [
+        ...questionIds.slice(0, 5),   // GK
+        ...questionIds.slice(5, 10),  // Math
+        ...questionIds.slice(10, 15), // Reasoning
+        ...questionIds.slice(20, 25), // English
+      ] as any,
+      duration: 60,
+      totalMarks: 200,
+      negativeMarking: 0.5,
+      status: "published",
+      batchIds: [batchSSC],
+      createdBy: adminUser._id,
+      createdAt: Date.now(),
+    });
+
+    // Test 4: Bengali Language Test
+    await ctx.db.insert("tests", {
+      title: "Bengali Language & Literature",
+      description:
+        "Practice test for Bengali grammar, vocabulary, and literature for state-level exams.",
+      questions: questionIds.slice(15, 20) as any, // Bengali
+      duration: 20,
+      totalMarks: 50,
+      negativeMarking: 0.25,
+      status: "published",
+      batchIds: [batchBengali, batchWBPolice],
+      createdBy: adminUser._id,
+      createdAt: Date.now(),
+    });
+
+    // Test 5: Indian History & Geography Combined
+    await ctx.db.insert("tests", {
+      title: "History & Geography Combined",
+      description:
+        "Combined test covering Indian History and Geography for all competitive exams.",
+      questions: [
+        ...questionIds.slice(30, 35), // History
+        ...questionIds.slice(35, 40), // Geography
+      ] as any,
       duration: 30,
       totalMarks: 100,
       negativeMarking: 0.25,
       status: "published",
-      batchIds: [batch2024],
+      batchIds: [batchWBPolice, batchNTPC, batchSSC],
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
 
-    // Test 4: Computer Science
-    const csTest = await ctx.db.insert("tests", {
-      title: "Computer Science Basics",
-      description: "Test your knowledge of programming and data structures.",
-      questions: questionIds.slice(15, 20) as any, // CS questions
-      duration: 20,
-      totalMarks: 50,
-      negativeMarking: 0,
-      status: "published",
-      createdBy: adminUser._id,
-      createdAt: Date.now(),
-    });
-
-    // Test 5: Full Mock Test (Draft)
-    const fullTest = await ctx.db.insert("tests", {
-      title: "Full Mock Test - All Subjects",
-      description: "A comprehensive mock test covering all subjects. Coming soon!",
+    // Test 6: Full Mock (Draft)
+    await ctx.db.insert("tests", {
+      title: "Grand Mock Test — All Subjects",
+      description:
+        "A comprehensive mock test covering all subjects. Coming soon!",
       questions: questionIds as any,
-      duration: 60,
-      totalMarks: 200,
+      duration: 90,
+      totalMarks: 400,
       negativeMarking: 0.25,
       status: "draft",
-      batchIds: [batch2024, batch2025, batchNEET],
+      batchIds: [batchWBPolice, batchNTPC, batchSSC, batchBengali],
       createdBy: adminUser._id,
       createdAt: Date.now(),
     });
@@ -401,42 +686,58 @@ export const seedDatabase = mutation({
 
     const notes = [
       {
-        title: "Calculus Cheat Sheet",
-        description: "Quick reference for derivatives and integrals of common functions.",
+        title: "WB Police Syllabus & Strategy",
+        description:
+          "Complete syllabus breakdown and preparation strategy for WB Police Constable exam.",
+        subject: "General Knowledge",
+        topic: "West Bengal GK",
+        fileUrl: "https://wbpolice.gov.in",
+        batchIds: [batchWBPolice],
+      },
+      {
+        title: "Quantitative Aptitude Formulas",
+        description:
+          "All important formulas for Percentage, Profit & Loss, Time & Work, and Time & Distance.",
         subject: "Mathematics",
-        topic: "Calculus",
-        fileUrl: "https://tutorial.math.lamar.edu/pdf/calculus_cheat_sheet_all.pdf",
-        batchIds: [batch2024, batch2025],
+        topic: "Percentage",
+        fileUrl: "https://www.indiabix.com/aptitude/questions-and-answers/",
+        batchIds: [batchWBPolice, batchNTPC, batchSSC],
       },
       {
-        title: "Physics Formulas",
-        description: "Important physics formulas for mechanics, thermodynamics, and waves.",
-        subject: "Physics",
-        topic: "Mechanics",
-        fileUrl: "https://www.eeweb.com/tools/physics-formula-sheet",
-        batchIds: [batch2024, batch2025],
+        title: "Railway NTPC Previous Year Papers",
+        description:
+          "Collection of previous year question papers for Railway NTPC CBT-1 and CBT-2.",
+        subject: "General Knowledge",
+        topic: "Current Affairs",
+        fileUrl: "https://www.rrbcdg.gov.in",
+        batchIds: [batchNTPC],
       },
       {
-        title: "Periodic Table",
-        description: "Complete periodic table with atomic numbers and masses.",
-        subject: "Chemistry",
-        topic: "Inorganic Chemistry",
-        fileUrl: "https://pubchem.ncbi.nlm.nih.gov/periodic-table/",
+        title: "Bengali Grammar Notes",
+        description:
+          "Comprehensive Bengali grammar notes — সন্ধি, সমাস, প্রত্যয়, কারক, বাচ্য।",
+        subject: "Bengali",
+        topic: "ব্যাকরণ (Grammar)",
+        fileUrl: "https://www.banglabook.org",
+        batchIds: [batchBengali, batchWBPolice],
       },
       {
-        title: "Data Structures Overview",
-        description: "Comprehensive guide to arrays, linked lists, trees, and graphs.",
-        subject: "Computer Science",
-        topic: "Data Structures",
-        fileUrl: "https://www.geeksforgeeks.org/data-structures/",
+        title: "Indian History Timeline",
+        description:
+          "Chronological timeline from Indus Valley civilization to Indian independence.",
+        subject: "Indian History",
+        topic: "Modern India",
+        fileUrl: "https://ncert.nic.in",
+        batchIds: [batchWBPolice, batchNTPC, batchSSC],
       },
       {
-        title: "Trigonometry Identities",
-        description: "All important trigonometric identities and formulas.",
-        subject: "Mathematics",
-        topic: "Trigonometry",
-        fileUrl: "https://www.mathsisfun.com/algebra/trigonometric-identities.html",
-        batchIds: [batch2024],
+        title: "West Bengal Geography Quick Notes",
+        description:
+          "Rivers, districts, national parks, and important geographical facts about West Bengal.",
+        subject: "Geography",
+        topic: "West Bengal Geography",
+        fileUrl: "https://wb.gov.in",
+        batchIds: [batchWBPolice],
       },
     ];
 
@@ -453,53 +754,64 @@ export const seedDatabase = mutation({
 
     const classes = [
       {
-        title: "Introduction to Calculus",
-        description: "Learn the basics of derivatives and integrals in this comprehensive introduction.",
+        title: "WB Police GK Masterclass",
+        description:
+          "Complete General Knowledge revision for WB Police exam — West Bengal, Indian Polity, Economy.",
+        subject: "General Knowledge",
+        topic: "West Bengal GK",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        duration: 3600,
+        batchIds: [batchWBPolice],
+      },
+      {
+        title: "Quantitative Aptitude — Percentage & Profit Loss",
+        description:
+          "Master percentage calculations, profit & loss, and discount problems for competitive exams.",
         subject: "Mathematics",
-        topic: "Calculus",
-        videoUrl: "https://www.youtube.com/watch?v=WUvTyaaNkzM",
-        duration: 3600, // 1 hour
-        thumbnail: "https://i.ytimg.com/vi/WUvTyaaNkzM/maxresdefault.jpg",
-        batchIds: [batch2024, batch2025],
+        topic: "Profit & Loss",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        duration: 2700,
+        batchIds: [batchWBPolice, batchNTPC, batchSSC],
       },
       {
-        title: "Newton's Laws of Motion",
-        description: "Understanding the three fundamental laws of motion with examples.",
-        subject: "Physics",
-        topic: "Mechanics",
-        videoUrl: "https://www.youtube.com/watch?v=kKKM8Y-u7ds",
-        duration: 2400, // 40 minutes
-        thumbnail: "https://i.ytimg.com/vi/kKKM8Y-u7ds/maxresdefault.jpg",
-        batchIds: [batch2024, batch2025],
+        title: "Reasoning — Series & Coding-Decoding",
+        description:
+          "Learn to solve number series, letter series, and coding-decoding problems quickly.",
+        subject: "Reasoning",
+        topic: "Series",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        duration: 2400,
+        batchIds: [batchNTPC, batchSSC],
       },
       {
-        title: "Organic Chemistry Basics",
-        description: "Introduction to organic compounds, functional groups, and reactions.",
-        subject: "Chemistry",
-        topic: "Organic Chemistry",
-        videoUrl: "https://www.youtube.com/watch?v=bka20Q9TN6M",
-        duration: 2700, // 45 minutes
-        thumbnail: "https://i.ytimg.com/vi/bka20Q9TN6M/maxresdefault.jpg",
-        batchIds: [batch2024],
+        title: "Bengali সাহিত্য — রবীন্দ্রনাথ থেকে জীবনানন্দ",
+        description:
+          "বাংলা সাহিত্যের ইতিহাস — প্রধান কবি, ঔপন্যাসিক, এবং তাদের রচনা।",
+        subject: "Bengali",
+        topic: "সাহিত্য (Literature)",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        duration: 3000,
+        batchIds: [batchBengali, batchWBPolice],
       },
       {
-        title: "Python Programming for Beginners",
-        description: "Start your programming journey with Python basics and fundamentals.",
-        subject: "Computer Science",
-        topic: "Programming",
-        videoUrl: "https://www.youtube.com/watch?v=kqtD5dpn9C8",
-        duration: 4800, // 80 minutes
-        thumbnail: "https://i.ytimg.com/vi/kqtD5dpn9C8/maxresdefault.jpg",
+        title: "Indian History — Freedom Movement",
+        description:
+          "From Revolt of 1857 to Independence — key events, leaders, and movements.",
+        subject: "Indian History",
+        topic: "Freedom Movement",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        duration: 3600,
+        batchIds: [batchWBPolice, batchNTPC, batchSSC],
       },
       {
-        title: "Algebra Fundamentals",
-        description: "Master algebraic expressions, equations, and problem-solving techniques.",
-        subject: "Mathematics",
-        topic: "Algebra",
-        videoUrl: "https://www.youtube.com/watch?v=NybHckSEQBI",
-        duration: 3000, // 50 minutes
-        thumbnail: "https://i.ytimg.com/vi/NybHckSEQBI/maxresdefault.jpg",
-        batchIds: [batch2024, batch2025],
+        title: "General Science for Railway NTPC",
+        description:
+          "Physics, Chemistry, and Biology basics for Railway NTPC CBT-1 exam.",
+        subject: "General Science",
+        topic: "Physics",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        duration: 2700,
+        batchIds: [batchNTPC],
       },
     ];
 
@@ -516,15 +828,16 @@ export const seedDatabase = mutation({
       message: "Database seeded successfully!",
       data: {
         questions: questionIds.length,
-        tests: 5,
+        tests: 6,
         notes: notes.length,
         classes: classes.length,
-        batches: 3,
+        batches: 4,
       },
       batches: {
-        batch2024,
-        batch2025,
-        batchNEET,
+        batchWBPolice,
+        batchNTPC,
+        batchSSC,
+        batchBengali,
       },
     };
   },
@@ -647,9 +960,9 @@ export const seedMockStudents = mutation({
     if (!batch) throw new Error("Batch not found");
 
     const mockNames = [
-      "Rahul Sharma", "Priya Patel", "Arjun Singh", "Sneha Gupta", "Vikram Reddy",
-      "Ananya Iyer", "Rohan Das", "Kavya Nair", "Aditya Kumar", "Meera Joshi",
-      "Karan Mehta", "Divya Rao", "Amit Verma", "Pooja Chatterjee", "Nikhil Bansal",
+      "Sourav Ghosh", "Arpita Das", "Debojit Mondal", "Shreya Banerjee", "Aniket Roy",
+      "Moumita Sen", "Subhajit Saha", "Poulami Chatterjee", "Rishav Mukherjee", "Tanushree Sarkar",
+      "Dipayan Dutta", "Ankita Bose", "Rajdeep Biswas", "Priyanka Pal", "Soumalya Nandi",
     ];
 
     const createdStudents = [];

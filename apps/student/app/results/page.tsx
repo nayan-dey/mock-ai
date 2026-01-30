@@ -35,6 +35,7 @@ interface AttemptData {
   testTitle: string;
   percentage?: number;
   totalMarks?: number;
+  answerKeyPublished?: boolean;
 }
 
 export default function ResultsPage() {
@@ -93,33 +94,44 @@ export default function ResultsPage() {
       header: ({ column }) => (
         <SortableHeader column={column} title="Score" />
       ),
-      cell: ({ row }) => (
-        <span className="text-base font-semibold tabular-nums">
-          {(row.getValue("score") as number).toFixed(1)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (!row.original.answerKeyPublished) {
+          return <Badge variant="secondary">Pending</Badge>;
+        }
+        return (
+          <span className="text-base font-semibold tabular-nums">
+            {(row.getValue("score") as number).toFixed(1)}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "correct",
       header: ({ column }) => (
         <SortableHeader column={column} title="Correct" />
       ),
-      cell: ({ row }) => (
-        <span className="tabular-nums text-emerald-600">
-          {row.getValue("correct")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (!row.original.answerKeyPublished) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="tabular-nums text-emerald-600">
+            {row.getValue("correct")}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "incorrect",
       header: ({ column }) => (
         <SortableHeader column={column} title="Incorrect" />
       ),
-      cell: ({ row }) => (
-        <span className="tabular-nums text-red-600">
-          {row.getValue("incorrect")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (!row.original.answerKeyPublished) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className="tabular-nums text-red-600">
+            {row.getValue("incorrect")}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "accuracy",
@@ -127,6 +139,7 @@ export default function ResultsPage() {
         <SortableHeader column={column} title="Accuracy" />
       ),
       cell: ({ row }) => {
+        if (!row.original.answerKeyPublished) return <span className="text-muted-foreground">—</span>;
         const accuracy = row.getValue("accuracy") as number;
         return (
           <div className="flex items-center gap-2">
@@ -296,65 +309,77 @@ export default function ResultsPage() {
           <div className="space-y-4 md:hidden">
             <h2 className="text-sm font-medium text-muted-foreground">Recent Tests</h2>
             {submittedAttempts.slice(0, 10).map((attempt) => {
-              const total = attempt.correct + attempt.incorrect + attempt.unanswered;
+              const isPending = !attempt.answerKeyPublished;
               return (
                 <Link key={attempt._id} href={`/results/${attempt._id}`}>
                   <Card className="transition-colors hover:bg-muted/50 my-3">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
-                        {/* Score Circle */}
-                        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
-                          <svg className="h-14 w-14 -rotate-90">
-                            <circle
-                              cx="28"
-                              cy="28"
-                              r="24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              className="text-muted"
-                            />
-                            <circle
-                              cx="28"
-                              cy="28"
-                              r="24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              strokeLinecap="round"
-                              strokeDasharray={`${attempt.accuracy * 1.51} 151`}
-                              className={attempt.accuracy >= 60 ? "text-emerald-500" : "text-amber-500"}
-                            />
-                          </svg>
-                          <span className="absolute text-sm font-semibold tabular-nums">
-                            {attempt.accuracy.toFixed(0)}%
-                          </span>
-                        </div>
+                        {/* Score Circle or Pending */}
+                        {isPending ? (
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted">
+                            <Clock className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        ) : (
+                          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
+                            <svg className="h-14 w-14 -rotate-90">
+                              <circle
+                                cx="28"
+                                cy="28"
+                                r="24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                className="text-muted"
+                              />
+                              <circle
+                                cx="28"
+                                cy="28"
+                                r="24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                                strokeDasharray={`${attempt.accuracy * 1.51} 151`}
+                                className={attempt.accuracy >= 60 ? "text-emerald-500" : "text-amber-500"}
+                              />
+                            </svg>
+                            <span className="absolute text-sm font-semibold tabular-nums">
+                              {attempt.accuracy.toFixed(0)}%
+                            </span>
+                          </div>
+                        )}
 
                         {/* Details */}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">
                             {attempt.testTitle || "Unknown Test"}
                           </p>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-semibold tabular-nums">
-                              {attempt.score.toFixed(1)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">points</span>
-                          </div>
-                          <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                              {attempt.correct}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <XCircle className="h-3 w-3 text-red-500" />
-                              {attempt.incorrect}
-                            </span>
-                            <span>
-                              {attempt.submittedAt ? formatDate(attempt.submittedAt) : "-"}
-                            </span>
-                          </div>
+                          {isPending ? (
+                            <Badge variant="secondary" className="mt-1">Results Pending</Badge>
+                          ) : (
+                            <>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-semibold tabular-nums">
+                                  {attempt.score.toFixed(1)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">points</span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                  {attempt.correct}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <XCircle className="h-3 w-3 text-red-500" />
+                                  {attempt.incorrect}
+                                </span>
+                                <span>
+                                  {attempt.submittedAt ? formatDate(attempt.submittedAt) : "-"}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
 
                         {/* Arrow */}

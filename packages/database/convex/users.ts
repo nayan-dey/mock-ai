@@ -142,16 +142,6 @@ export const upsertAsAdmin = mutation({
   },
 });
 
-export const updateBatch = mutation({
-  args: {
-    userId: v.id("users"),
-    batchId: v.optional(v.id("batches")),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.userId, { batchId: args.batchId });
-  },
-});
-
 export const updateProfile = mutation({
   args: {
     userId: v.id("users"),
@@ -224,7 +214,6 @@ export const unsuspendUser = mutation({
       suspendedBy: undefined,
       suspendReason: undefined,
       batchId: args.batchId,
-      batchLocked: true, // Lock batch switching for this user
     });
 
     return { success: true };

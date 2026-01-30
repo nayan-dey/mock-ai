@@ -2,6 +2,18 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Organizations for admin onboarding
+  organizations: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    logoUrl: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    address: v.optional(v.string()),
+    adminClerkId: v.string(),
+    createdAt: v.number(),
+  }).index("by_admin_clerk_id", ["adminClerkId"]),
+
   // AI Chat conversations
   chatConversations: defineTable({
     userId: v.id("users"),
@@ -36,9 +48,13 @@ export default defineSchema({
     name: v.string(),
     description: v.optional(v.string()),
     isActive: v.boolean(),
+    referralCode: v.string(),
+    organizationId: v.optional(v.id("organizations")),
     createdBy: v.id("users"),
     createdAt: v.number(),
-  }).index("by_active", ["isActive"]),
+  })
+    .index("by_active", ["isActive"])
+    .index("by_referral_code", ["referralCode"]),
 
   // User settings for preferences and privacy
   userSettings: defineTable({
@@ -62,7 +78,7 @@ export default defineSchema({
     suspendedAt: v.optional(v.number()),
     suspendedBy: v.optional(v.id("users")),
     suspendReason: v.optional(v.string()),
-    batchLocked: v.optional(v.boolean()), // Set to true when admin assigns batch during unsuspension
+    organizationId: v.optional(v.id("organizations")),
     createdAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
@@ -70,15 +86,6 @@ export default defineSchema({
     .index("by_role", ["role"])
     .index("by_batch", ["batchId"])
     .index("by_suspended", ["isSuspended"]),
-
-  batchSwitchHistory: defineTable({
-    userId: v.id("users"),
-    fromBatchId: v.optional(v.id("batches")),
-    toBatchId: v.id("batches"),
-    switchedAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_switched_at", ["switchedAt"]),
 
   questions: defineTable({
     text: v.string(),
@@ -104,6 +111,7 @@ export default defineSchema({
     totalMarks: v.number(),
     negativeMarking: v.number(),
     status: v.union(v.literal("draft"), v.literal("published"), v.literal("archived")),
+    answerKeyPublished: v.optional(v.boolean()),
     scheduledAt: v.optional(v.number()),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
     createdBy: v.id("users"),
@@ -168,4 +176,20 @@ export default defineSchema({
     .index("by_subject", ["subject"])
     .index("by_topic", ["topic"])
     .index("by_subject_topic", ["subject", "topic"]),
+
+  // Fee records for students
+  fees: defineTable({
+    studentId: v.id("users"),
+    amount: v.number(),
+    status: v.union(v.literal("paid"), v.literal("due")),
+    dueDate: v.number(),
+    paidDate: v.optional(v.number()),
+    description: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_student", ["studentId"])
+    .index("by_status", ["status"])
+    .index("by_due_date", ["dueDate"])
+    .index("by_student_status", ["studentId", "status"]),
 });

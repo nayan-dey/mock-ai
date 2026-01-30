@@ -1,6 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+function generateReferralCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 export const list = query({
   args: {
     activeOnly: v.optional(v.boolean()),
@@ -23,17 +32,47 @@ export const getById = query({
   },
 });
 
+export const getByReferralCode = query({
+  args: { referralCode: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("batches")
+      .withIndex("by_referral_code", (q) =>
+        q.eq("referralCode", args.referralCode.toUpperCase())
+      )
+      .first();
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
+    organizationId: v.optional(v.id("organizations")),
     createdBy: v.id("users"),
   },
   handler: async (ctx, args) => {
+    // Generate unique referral code
+    let referralCode = generateReferralCode();
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await ctx.db
+        .query("batches")
+        .withIndex("by_referral_code", (q) =>
+          q.eq("referralCode", referralCode)
+        )
+        .first();
+      if (!existing) break;
+      referralCode = generateReferralCode();
+      attempts++;
+    }
+
     return await ctx.db.insert("batches", {
       name: args.name,
       description: args.description,
       isActive: true,
+      referralCode,
+      organizationId: args.organizationId,
       createdBy: args.createdBy,
       createdAt: Date.now(),
     });
@@ -87,5 +126,41 @@ export const removeUserFromBatch = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.userId, { batchId: undefined });
+  },
+});
+
+export const joinByReferralCode = mutation({
+  args: {
+    userId: v.id("users"),
+    referralCode: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const batch = await ctx.db
+      .query("batches")
+      .withIndex("by_referral_code", (q) =>
+        q.eq("referralCode", args.referralCode.toUpperCase())
+      )
+      .first();
+
+    if (!batch) {
+      throw new Error("Invalid batch code. Please check with your instructor.");
+    }
+
+    if (!batch.isActive) {
+      throw new Error("This batch is no longer active.");
+    }
+
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    if (user.batchId) {
+      throw new Error("You are already assigned to a batch.");
+    }
+
+    await ctx.db.patch(args.userId, { batchId: batch._id });
+
+    return { success: true, batchName: batch.name };
   },
 });

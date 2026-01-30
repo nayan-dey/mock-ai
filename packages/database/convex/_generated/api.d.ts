@@ -10,11 +10,12 @@
 
 import type * as analytics from "../analytics.js";
 import type * as attempts from "../attempts.js";
-import type * as batchSwitch from "../batchSwitch.js";
 import type * as batches from "../batches.js";
 import type * as chat from "../chat.js";
 import type * as classes from "../classes.js";
+import type * as fees from "../fees.js";
 import type * as notes from "../notes.js";
+import type * as organizations from "../organizations.js";
 import type * as questions from "../questions.js";
 import type * as seed from "../seed.js";
 import type * as tests from "../tests.js";
@@ -30,11 +31,12 @@ import type {
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   attempts: typeof attempts;
-  batchSwitch: typeof batchSwitch;
   batches: typeof batches;
   chat: typeof chat;
   classes: typeof classes;
+  fees: typeof fees;
   notes: typeof notes;
+  organizations: typeof organizations;
   questions: typeof questions;
   seed: typeof seed;
   tests: typeof tests;

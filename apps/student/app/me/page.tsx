@@ -154,6 +154,7 @@ import {
   Edit,
   Users,
   Video,
+  IndianRupee,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -187,6 +188,7 @@ function ProfileSkeleton() {
 const menuItems = [
   { href: "/profile/edit", label: "Edit Profile", icon: Edit, description: "Update your information" },
   { href: "/results", label: "My Results", icon: BarChart3, description: "View test history" },
+  { href: "/fees", label: "Fees", icon: IndianRupee, description: "View fee records" },
   { href: "/classes", label: "Classes", icon: Video, description: "Video lectures" },
   { href: "/notes", label: "Notes", icon: BookOpen, description: "Study materials" },
   { href: "/settings", label: "Settings", icon: Settings, description: "Preferences & privacy" },

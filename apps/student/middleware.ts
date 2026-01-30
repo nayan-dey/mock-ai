@@ -10,10 +10,19 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
+  const url = req.nextUrl;
+  const ref = url.searchParams.get("ref");
 
   // Redirect authenticated users from home page to dashboard
-  if (userId && req.nextUrl.pathname === "/") {
+  if (userId && url.pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  // Authenticated user at sign-up with ref → onboarding with ref
+  if (userId && url.pathname.startsWith("/sign-up") && ref) {
+    return NextResponse.redirect(
+      new URL(`/onboarding?ref=${ref}`, req.url)
+    );
   }
 
   if (!isPublicRoute(req)) {

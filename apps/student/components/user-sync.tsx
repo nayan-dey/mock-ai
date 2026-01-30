@@ -58,12 +58,15 @@ export function UserSync() {
     // Onboarding check - only for non-suspended students
     if (
       pathname !== "/onboarding" &&
-      pathname !== "/" &&
       dbUser &&
       dbUser.role === "student" &&
       !dbUser.batchId
     ) {
-      router.push("/onboarding");
+      // Preserve ref param if present in current URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const ref = searchParams.get("ref");
+      const onboardingUrl = ref ? `/onboarding?ref=${ref}` : "/onboarding";
+      router.push(onboardingUrl);
     }
   }, [isLoaded, user, dbUser, pathname, router]);
 

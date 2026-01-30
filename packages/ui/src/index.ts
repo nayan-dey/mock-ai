@@ -82,6 +82,18 @@ export {
 } from "./components/tooltip";
 export { ScrollArea, ScrollBar } from "./components/scroll-area";
 export {
+  Sheet,
+  SheetPortal,
+  SheetOverlay,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from "./components/sheet";
+export {
   Accordion,
   AccordionItem,
   AccordionTrigger,

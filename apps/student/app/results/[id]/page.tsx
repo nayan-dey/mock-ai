@@ -32,7 +32,7 @@ import {
   fireConfetti,
   BackButton,
 } from "@repo/ui";
-import { Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper } from "lucide-react";
+import { Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper, Clock } from "lucide-react";
 import Link from "next/link";
 import type { GenericId } from "convex/values";
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -134,6 +134,38 @@ export default function ResultDetailPage() {
         <Skeleton className="mb-2 h-8 w-64" />
         <Skeleton className="mb-6 h-4 w-48" />
         <Skeleton className="h-48 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  // If answer key is not published, show pending message
+  if (!attemptWithDetails.answerKeyPublished) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <BackButton href="/results" />
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {attemptWithDetails.test.title}
+            </h1>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="rounded-full bg-muted p-4">
+              <Clock className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium">Results Pending</h3>
+            <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+              The answer key for this test has not been published yet. Please check back later.
+            </p>
+            <Link href="/results">
+              <Button variant="outline" className="mt-6">
+                Back to Results
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -62,6 +62,7 @@ export const getByUser = query({
           testTitle: test?.title || "Unknown Test",
           totalMarks: test?.totalMarks || 0,
           percentage,
+          answerKeyPublished: test?.answerKeyPublished ?? false,
         };
       })
     );
@@ -96,6 +97,18 @@ export const getWithDetails = query({
     const test = await ctx.db.get(attempt.testId);
     if (!test) return null;
 
+    const answerKeyPublished = test.answerKeyPublished ?? false;
+
+    // If answer key is not published, return attempt without question details
+    if (!answerKeyPublished) {
+      return {
+        ...attempt,
+        test,
+        questions: [],
+        answerKeyPublished: false,
+      };
+    }
+
     const questions = await Promise.all(
       test.questions.map((qId) => ctx.db.get(qId))
     );
@@ -104,6 +117,7 @@ export const getWithDetails = query({
       ...attempt,
       test,
       questions: questions.filter(Boolean),
+      answerKeyPublished: true,
     };
   },
 });

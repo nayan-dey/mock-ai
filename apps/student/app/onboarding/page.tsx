@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import {
@@ -11,25 +11,25 @@ import {
   CardTitle,
   Skeleton,
   Button,
+  Input,
   useToast,
 } from "@repo/ui";
-import { GraduationCap, Users, ArrowRight, Check } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { KeyRound, ArrowRight, LogOut } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 
 function OnboardingSkeleton() {
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <Skeleton className="mx-auto mb-4 h-16 w-16 rounded-full" />
           <Skeleton className="mx-auto mb-2 h-7 w-48" />
           <Skeleton className="mx-auto h-4 w-64" />
         </CardHeader>
         <CardContent className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-10 w-full rounded-lg" />
         </CardContent>
       </Card>
     </div>
@@ -38,19 +38,31 @@ function OnboardingSkeleton() {
 
 export default function OnboardingPage() {
   const { user, isLoaded: isUserLoaded } = useUser();
+  const { signOut } = useClerk();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
+  // Check URL param first, then fallback to sessionStorage (survives OAuth redirects)
+  const urlRef = searchParams.get("ref") || "";
+  const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const dbUser = useQuery(
     api.users.getByClerkId,
     user?.id ? { clerkId: user.id } : "skip"
   );
 
-  const batches = useQuery(api.batches.list, { activeOnly: true });
-  const updateBatch = useMutation(api.batches.assignUserToBatch);
+  const joinByReferralCode = useMutation(api.batches.joinByReferralCode);
+
+  // Auto-populate from URL ref param or sessionStorage fallback
+  useEffect(() => {
+    const refCode = urlRef || sessionStorage.getItem("batch_ref_code") || "";
+    if (refCode) {
+      setCode(refCode.toUpperCase());
+    }
+  }, [urlRef]);
 
   // If user already has a batch, redirect to dashboard
   if (dbUser?.batchId) {
@@ -58,14 +70,14 @@ export default function OnboardingPage() {
     return null;
   }
 
-  if (!isUserLoaded || (user && (dbUser === undefined || batches === undefined))) {
+  if (!isUserLoaded || (user && dbUser === undefined)) {
     return <OnboardingSkeleton />;
   }
 
   if (!dbUser) {
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4">
-        <Card className="w-full max-w-md py-8 text-center">
+        <Card className="w-full max-w-sm py-8 text-center">
           <CardContent>
             <h3 className="mb-2 text-base font-medium sm:text-lg">
               Setting Up Your Account
@@ -80,113 +92,90 @@ export default function OnboardingPage() {
     );
   }
 
-  const handleSelectBatch = async () => {
-    if (!selectedBatch || !dbUser) return;
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || !dbUser) return;
 
+    setError("");
     setIsSubmitting(true);
     try {
-      await updateBatch({
+      const result = await joinByReferralCode({
         userId: dbUser._id,
-        batchId: selectedBatch as any,
+        referralCode: code.trim(),
       });
+      // Clean up stored ref code
+      sessionStorage.removeItem("batch_ref_code");
       toast({
         title: "Welcome!",
-        description: "You've been added to your batch. Let's get started!",
+        description: `You've joined ${result.batchName}. Let's get started!`,
       });
       router.push("/dashboard");
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to join batch. Please try again.",
-        variant: "destructive",
-      });
+    } catch (err: any) {
+      const message =
+        err?.message || "Failed to join batch. Please try again.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSkip = () => {
-    router.push("/dashboard");
-  };
-
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-6 sm:py-8">
-      <Card className="w-full max-w-sm sm:max-w-md">
+      <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <GraduationCap className="h-8 w-8 text-primary" />
+            <KeyRound className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Welcome, {user?.firstName || dbUser.name}!</CardTitle>
+          <CardTitle className="text-2xl">
+            Welcome, {user?.firstName || dbUser.name}!
+          </CardTitle>
           <CardDescription>
-            Select your batch to get started with personalized content
+            Enter your batch code to get started. Ask your instructor for the
+            code.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 sm:space-y-4">
-          {batches && batches.length > 0 ? (
-            <>
-              <div className="space-y-2">
-                {batches.map((batch) => (
-                  <button
-                    key={batch._id}
-                    onClick={() => setSelectedBatch(batch._id)}
-                    className={`flex w-full items-center gap-3 rounded-lg border-2 p-4 text-left transition-all ${
-                      selectedBatch === batch._id
-                        ? "border-primary bg-primary/5"
-                        : "border-transparent bg-muted/50 hover:border-muted-foreground/20"
-                    }`}
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{batch.name}</p>
-                      {batch.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {batch.description}
-                        </p>
-                      )}
-                    </div>
-                    {selectedBatch === batch._id && (
-                      <Check className="h-5 w-5 text-primary" />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={handleSkip}
-                  className="flex-1"
-                >
-                  Skip for Now
-                </Button>
-                <Button
-                  onClick={handleSelectBatch}
-                  disabled={!selectedBatch || isSubmitting}
-                  className="flex-1 gap-2"
-                >
-                  {isSubmitting ? (
-                    "Joining..."
-                  ) : (
-                    <>
-                      Continue <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="py-8 text-center">
-              <p className="mb-4 text-sm text-muted-foreground">
-                No batches are currently available. You can continue without
-                selecting a batch.
-              </p>
-              <Button onClick={handleSkip} className="gap-2">
-                Continue to Dashboard <ArrowRight className="h-4 w-4" />
-              </Button>
+        <CardContent>
+          <form onSubmit={handleJoin} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.toUpperCase());
+                  setError("");
+                }}
+                placeholder="Enter batch code (e.g. WBPOL25)"
+                className="text-center font-mono text-lg tracking-widest"
+                maxLength={10}
+                autoFocus
+              />
+              {error && (
+                <p className="text-center text-sm text-destructive">{error}</p>
+              )}
             </div>
-          )}
+
+            <Button
+              type="submit"
+              disabled={!code.trim() || isSubmitting}
+              className="w-full gap-2"
+            >
+              {isSubmitting ? (
+                "Joining..."
+              ) : (
+                <>
+                  Join Batch <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </form>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-3 w-full gap-2 text-muted-foreground"
+            onClick={() => signOut({ redirectUrl: "/" })}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </Button>
         </CardContent>
       </Card>
     </div>

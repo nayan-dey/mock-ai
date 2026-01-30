@@ -56,6 +56,7 @@ interface DataTableProps<TData, TValue> {
   showPagination?: boolean;
   pageSize?: number;
   emptyMessage?: string;
+  rowClassName?: (row: TData) => string;
 }
 
 export function DataTable<TData, TValue>({
@@ -67,6 +68,7 @@ export function DataTable<TData, TValue>({
   showPagination = true,
   pageSize = 5,
   emptyMessage = "No results found.",
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -175,6 +177,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={rowClassName?.(row.original) ?? ""}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

@@ -136,6 +136,17 @@ export const archive = mutation({
   },
 });
 
+export const toggleAnswerKey = mutation({
+  args: { id: v.id("tests") },
+  handler: async (ctx, args) => {
+    const test = await ctx.db.get(args.id);
+    if (!test) throw new Error("Test not found");
+    await ctx.db.patch(args.id, {
+      answerKeyPublished: !test.answerKeyPublished,
+    });
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("tests") },
   handler: async (ctx, args) => {

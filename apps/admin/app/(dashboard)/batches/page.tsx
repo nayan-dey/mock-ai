@@ -27,6 +27,7 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  Copy,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +36,7 @@ interface Batch {
   name: string;
   description?: string;
   isActive: boolean;
+  referralCode: string;
   createdAt: number;
 }
 
@@ -99,6 +101,36 @@ export default function BatchesPage() {
           {row.getValue("description") || "—"}
         </span>
       ),
+    },
+    {
+      accessorKey: "referralCode",
+      header: "Referral Code",
+      cell: ({ row }) => {
+        const code = row.getValue("referralCode") as string;
+        const studentBaseUrl =
+          process.env.NEXT_PUBLIC_STUDENT_APP_URL || "http://localhost:3000";
+        const referralUrl = `${studentBaseUrl}/sign-up?ref=${code}`;
+        return (
+          <div className="flex items-center gap-2">
+            <code className="rounded bg-muted px-2 py-1 text-sm font-mono">
+              {code}
+            </code>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                navigator.clipboard.writeText(referralUrl);
+                toast({
+                  title: "Referral link copied!",
+                  description: referralUrl,
+                });
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "isActive",

@@ -23,9 +23,9 @@ import {
   ChevronRight,
   Users,
   Database,
-  RefreshCw,
   UserCog,
   Sparkles,
+  IndianRupee,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -33,7 +33,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: UserCog },
   { href: "/batches", label: "Batches", icon: Users },
-  { href: "/batch-switches", label: "Batch Switches", icon: RefreshCw },
+  { href: "/fees", label: "Fees", icon: IndianRupee },
   { href: "/questions", label: "Questions", icon: FileQuestion, exact: true },
   { href: "/questions/extract", label: "AI Extract", icon: Sparkles },
   { href: "/tests", label: "Tests", icon: FileText },
