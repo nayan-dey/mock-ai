@@ -185,6 +185,19 @@ export const archive = mutation({
   },
 });
 
+export const unarchive = mutation({
+  args: { id: v.id("tests") },
+  handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const test = await ctx.db.get(args.id);
+    if (!test) throw new Error("Test not found");
+    if (test.organizationId !== orgId) throw new Error("Access denied");
+    if (test.status !== "archived") throw new Error("Test is not archived");
+    await ctx.db.patch(args.id, { status: "published" });
+  },
+});
+
 export const toggleAnswerKey = mutation({
   args: { id: v.id("tests") },
   handler: async (ctx, args) => {

@@ -27,11 +27,13 @@ export default function DashboardLayout({
   }, [batchCount, pathname, router]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        {children}
+        <div className="min-h-0 flex-1 overflow-auto">
+          {children}
+        </div>
       </main>
     </div>
   );

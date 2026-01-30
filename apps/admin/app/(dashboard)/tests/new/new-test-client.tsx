@@ -149,8 +149,8 @@ export function NewTestClient() {
 
   if (!questions || !batches) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
-        <Skeleton className="mb-4 h-10 w-32" />
+      <div className="flex h-full flex-col overflow-hidden p-6">
+        <Skeleton className="mb-4 h-10 w-32 flex-shrink-0" />
         <div className="grid flex-1 gap-6 lg:grid-cols-2">
           <Skeleton className="h-full" />
           <Skeleton className="h-full" />
@@ -160,22 +160,22 @@ export function NewTestClient() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col p-6">
-      <Link href="/tests">
+    <div className="flex h-full flex-col overflow-hidden p-6">
+      <Link href="/tests" className="flex-shrink-0">
         <Button variant="ghost" className="mb-4 w-fit">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Tests
         </Button>
       </Link>
 
-      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 gap-6">
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 gap-6 overflow-hidden">
         {/* Left Column - Test Details */}
         <Card className="flex w-1/2 flex-col overflow-hidden">
           <CardHeader className="flex-shrink-0">
             <CardTitle>Test Details</CardTitle>
             <CardDescription>Basic test information</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 space-y-4 overflow-y-auto pb-6">
+          <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-6">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
               <Input

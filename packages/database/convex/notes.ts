@@ -78,6 +78,20 @@ export const getById = query({
   },
 });
 
+export const generateUploadUrl = mutation({
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const getFileUrl = query({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
 export const create = mutation({
   args: {
     title: v.string(),
@@ -85,6 +99,7 @@ export const create = mutation({
     subject: v.string(),
     topic: v.string(),
     fileUrl: v.string(),
+    storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))),
   },
   handler: async (ctx, args) => {
@@ -107,6 +122,7 @@ export const update = mutation({
     subject: v.optional(v.string()),
     topic: v.optional(v.string()),
     fileUrl: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))),
   },
   handler: async (ctx, args) => {
