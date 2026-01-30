@@ -10,7 +10,7 @@
 // ==============================================
 export const AVAILABLE_GEMINI_MODELS = {
   FLASH_2_0: 'gemini-2.0-flash',                      // Stable, fast
-  FLASH_2_5: 'gemini-2.5-flash-preview-05-20',        // Improved reasoning & multimodal
+  FLASH_2_5: 'gemini-2.5-flash',                // Improved reasoning & multimodal
   FLASH_3_PREVIEW: 'gemini-3-flash-preview',           // Latest - Pro-level intelligence at Flash speed
   FLASH_2_5_LITE: 'gemini-2.5-flash-lite',               // Lightweight, low-latency
 } as const;

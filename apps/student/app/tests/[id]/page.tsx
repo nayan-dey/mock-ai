@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -71,6 +71,157 @@ export default function TestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
   const [showInstructions, setShowInstructions] = useState(false);
+
+  // Swipe navigation refs — direct DOM manipulation during drag for zero re-renders
+  const questionAreaRef = useRef<HTMLDivElement>(null);
+  const touchRef = useRef<{ startX: number; startY: number; locked: boolean | null } | null>(null);
+  const isAnimatingRef = useRef(false);
+
+  const totalQuestions = testWithQuestions?.questionDetails.length ?? 0;
+
+  // Animated navigation: slides current question out, switches, slides new one in
+  const navigateToQuestion = useCallback((newIndex: number, direction?: "left" | "right") => {
+    const el = questionAreaRef.current;
+    if (!el || isAnimatingRef.current || newIndex === currentQuestion) return;
+    if (newIndex < 0 || newIndex >= totalQuestions) return;
+
+    isAnimatingRef.current = true;
+    const dir = direction ?? (newIndex > currentQuestion ? "left" : "right");
+    const sign = dir === "left" ? -1 : 1;
+
+    // Slide out
+    el.style.transition = "transform 0.2s ease-out, opacity 0.15s ease-out";
+    el.style.transform = `translateX(${sign * 80}px)`;
+    el.style.opacity = "0";
+
+    setTimeout(() => {
+      // Instantly reposition off-screen on the opposite side
+      el.style.transition = "none";
+      el.style.transform = `translateX(${-sign * 80}px)`;
+      setCurrentQuestion(newIndex);
+
+      // Double rAF ensures browser paints the repositioned element before animating in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 0.25s ease-out, opacity 0.2s ease-out";
+          el.style.transform = "translateX(0)";
+          el.style.opacity = "1";
+          setTimeout(() => { isAnimatingRef.current = false; }, 250);
+        });
+      });
+    }, 200);
+  }, [currentQuestion, totalQuestions]);
+
+  // Touch handlers — direct DOM for max perf during drag
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (isAnimatingRef.current) return;
+    touchRef.current = {
+      startX: e.touches[0]!.clientX,
+      startY: e.touches[0]!.clientY,
+      locked: null,
+    };
+    const el = questionAreaRef.current;
+    if (el) {
+      el.style.transition = "none";
+      el.style.willChange = "transform";
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = touchRef.current;
+    const el = questionAreaRef.current;
+    if (!touch || !el) return;
+
+    const dx = e.touches[0]!.clientX - touch.startX;
+    const dy = e.touches[0]!.clientY - touch.startY;
+
+    // Decide direction lock on first significant movement
+    if (touch.locked === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        touch.locked = Math.abs(dx) > Math.abs(dy); // true = horizontal swipe
+      }
+      return;
+    }
+
+    if (!touch.locked) return; // vertical scroll, don't interfere
+
+    // Prevent vertical scroll while swiping horizontally
+    e.preventDefault();
+
+    // Apply resistance at boundaries (first/last question)
+    let offset = dx;
+    if ((currentQuestion === 0 && dx > 0) || (currentQuestion === totalQuestions - 1 && dx < 0)) {
+      offset = dx * 0.15;
+    }
+
+    el.style.transform = `translateX(${offset}px)`;
+    // Fade proportional to swipe distance
+    el.style.opacity = String(Math.max(0.3, 1 - Math.abs(dx) / 400));
+  }, [currentQuestion, totalQuestions]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const touch = touchRef.current;
+    const el = questionAreaRef.current;
+    touchRef.current = null;
+
+    if (!touch || !el || touch.locked !== true) {
+      if (el) el.style.willChange = "";
+      return;
+    }
+
+    const dx = e.changedTouches[0]!.clientX - touch.startX;
+    const threshold = 60;
+
+    if (dx < -threshold && currentQuestion < totalQuestions - 1) {
+      // Swipe left → next question
+      isAnimatingRef.current = true;
+      el.style.transition = "transform 0.15s ease-out, opacity 0.15s ease-out";
+      el.style.transform = `translateX(${-window.innerWidth * 0.4}px)`;
+      el.style.opacity = "0";
+
+      setTimeout(() => {
+        el.style.transition = "none";
+        el.style.transform = `translateX(${window.innerWidth * 0.3}px)`;
+        setCurrentQuestion((p) => p + 1);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.transition = "transform 0.25s ease-out, opacity 0.2s ease-out";
+            el.style.transform = "translateX(0)";
+            el.style.opacity = "1";
+            el.style.willChange = "";
+            setTimeout(() => { isAnimatingRef.current = false; }, 250);
+          });
+        });
+      }, 150);
+    } else if (dx > threshold && currentQuestion > 0) {
+      // Swipe right → previous question
+      isAnimatingRef.current = true;
+      el.style.transition = "transform 0.15s ease-out, opacity 0.15s ease-out";
+      el.style.transform = `translateX(${window.innerWidth * 0.4}px)`;
+      el.style.opacity = "0";
+
+      setTimeout(() => {
+        el.style.transition = "none";
+        el.style.transform = `translateX(${-window.innerWidth * 0.3}px)`;
+        setCurrentQuestion((p) => p - 1);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.transition = "transform 0.25s ease-out, opacity 0.2s ease-out";
+            el.style.transform = "translateX(0)";
+            el.style.opacity = "1";
+            el.style.willChange = "";
+            setTimeout(() => { isAnimatingRef.current = false; }, 250);
+          });
+        });
+      }, 150);
+    } else {
+      // Snap back
+      el.style.transition = "transform 0.2s ease-out, opacity 0.15s ease-out";
+      el.style.transform = "translateX(0)";
+      el.style.opacity = "1";
+      el.style.willChange = "";
+    }
+  }, [currentQuestion, totalQuestions]);
 
   useEffect(() => {
     if (isStarted && attemptId) {
@@ -479,25 +630,34 @@ export default function TestPage() {
 
       <div className="mx-auto max-w-7xl px-4 py-4 pb-20 sm:py-6 md:pb-6">
         <div className="grid gap-4 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_280px] md:gap-5 lg:gap-6">
-          {/* Question Area */}
+          {/* Question Area — swipeable */}
           <div className="space-y-4 sm:space-y-6">
-            <QuestionCard
-              questionNumber={currentQuestion + 1}
-              text={currentQ.text}
-              options={currentQ.options}
-              selectedOptions={answers.get(currentQ._id) || []}
-              isMultipleCorrect={currentQ.correctOptions.length > 1}
-              markedForReview={markedForReview.has(currentQ._id)}
-              onSelect={handleSelectAnswer}
-              onMarkForReview={handleMarkForReview}
-            />
+            <div
+              className="overflow-hidden touch-pan-y"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div ref={questionAreaRef} className="will-change-transform">
+                <QuestionCard
+                  questionNumber={currentQuestion + 1}
+                  text={currentQ.text}
+                  options={currentQ.options}
+                  selectedOptions={answers.get(currentQ._id) || []}
+                  isMultipleCorrect={currentQ.correctOptions.length > 1}
+                  markedForReview={markedForReview.has(currentQ._id)}
+                  onSelect={handleSelectAnswer}
+                  onMarkForReview={handleMarkForReview}
+                />
+              </div>
+            </div>
 
             {/* Desktop Navigation Buttons */}
             <div className="hidden justify-between sm:flex">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentQuestion((p) => Math.max(0, p - 1))}
+                onClick={() => navigateToQuestion(currentQuestion - 1, "right")}
                 disabled={currentQuestion === 0}
               >
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
@@ -505,11 +665,7 @@ export default function TestPage() {
               </Button>
               <Button
                 size="sm"
-                onClick={() =>
-                  setCurrentQuestion((p) =>
-                    Math.min(testWithQuestions.questionDetails.length - 1, p + 1)
-                  )
-                }
+                onClick={() => navigateToQuestion(currentQuestion + 1, "left")}
                 disabled={
                   currentQuestion === testWithQuestions.questionDetails.length - 1
                 }
@@ -544,7 +700,7 @@ export default function TestPage() {
         <div className="flex items-center justify-around py-2">
           {/* Previous Button */}
           <button
-            onClick={() => setCurrentQuestion((p) => Math.max(0, p - 1))}
+            onClick={() => navigateToQuestion(currentQuestion - 1, "right")}
             disabled={currentQuestion === 0}
             className={cn(
               "flex flex-col items-center gap-0.5 px-4 py-1.5",
@@ -589,11 +745,7 @@ export default function TestPage() {
 
           {/* Next Button */}
           <button
-            onClick={() =>
-              setCurrentQuestion((p) =>
-                Math.min(testWithQuestions.questionDetails.length - 1, p + 1)
-              )
-            }
+            onClick={() => navigateToQuestion(currentQuestion + 1, "left")}
             disabled={currentQuestion === testWithQuestions.questionDetails.length - 1}
             className={cn(
               "flex flex-col items-center gap-0.5 px-4 py-1.5",

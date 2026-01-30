@@ -68,7 +68,7 @@ export function QuestionCard({
   };
 
   return (
-    <Card className={cn("w-full", className)}>
+    <div className={cn("w-full", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -194,6 +194,6 @@ export function QuestionCard({
           </Button>
         )}
       </CardContent>
-    </Card>
+    </div>
   );
 }
