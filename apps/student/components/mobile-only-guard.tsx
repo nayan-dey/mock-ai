@@ -39,7 +39,7 @@ export function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
               <Smartphone className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <h1 className="mb-3 text-2xl font-semibold tracking-tight">
+          <h1 className="mb-3 text-lg font-semibold tracking-tight">
             Mobile App Only
           </h1>
           <p className="mb-6 text-muted-foreground">

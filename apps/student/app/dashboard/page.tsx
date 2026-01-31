@@ -121,7 +121,7 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mb-6">
-          <h1 className="text-xl font-bold sm:text-2xl">Welcome, {user.firstName}!</h1>
+          <h1 className="text-base font-bold sm:text-lg">Welcome, {user.firstName}!</h1>
           <p className="text-sm text-muted-foreground">
             Setting up your account...
           </p>

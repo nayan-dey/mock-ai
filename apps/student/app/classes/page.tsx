@@ -91,7 +91,7 @@ export default function ClassesPage() {
         <div className="flex items-center gap-3">
           <BackButton href="/me" />
           <div className="space-y-0.5">
-            <h1 className="text-2xl font-semibold tracking-tight">Recorded Classes</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Recorded Classes</h1>
             <p className="text-sm text-muted-foreground">
               {classes ? `${classes.length} class${classes.length !== 1 ? "es" : ""} available` : "Loading..."}
             </p>

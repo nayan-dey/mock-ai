@@ -115,7 +115,7 @@ export default function EditProfilePage() {
       {/* Header with back button */}
       <div className="mb-6 flex items-center gap-3">
         <BackButton href="/me" />
-        <h1 className="text-2xl font-semibold">Edit Profile</h1>
+        <h1 className="text-lg font-semibold">Edit Profile</h1>
       </div>
 
       {/* Avatar */}

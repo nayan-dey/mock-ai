@@ -29,7 +29,7 @@ export function ChatWelcome() {
       </h2>
 
       {/* Subtitle */}
-      <h1 className="mb-8 text-center text-2xl font-normal text-stone-700 dark:text-stone-200">
+      <h1 className="mb-8 text-center text-lg font-normal text-stone-700 dark:text-stone-200">
         How can I help you<br />today?
       </h1>
 

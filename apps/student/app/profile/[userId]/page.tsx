@@ -160,7 +160,7 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-lg px-4 py-6">
         <div className="mb-6 flex items-center gap-3">
           <BackButton href="/leaderboard" />
-          <h1 className="text-2xl font-semibold">Profile</h1>
+          <h1 className="text-lg font-semibold">Profile</h1>
         </div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
@@ -187,7 +187,7 @@ export default function ProfilePage() {
       {/* Header with back button */}
       <div className="mb-6 flex items-center gap-3">
         <BackButton href="/leaderboard" />
-        <h1 className="text-2xl font-semibold">Profile</h1>
+        <h1 className="text-lg font-semibold">Profile</h1>
       </div>
 
       {/* Profile Header */}

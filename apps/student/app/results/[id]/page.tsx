@@ -145,7 +145,7 @@ export default function ResultDetailPage() {
         <div className="mb-6">
           <div className="flex items-center gap-3">
             <BackButton href="/results" />
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-lg font-semibold tracking-tight">
               {attemptWithDetails.test.title}
             </h1>
           </div>
@@ -194,7 +194,7 @@ export default function ResultDetailPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <BackButton href="/results" />
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="text-lg font-semibold tracking-tight">
                 {test.title}
               </h1>
             </div>
