@@ -12,6 +12,8 @@ import {
   SheetDescription,
   ScrollArea,
   Badge,
+  Separator,
+  SidebarTrigger,
 } from "@repo/ui";
 import { Bell, Moon, Sun, IndianRupee, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -47,8 +49,11 @@ export function Header() {
   };
 
   return (
-    <div className="sticky top-0 z-30 flex h-14 items-center justify-end border-b bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <SidebarTrigger className="-ml-1" />
+      <Separator orientation="vertical" className="mr-2 h-4" />
+
+      <div className="flex flex-1 items-center justify-end gap-2">
         {/* Notification Bell */}
         <Button
           variant="ghost"
@@ -149,6 +154,6 @@ export function Header() {
           if (!open) setSelectedStudent(null);
         }}
       />
-    </div>
+    </header>
   );
 }

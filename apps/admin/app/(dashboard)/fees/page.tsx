@@ -201,7 +201,6 @@ export default function FeesPage() {
     try {
       await markAsPaid({
         id: feeId as Id<"fees">,
-        updatedBy: currentAdmin._id,
       });
       toast({ title: "Marked as paid" });
     } catch (err: any) {
@@ -218,7 +217,6 @@ export default function FeesPage() {
     try {
       await removeFee({
         id: feeId as Id<"fees">,
-        deletedBy: currentAdmin._id,
       });
       toast({ title: "Fee record deleted" });
     } catch (err: any) {
@@ -321,15 +319,21 @@ export default function FeesPage() {
       header: ({ column }) => (
         <SortableHeader column={column} title="Status" />
       ),
-      cell: ({ row }) => (
-        <Badge
-          variant={
-            row.getValue("status") === "paid" ? "success" : "destructive"
-          }
-        >
-          {row.getValue("status") === "paid" ? "Paid" : "Due"}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        return (
+          <Badge
+            variant="outline"
+            className={
+              status === "paid"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                : "border-destructive/20 bg-destructive/10 text-destructive"
+            }
+          >
+            {status === "paid" ? "Paid" : "Due"}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "paidDate",
@@ -390,21 +394,29 @@ export default function FeesPage() {
 
   if (allFees === undefined) {
     return (
-      <div className="p-8">
-        <div className="mb-8">
-          <Skeleton className="mb-2 h-8 w-32" />
-          <Skeleton className="h-5 w-48" />
+      <div className="space-y-4 p-4 md:p-6">
+        <div className="space-y-1">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-48" />
         </div>
-        <div className="mb-6 grid grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="mt-1 h-3 w-32" />
+              </CardContent>
+            </Card>
           ))}
         </div>
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           </CardContent>
@@ -414,53 +426,50 @@ export default function FeesPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Fees</h1>
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Fees</h1>
         <p className="text-muted-foreground">
           Manage student fee records across all batches
         </p>
       </div>
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <IndianRupee className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total Records</p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">
+              Fee entries across all batches
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{stats.due}</p>
-              <p className="text-xs text-muted-foreground">
-                Due — &#8377;{stats.dueAmount.toLocaleString("en-IN")}
-              </p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Due</CardTitle>
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-destructive">{stats.due}</div>
+            <p className="text-xs text-muted-foreground">
+              &#8377;{stats.dueAmount.toLocaleString("en-IN")} outstanding
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-              <CircleCheck className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-600">
-                {stats.paid}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Paid — &#8377;{stats.paidAmount.toLocaleString("en-IN")}
-              </p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Paid</CardTitle>
+            <CircleCheck className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-emerald-600">{stats.paid}</div>
+            <p className="text-xs text-muted-foreground">
+              &#8377;{stats.paidAmount.toLocaleString("en-IN")} collected
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -469,20 +478,15 @@ export default function FeesPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <IndianRupee className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>All Fee Records</CardTitle>
-                <CardDescription>
-                  {filteredFees.length}
-                  {filteredFees.length !== allFees.length &&
-                    ` of ${allFees.length}`}{" "}
-                  record{filteredFees.length !== 1 ? "s" : ""} across all
-                  students
-                </CardDescription>
-              </div>
+            <div>
+              <CardTitle className="text-sm font-medium">All Fee Records</CardTitle>
+              <CardDescription className="text-xs">
+                {filteredFees.length}
+                {filteredFees.length !== allFees.length &&
+                  ` of ${allFees.length}`}{" "}
+                record{filteredFees.length !== 1 ? "s" : ""} across all
+                students
+              </CardDescription>
             </div>
           </div>
 

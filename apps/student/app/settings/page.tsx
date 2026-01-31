@@ -162,10 +162,10 @@ export default function SettingsPage() {
 
       <div className="space-y-4 sm:space-y-6">
         {/* Chart Type Selector */}
-        <ChartTypeSelector
+        {/* <ChartTypeSelector
           value={(userSettings?.preferredChartType as ChartType) || "chart"}
           onChange={handleChartTypeChange}
-        />
+        /> */}
 
         {/* Privacy Toggles */}
         <PrivacyToggles

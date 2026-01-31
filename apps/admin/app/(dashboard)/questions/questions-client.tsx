@@ -1,25 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import {
   Badge,
   useToast,
   SortableHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
 import { FileQuestion, Pencil, Trash2 } from "lucide-react";
 import { SUBJECTS } from "@repo/types";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { QuestionSheet } from "./question-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useUrlState } from "@/hooks/use-url-state";
 
 interface Question {
   _id: string;
@@ -34,17 +29,12 @@ interface Question {
 
 export function QuestionsClient() {
   const { toast } = useToast();
-  const [subjectFilter, setSubjectFilter] = useUrlState("subject", "all");
-  const [difficultyFilter, setDifficultyFilter] = useUrlState("difficulty", "all");
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
 
-  const questions = useQuery(api.questions.list, {
-    subject: subjectFilter !== "all" ? subjectFilter : undefined,
-    difficulty: difficultyFilter !== "all" ? (difficultyFilter as any) : undefined,
-  });
+  const questions = useQuery(api.questions.list, {});
   const deleteQuestion = useMutation(api.questions.remove);
 
   const handleDelete = async (id: string) => {
@@ -66,6 +56,23 @@ export function QuestionsClient() {
     }
   };
 
+  const facetedFilters: FacetedFilterConfig[] = [
+    {
+      columnId: "subject",
+      title: "Subject",
+      options: SUBJECTS.map((s) => ({ label: s, value: s })),
+    },
+    {
+      columnId: "difficulty",
+      title: "Difficulty",
+      options: [
+        { label: "Easy", value: "easy" },
+        { label: "Medium", value: "medium" },
+        { label: "Hard", value: "hard" },
+      ],
+    },
+  ];
+
   const columns: ColumnDef<Question, any>[] = [
     {
       accessorKey: "text",
@@ -80,6 +87,9 @@ export function QuestionsClient() {
       cell: ({ row }) => (
         <Badge variant="outline">{row.getValue("subject")}</Badge>
       ),
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     {
       accessorKey: "topic",
@@ -92,6 +102,9 @@ export function QuestionsClient() {
       accessorKey: "difficulty",
       header: ({ column }) => <SortableHeader column={column} title="Difficulty" />,
       cell: ({ row }) => getDifficultyBadge(row.getValue("difficulty")),
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     createActionsColumn<Question>((q) => [
       {
@@ -139,32 +152,7 @@ export function QuestionsClient() {
             setSheetOpen(true);
           },
         }}
-        toolbarExtra={
-          <>
-            <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-              <SelectTrigger className="h-8 w-[160px]">
-                <SelectValue placeholder="All Subjects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-              <SelectTrigger className="h-8 w-[140px]">
-                <SelectValue placeholder="All Difficulties" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Difficulties</SelectItem>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
-        }
+        facetedFilters={facetedFilters}
       />
 
       <QuestionSheet

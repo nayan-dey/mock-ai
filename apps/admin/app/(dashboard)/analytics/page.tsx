@@ -17,13 +17,15 @@ import {
   SelectValue,
   DataTable,
   SortableHeader,
+  ChartContainer,
+  BarChart,
   type ColumnDef,
 } from "@repo/ui";
 import { useEffect } from "react";
 import {
   Users,
   FileText,
-  Trophy,
+  ClipboardCheck,
   TrendingUp,
 } from "lucide-react";
 import { useUrlState } from "@/hooks/use-url-state";
@@ -64,19 +66,22 @@ export default function AnalyticsPage() {
       header: ({ column }) => (
         <SortableHeader column={column} title="Rank" className="w-12" />
       ),
-      cell: ({ row }) => (
-        <Badge
-          variant={
-            row.getValue("rank") === 1
-              ? "default"
-              : row.getValue("rank") === 2
-                ? "secondary"
-                : "outline"
-          }
-        >
-          #{row.getValue("rank")}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const rank = row.getValue("rank") as number;
+        return (
+          <div className={`flex h-6 w-6 items-center justify-center rounded text-xs font-medium ${
+            rank === 1
+              ? "bg-amber-500/10 text-amber-600"
+              : rank === 2
+                ? "bg-slate-400/10 text-slate-500"
+                : rank === 3
+                  ? "bg-orange-500/10 text-orange-600"
+                  : "text-muted-foreground"
+          }`}>
+            {rank}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "userName",
@@ -92,12 +97,17 @@ export default function AnalyticsPage() {
       header: ({ column }) => (
         <SortableHeader column={column} title="Score" />
       ),
-      cell: ({ row }) => (row.getValue("score") as number).toFixed(1),
+      cell: ({ row }) => (
+        <span className="tabular-nums font-medium">{(row.getValue("score") as number).toFixed(1)}</span>
+      ),
     },
     {
       accessorKey: "correct",
       header: ({ column }) => (
         <SortableHeader column={column} title="Correct" />
+      ),
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.getValue("correct")}</span>
       ),
     },
     {
@@ -109,19 +119,33 @@ export default function AnalyticsPage() {
         const timeTaken = row.getValue("timeTaken") as number;
         const minutes = Math.floor(timeTaken / 60000);
         const seconds = Math.floor((timeTaken % 60000) / 1000);
-        const nf = new Intl.NumberFormat();
-        return `${nf.format(minutes)} min ${nf.format(seconds)} sec`;
+        return (
+          <span className="tabular-nums text-muted-foreground">
+            {minutes}m {seconds}s
+          </span>
+        );
       },
     },
   ];
 
   if (!stats) {
     return (
-      <div className="p-8">
-        <h1 className="mb-8 text-3xl font-bold">Analytics</h1>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="space-y-4 p-4 md:p-6">
+        <div className="space-y-1">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="mt-1 h-3 w-32" />
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
@@ -129,61 +153,67 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Analytics</h1>
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground">
-          View detailed platform statistics
+          Detailed platform statistics and test performance
         </p>
       </div>
 
       {/* Overview Stats */}
-      <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="min-h-[80px]">
-          <CardContent className="flex h-full items-center gap-4 p-4">
-            <Users className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-2xl font-bold">{stats.totalStudents}</p>
-              <p className="text-sm text-muted-foreground">Total Students</p>
-            </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{stats.totalStudents}</div>
+            <p className="text-xs text-muted-foreground">Enrolled students</p>
           </CardContent>
         </Card>
-        <Card className="min-h-[80px]">
-          <CardContent className="flex h-full items-center gap-4 p-4">
-            <FileText className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-2xl font-bold">{stats.publishedTests}</p>
-              <p className="text-sm text-muted-foreground">Published Tests</p>
-            </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Published Tests</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{stats.publishedTests}</div>
+            <p className="text-xs text-muted-foreground">
+              Of {stats.totalTests} total
+            </p>
           </CardContent>
         </Card>
-        <Card className="min-h-[80px]">
-          <CardContent className="flex h-full items-center gap-4 p-4">
-            <Trophy className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-2xl font-bold">{stats.totalAttempts}</p>
-              <p className="text-sm text-muted-foreground">Test Attempts</p>
-            </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Test Attempts</CardTitle>
+            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{stats.totalAttempts}</div>
+            <p className="text-xs text-muted-foreground">Total submissions</p>
           </CardContent>
         </Card>
-        <Card className="min-h-[80px]">
-          <CardContent className="flex h-full items-center gap-4 p-4">
-            <TrendingUp className="h-8 w-8 text-primary" />
-            <div>
-              <p className="text-2xl font-bold">
-                {stats.averageScore.toFixed(1)}
-              </p>
-              <p className="text-sm text-muted-foreground">Avg Score</p>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">
+              {stats.averageScore.toFixed(1)}
             </div>
+            <p className="text-xs text-muted-foreground">Across all attempts</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Test-wise Analytics */}
-      <Card className="mb-8">
+      <Card>
         <CardHeader>
-          <CardTitle>Test Analytics</CardTitle>
-          <CardDescription>Select a test to view detailed analytics</CardDescription>
+          <CardTitle className="text-sm font-medium">Test Analytics</CardTitle>
+          <CardDescription className="text-xs">Select a test to view detailed performance data</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-6">
@@ -201,89 +231,89 @@ export default function AnalyticsPage() {
             </Select>
           </div>
 
-          {selectedTestId && testAnalytics && (
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <h3 className="font-semibold">Performance Summary</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
-                    <p className="text-2xl font-bold">
-                      {testAnalytics.totalAttempts}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Total Attempts
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
-                    <p className="text-2xl font-bold">
-                      {testAnalytics.averageScore.toFixed(1)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Average Score</p>
-                  </div>
-                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
-                    <p className="text-2xl font-bold text-success">
-                      {testAnalytics.highestScore}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Highest Score</p>
-                  </div>
-                  <div className="rounded-lg border p-4 transition-shadow hover:shadow-md">
-                    <p className="text-2xl font-bold text-destructive">
-                      {testAnalytics.lowestScore}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Lowest Score</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-4 font-semibold">Score Distribution</h3>
-                {testAnalytics.scoreDistribution.map((item) => (
-                  <div key={item.range} className="mb-2 flex items-center gap-2">
-                    <span className="w-20 text-sm text-muted-foreground">
-                      {item.range}
-                    </span>
-                    <div className="flex-1 rounded-full bg-muted">
-                      <div
-                        className="h-4 rounded-full bg-primary transition-all"
-                        style={{
-                          width: `${
-                            testAnalytics.totalAttempts > 0
-                              ? (item.count / testAnalytics.totalAttempts) * 100
-                              : 0
-                          }%`,
-                        }}
-                      />
+          {selectedTestId && testAnalytics && testAnalytics.totalAttempts > 0 && (
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Performance Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Performance Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total Attempts</span>
+                      <span className="font-medium tabular-nums">
+                        {testAnalytics.totalAttempts}
+                      </span>
                     </div>
-                    <span className="w-8 text-right text-sm font-medium">
-                      {item.count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Average Score</span>
+                      <span className="font-medium tabular-nums">
+                        {testAnalytics.averageScore.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Highest Score</span>
+                      <span className="font-medium tabular-nums text-emerald-600">
+                        {testAnalytics.highestScore}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Lowest Score</span>
+                      <span className="font-medium tabular-nums text-destructive">
+                        {testAnalytics.lowestScore}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-          {selectedTestId && leaderboard && leaderboard.length > 0 && (
-            <div className="mt-8">
-              <h3 className="mb-4 font-semibold">Leaderboard</h3>
-              <DataTable
-                columns={leaderboardColumns}
-                data={leaderboard as LeaderboardEntry[]}
-                searchKey="userName"
-                searchPlaceholder="Search students..."
-                showPagination
-                pageSize={5}
-                emptyMessage="No entries found."
-              />
+                {/* Score Distribution */}
+                <ChartContainer
+                  title="Score Distribution"
+                  description="How students scored on this test"
+                >
+                  <BarChart
+                    data={testAnalytics.scoreDistribution}
+                    xKey="range"
+                    yKey="count"
+                    height={200}
+                    color="hsl(var(--primary))"
+                  />
+                </ChartContainer>
+              </div>
+
+              {/* Leaderboard */}
+              {leaderboard && leaderboard.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Leaderboard</CardTitle>
+                    <CardDescription className="text-xs">Students ranked by score</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTable
+                      columns={leaderboardColumns}
+                      data={leaderboard as LeaderboardEntry[]}
+                      searchKey="userName"
+                      searchPlaceholder="Search students..."
+                      showPagination
+                      pageSize={5}
+                      emptyMessage="No entries found."
+                    />
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
           {selectedTestId &&
             testAnalytics &&
             testAnalytics.totalAttempts === 0 && (
-              <p className="py-8 text-center text-muted-foreground">
-                No attempts for this test yet
-              </p>
+              <div className="flex flex-col items-center justify-center py-12">
+                <ClipboardCheck className="mb-2 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">
+                  No attempts for this test yet
+                </p>
+              </div>
             )}
         </CardContent>
       </Card>

@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
 import { Eye, Users } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
@@ -83,6 +84,17 @@ export function UsersClient() {
     return result;
   }, [enrichedUsers, batchFilter, joinedFilter]);
 
+  const facetedFilters: FacetedFilterConfig[] = [
+    {
+      columnId: "role",
+      title: "Role",
+      options: [
+        { label: "Student", value: "student" },
+        { label: "Teacher", value: "teacher" },
+      ],
+    },
+  ];
+
   const columns: ColumnDef<UserData, any>[] = [
     {
       accessorKey: "name",
@@ -116,13 +128,16 @@ export function UsersClient() {
           </Badge>
         );
       },
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     {
       accessorKey: "batchName",
       header: "Batch",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {row.getValue("batchName") || "—"}
+          {row.getValue("batchName") || "\u2014"}
         </span>
       ),
     },
@@ -162,6 +177,7 @@ export function UsersClient() {
         emptyIcon={<Users className="h-6 w-6 text-muted-foreground" />}
         emptyTitle="No users yet"
         emptyDescription="Users will appear here when they sign up"
+        facetedFilters={facetedFilters}
         headerExtra={
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <span><strong className="text-foreground">{enrichedUsers.length}</strong> total</span>

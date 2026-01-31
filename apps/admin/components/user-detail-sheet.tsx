@@ -104,10 +104,12 @@ export function UserDetailSheet({
     api.users.getByClerkId,
     clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
   );
-  const user = useQuery(
+  const userData = useQuery(
     api.users.getById,
     userId ? { id: userId as Id<"users"> } : "skip"
   );
+  // Cast to any to access all possible fields from the Convex union type
+  const user = userData as any;
   const batch = useQuery(
     api.batches.getById,
     user?.batchId ? { id: user.batchId } : "skip"

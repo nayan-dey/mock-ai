@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
 import {
   FileText,
@@ -106,12 +107,40 @@ export function TestsClient() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "published": return <Badge variant="success">Published</Badge>;
-      case "draft": return <Badge variant="secondary">Draft</Badge>;
-      case "archived": return <Badge variant="outline">Archived</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case "published":
+        return (
+          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
+            Published
+          </Badge>
+        );
+      case "draft":
+        return (
+          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-500">
+            Draft
+          </Badge>
+        );
+      case "archived":
+        return (
+          <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
+            Archived
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const facetedFilters: FacetedFilterConfig[] = [
+    {
+      columnId: "status",
+      title: "Status",
+      options: [
+        { label: "Draft", value: "draft" },
+        { label: "Published", value: "published" },
+        { label: "Archived", value: "archived" },
+      ],
+    },
+  ];
 
   const columns: ColumnDef<Test, any>[] = [
     {
@@ -158,6 +187,9 @@ export function TestsClient() {
           )}
         </div>
       ),
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     {
       id: "batches",
@@ -292,6 +324,7 @@ export function TestsClient() {
         label: "Create Test",
         onClick: () => router.push("/tests/new"),
       }}
+      facetedFilters={facetedFilters}
       toolbarExtra={
         <>
           <Select value={batchFilter} onValueChange={setBatchFilter}>

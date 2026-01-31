@@ -8,6 +8,7 @@ import {
   Skeleton,
   DataTable,
   type ColumnDef,
+  type FacetedFilterConfig,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -99,6 +100,8 @@ interface AdminTableProps<TData> {
   };
   toolbarExtra?: React.ReactNode;
   headerExtra?: React.ReactNode;
+  facetedFilters?: FacetedFilterConfig[];
+  showColumnVisibility?: boolean;
 }
 
 export function AdminTable<TData>({
@@ -118,6 +121,8 @@ export function AdminTable<TData>({
   primaryAction,
   toolbarExtra,
   headerExtra,
+  facetedFilters,
+  showColumnVisibility = true,
 }: AdminTableProps<TData>) {
   // Wrap non-action column cells with click handler when onRowClick is provided
   const columns = React.useMemo(() => {
@@ -160,7 +165,7 @@ export function AdminTable<TData>({
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
             {description && (
               <p className="text-sm text-muted-foreground">{description}</p>
             )}
@@ -206,7 +211,7 @@ export function AdminTable<TData>({
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {description && (
             <p className="text-sm text-muted-foreground">{description}</p>
           )}
@@ -222,14 +227,9 @@ export function AdminTable<TData>({
       {/* Optional header extra (compact stats, etc.) */}
       {headerExtra}
 
-      {/* Table with inline toolbar extras (filters) */}
+      {/* Table with integrated toolbar */}
       <Card>
         <CardContent className="pt-6">
-          {toolbarExtra && (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              {toolbarExtra}
-            </div>
-          )}
           <DataTable
             columns={columns}
             data={data}
@@ -243,6 +243,9 @@ export function AdminTable<TData>({
                 ? () => "cursor-pointer hover:bg-muted/50 transition-colors"
                 : undefined
             }
+            facetedFilters={facetedFilters}
+            showColumnVisibility={showColumnVisibility}
+            toolbarExtra={toolbarExtra}
           />
         </CardContent>
       </Card>

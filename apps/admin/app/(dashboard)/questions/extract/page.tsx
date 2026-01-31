@@ -23,7 +23,7 @@ import { ArrowLeft, Upload, CheckCircle, AlertTriangle, Save, RotateCcw, FileTex
 import Link from "next/link";
 import { toast } from "sonner";
 import { SUBJECTS, TOPICS, type ExtractedQuestion, type ExtractionResult, type Subject, EXTRACTION_MODEL_OPTIONS } from "@repo/types";
-import { FileUploader } from "./components/file-uploader";
+import { FileUploader, type SelectedFile } from "./components/file-uploader";
 import { ExtractionProgress } from "./components/extraction-progress";
 import { ExtractedQuestions } from "./components/extracted-questions";
 import { CreateTestModal, type TestFormData } from "./components/create-test-modal";
@@ -42,8 +42,8 @@ export default function ExtractQuestionsPage() {
 
   // State
   const [state, setState] = useState<ExtractionState>("upload");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileBase64, setFileBase64] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [processingIndex, setProcessingIndex] = useState(0);
   const [extractedQuestions, setExtractedQuestions] = useState<ExtractedQuestion[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -64,70 +64,87 @@ export default function ExtractQuestionsPage() {
       ? TOPICS[defaultSubject as Subject]
       : [];
 
-  const handleFileSelect = async (file: File, base64: string) => {
-    setSelectedFile(file);
-    setFileBase64(base64);
+  const handleFilesSelect = (files: SelectedFile[]) => {
+    setSelectedFiles(files);
     setError(null);
   };
 
   const handleExtract = async () => {
-    if (!selectedFile || !fileBase64) return;
+    if (selectedFiles.length === 0) return;
 
     setState("processing");
     setError(null);
+    setProcessingIndex(0);
 
-    try {
-      const response = await fetch("/api/extract-questions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileBase64,
-          mimeType: selectedFile.type,
-          fileName: selectedFile.name,
-          model: selectedModel,
-        }),
-      });
+    const allQuestions: ExtractedQuestion[] = [];
+    const errors: string[] = [];
 
-      const result: ExtractionResult = await response.json();
+    for (let i = 0; i < selectedFiles.length; i++) {
+      setProcessingIndex(i);
+      const { file, base64 } = selectedFiles[i];
 
-      if (!result.success) {
-        setError(result.error || "Failed to extract questions");
-        setState("upload");
-        return;
+      try {
+        const response = await fetch("/api/extract-questions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fileBase64: base64,
+            mimeType: file.type,
+            fileName: file.name,
+            model: selectedModel,
+          }),
+        });
+
+        const result: ExtractionResult = await response.json();
+
+        if (!result.success) {
+          errors.push(`${file.name}: ${result.error || "Failed to extract"}`);
+          continue;
+        }
+
+        if (result.questions.length > 0) {
+          allQuestions.push(...result.questions);
+        }
+      } catch (err) {
+        console.error(`Extraction error for ${file.name}:`, err);
+        errors.push(`${file.name}: Failed to connect to extraction service`);
       }
-
-      if (result.questions.length === 0) {
-        setError("No questions found in the document. Please try a different file.");
-        setState("upload");
-        return;
-      }
-
-      // Apply default subject/topic if set
-      let questions = result.questions;
-      if (defaultSubject && defaultTopic) {
-        questions = questions.map((q) => ({
-          ...q,
-          subject: defaultSubject,
-          topic: defaultTopic,
-        }));
-      }
-
-      setExtractedQuestions(questions);
-      setSelectedIds(new Set(questions.map((_, i) => i)));
-      setState("review");
-
-      toast.success(`Extracted ${result.totalExtracted} questions`, {
-        description: result.needsReviewCount > 0
-          ? `${result.needsReviewCount} questions need review`
-          : "All questions are ready to save",
-      });
-    } catch (err) {
-      console.error("Extraction error:", err);
-      setError("Failed to connect to extraction service. Please try again.");
-      setState("upload");
     }
+
+    if (allQuestions.length === 0) {
+      setError(
+        errors.length > 0
+          ? errors.join(". ")
+          : "No questions found in any of the documents. Please try different files."
+      );
+      setState("upload");
+      return;
+    }
+
+    // Apply default subject/topic if set
+    let questions = allQuestions;
+    if (defaultSubject && defaultTopic) {
+      questions = questions.map((q) => ({
+        ...q,
+        subject: defaultSubject,
+        topic: defaultTopic,
+      }));
+    }
+
+    setExtractedQuestions(questions);
+    setSelectedIds(new Set(questions.map((_, i) => i)));
+    setState("review");
+
+    const needsReview = questions.filter((q) => q.needsReview).length;
+    toast.success(`Extracted ${questions.length} questions from ${selectedFiles.length} file${selectedFiles.length !== 1 ? "s" : ""}`, {
+      description: errors.length > 0
+        ? `${errors.length} file(s) had errors. ${needsReview > 0 ? `${needsReview} questions need review.` : ""}`
+        : needsReview > 0
+          ? `${needsReview} questions need review`
+          : "All questions are ready to save",
+    });
   };
 
   const handleQuestionUpdate = (index: number, question: ExtractedQuestion) => {
@@ -233,8 +250,8 @@ export default function ExtractQuestionsPage() {
 
   const handleReset = () => {
     setState("upload");
-    setSelectedFile(null);
-    setFileBase64(null);
+    setSelectedFiles([]);
+    setProcessingIndex(0);
     setExtractedQuestions([]);
     setSelectedIds(new Set());
     setError(null);
@@ -243,22 +260,31 @@ export default function ExtractQuestionsPage() {
   const needsReviewCount = extractedQuestions.filter((q) => q.needsReview).length;
 
   return (
-    <div className="p-8">
-      <Link href="/questions">
-        <Button variant="ghost" className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Questions
-        </Button>
-      </Link>
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="flex items-center gap-4">
+        <Link href="/questions">
+          <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Questions
+          </Button>
+        </Link>
+      </div>
+
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Extract Questions</h1>
+        <p className="text-muted-foreground">
+          Upload files and let AI extract questions automatically
+        </p>
+      </div>
 
       <Card className="mx-auto max-w-4xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Extract Questions from File
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <Upload className="h-4 w-4" />
+            Upload Files
           </CardTitle>
-          <CardDescription>
-            Upload an image, PDF, or Excel file containing questions, and AI will extract them automatically
+          <CardDescription className="text-xs">
+            Supports images, PDFs, and Excel files. Select multiple files at once.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -266,7 +292,7 @@ export default function ExtractQuestionsPage() {
           {state === "upload" && (
             <div className="space-y-6">
               <FileUploader
-                onFileSelect={handleFileSelect}
+                onFilesSelect={handleFilesSelect}
                 disabled={false}
               />
 
@@ -291,7 +317,7 @@ export default function ExtractQuestionsPage() {
               </div>
 
               {/* Default Subject/Topic */}
-              {selectedFile && (
+              {selectedFiles.length > 0 && (
                 <Card className="bg-muted/50">
                   <CardContent className="pt-4">
                     <p className="mb-4 text-sm text-muted-foreground">
@@ -356,7 +382,7 @@ export default function ExtractQuestionsPage() {
               <div className="flex justify-end">
                 <Button
                   onClick={handleExtract}
-                  disabled={!selectedFile}
+                  disabled={selectedFiles.length === 0}
                   className="gap-2"
                 >
                   <Upload className="h-4 w-4" />
@@ -367,8 +393,11 @@ export default function ExtractQuestionsPage() {
           )}
 
           {/* Processing State */}
-          {state === "processing" && selectedFile && (
-            <ExtractionProgress fileName={selectedFile.name} />
+          {state === "processing" && selectedFiles.length > 0 && (
+            <ExtractionProgress
+              files={selectedFiles.map((sf) => ({ name: sf.file.name }))}
+              currentIndex={processingIndex}
+            />
           )}
 
           {/* Review State */}
@@ -455,8 +484,8 @@ export default function ExtractQuestionsPage() {
           {/* Complete State */}
           {state === "complete" && (
             <div className="flex flex-col items-center justify-center gap-6 py-12">
-              <div className="rounded-full bg-green-100 p-4">
-                <CheckCircle className="h-12 w-12 text-green-600" />
+              <div className="rounded-full bg-emerald-500/10 p-4">
+                <CheckCircle className="h-12 w-12 text-emerald-500" />
               </div>
               <div className="text-center">
                 <h3 className="text-xl font-semibold">Success!</h3>

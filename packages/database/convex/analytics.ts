@@ -289,7 +289,7 @@ export const getStudentPerformanceTrend = query({
         testTitle: test.title || "Unknown Test",
         score: attempt.score,
         accuracy: Math.round(accuracy),
-        submittedAt: attempt.submittedAt,
+        submittedAt: attempt.submittedAt ?? null,
         date: attempt.submittedAt
           ? new Date(attempt.submittedAt).toLocaleDateString("en-US", {
               month: "short",

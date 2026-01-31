@@ -12,7 +12,7 @@ import {
 } from "@repo/ui";
 import { Users, Pencil, Trash2, ToggleRight, Copy } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
 import { BatchEditSheet } from "./batch-edit-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -98,7 +98,7 @@ export default function BatchesPage() {
       ),
     },
     createActionsColumn<Batch>((batch) => {
-      const actions = [
+      const actions: ActionMenuItem[] = [
         {
           label: "Edit",
           icon: <Pencil className="h-4 w-4" />,

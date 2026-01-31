@@ -113,6 +113,62 @@ export {
 export { Toaster } from "./components/toaster";
 export { SonnerToaster } from "./components/sonner";
 
+// Popover
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAnchor,
+} from "./components/popover";
+
+// Command
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+} from "./components/command";
+
+// Collapsible
+export {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "./components/collapsible";
+
+// Sidebar
+export {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInput,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "./components/sidebar";
+
 // Confetti
 export { Confetti, ConfettiButton, fireConfetti, type ConfettiRef, type ConfettiProps } from "./components/confetti";
 
@@ -156,6 +212,14 @@ export {
 export {
   DataTable,
   SortableHeader,
+  DataTableColumnHeader,
+  DataTableViewOptions,
+  DataTableFacetedFilter,
+  type FacetedFilterOption,
+  DataTableToolbar,
+  type FacetedFilterConfig,
+  DataTablePagination,
+  getPageNumbers,
   type ColumnDef,
 } from "./components/data-table";
 

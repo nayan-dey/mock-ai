@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./lib/auth";
+import { requireAuth, requireAdmin, getOrgId } from "./lib/auth";
 
 // Get or create a conversation for the authenticated user
 export const getOrCreateConversation = mutation({
@@ -55,8 +55,8 @@ export const addMessage = mutation({
       throw new Error("You can only add messages to your own conversations");
     }
 
-    // Server-side rate limit enforcement for user messages
-    if (args.role === "user") {
+    // Server-side rate limit enforcement for user messages (skip for admins)
+    if (args.role === "user" && user.role !== "admin") {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
 
@@ -203,6 +203,175 @@ export const getDailyMessageCount = query({
       limit: 3,
       remaining: Math.max(0, 3 - count),
       hasReachedLimit: count >= 3,
+    };
+  },
+});
+
+// Get comprehensive admin context for AI
+export const getAdminContext = query({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    // Get org info
+    const org = await ctx.db.get(orgId);
+
+    // Parallel fetch: users, batches, fees, tests
+    const [allUsers, batches, allFees, allTests] = await Promise.all([
+      ctx.db
+        .query("users")
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+        .collect(),
+      ctx.db
+        .query("batches")
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+        .collect(),
+      ctx.db
+        .query("fees")
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+        .collect(),
+      ctx.db
+        .query("tests")
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+        .collect(),
+    ]);
+
+    const students = allUsers.filter((u) => u.role === "student" && !u.isSuspended);
+
+    // Build a student lookup map from already-fetched users (avoid N+1)
+    const userMap = new Map(allUsers.map((u) => [u._id as string, u]));
+    const batchMap = new Map(batches.map((b) => [b._id as string, b]));
+
+    // Batch student counts
+    const batchSummary = batches.map((b) => ({
+      name: b.name,
+      isActive: b.isActive,
+      studentCount: students.filter((s) => s.batchId === b._id).length,
+    }));
+
+    // Fee summary — use userMap instead of fetching per fee
+    const dueFees = allFees.filter((f) => f.status === "due");
+    const totalDueAmount = dueFees.reduce((sum, f) => sum + f.amount, 0);
+
+    const batchFeeBreakdown: Record<string, { dueCount: number; dueAmount: number }> = {};
+    for (const fee of dueFees) {
+      const student = userMap.get(fee.studentId as string);
+      const batchName = student?.batchId
+        ? batchMap.get(student.batchId as string)?.name || "No Batch"
+        : "No Batch";
+      if (!batchFeeBreakdown[batchName]) {
+        batchFeeBreakdown[batchName] = { dueCount: 0, dueAmount: 0 };
+      }
+      batchFeeBreakdown[batchName].dueCount++;
+      batchFeeBreakdown[batchName].dueAmount += fee.amount;
+    }
+
+    // Students with due fees — use userMap
+    const studentsWithDueFees = dueFees.slice(0, 50).map((fee) => {
+      const student = userMap.get(fee.studentId as string);
+      return {
+        studentName: student?.name || "Unknown",
+        amount: fee.amount,
+        dueDate: new Date(fee.dueDate).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+      };
+    });
+
+    const publishedTests = allTests.filter((t) => t.status === "published");
+    const testMap = new Map(allTests.map((t) => [t._id as string, t]));
+
+    // Fetch attempts only for org's tests using indexed queries in parallel
+    const testAttemptsList = await Promise.all(
+      allTests.slice(0, 20).map((test) =>
+        ctx.db
+          .query("attempts")
+          .withIndex("by_test_id", (q) => q.eq("testId", test._id))
+          .filter((q) => q.eq(q.field("status"), "submitted"))
+          .collect()
+      )
+    );
+
+    // Per-test summary
+    const testSummary = allTests.slice(0, 20).map((test, i) => {
+      const attempts = testAttemptsList[i];
+      const avgScore =
+        attempts.length > 0
+          ? attempts.reduce((sum, a) => sum + a.score, 0) / attempts.length
+          : 0;
+      return {
+        title: test.title,
+        status: test.status,
+        attemptCount: attempts.length,
+        avgScore: Math.round(avgScore * 10) / 10,
+        totalMarks: test.totalMarks,
+      };
+    });
+
+    // Collect all org attempts from the per-test fetches (avoids full table scan)
+    const studentIds = new Set(students.map((s) => s._id as string));
+    const allOrgAttempts = testAttemptsList.flat().filter((a) => studentIds.has(a.userId as string));
+
+    // Top 5 students by total score — use userMap
+    const userScores: Record<string, number> = {};
+    for (const attempt of allOrgAttempts) {
+      const id = attempt.userId as string;
+      userScores[id] = (userScores[id] || 0) + attempt.score;
+    }
+
+    const topStudents = Object.entries(userScores)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([userId, totalScore]) => ({
+        name: userMap.get(userId)?.name || "Unknown",
+        totalScore,
+      }));
+
+    // Recent activity — use userMap + testMap
+    const recentAttempts = allOrgAttempts
+      .sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0))
+      .slice(0, 10);
+
+    const recentActivity = recentAttempts.map((attempt) => {
+      const student = userMap.get(attempt.userId as string);
+      const test = testMap.get(attempt.testId as string);
+      return {
+        studentName: student?.name || "Unknown",
+        testName: test?.title || "Unknown Test",
+        score: attempt.score,
+        totalMarks: test?.totalMarks || 0,
+        submittedAt: attempt.submittedAt
+          ? new Date(attempt.submittedAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : "N/A",
+      };
+    });
+
+    return {
+      orgName: org?.name || "Your Organization",
+      totalStudents: students.length,
+      totalBatches: batches.length,
+      batchSummary,
+      feeSummary: {
+        totalDueCount: dueFees.length,
+        totalDueAmount,
+        batchBreakdown: batchFeeBreakdown,
+        studentsWithDueFees,
+      },
+      testSummary: {
+        totalTests: allTests.length,
+        publishedCount: publishedTests.length,
+        tests: testSummary,
+      },
+      topStudents,
+      recentActivity,
     };
   },
 });

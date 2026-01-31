@@ -27,6 +27,13 @@ export const AVAILABLE_GEMINI_MODELS = {
 export const STUDENT_CHAT_MODEL = AVAILABLE_GEMINI_MODELS.FLASH_2_5_LITE;
 
 /**
+ * Admin Chat Model
+ * Used for: Admin AI assistant conversations (data analysis, fee queries, etc.)
+ * Recommended: Flash 2.5 for better reasoning needed for data analysis
+ */
+export const ADMIN_CHAT_MODEL = AVAILABLE_GEMINI_MODELS.FLASH_2_5;
+
+/**
  * Admin Question Extraction Model
  * Used for: Extracting MCQ questions from images and documents
  * Recommended: Use multimodal-capable models with vision
