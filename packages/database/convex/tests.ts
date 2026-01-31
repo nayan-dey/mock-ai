@@ -90,7 +90,9 @@ export const getWithQuestions = query({
       test.questions.map((qId) => ctx.db.get(qId))
     );
 
-    const filteredQuestions = questions.filter(Boolean);
+    const filteredQuestions = questions.filter(
+      (q): q is NonNullable<typeof q> => q != null
+    );
 
     if (user.role !== "admin") {
       const isReviewMode = test.answerKeyPublished === true;

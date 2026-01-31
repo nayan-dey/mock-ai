@@ -355,7 +355,7 @@ export const getAdminContext = query({
     });
 
     return {
-      orgName: org?.name || "Your Organization",
+      orgName: (org as { name?: string } | null)?.name || "Your Organization",
       totalStudents: students.length,
       totalBatches: batches.length,
       batchSummary,
@@ -419,6 +419,7 @@ export const getStudentContext = query({
         const test = testsMap.get(attempt.testId);
         return {
           testTitle: test?.title || "Unknown Test",
+          testId: attempt.testId as string,
           score: attempt.score,
           totalMarks: test?.totalMarks || 0,
           correct: attempt.correct,
@@ -427,6 +428,102 @@ export const getStudentContext = query({
           submittedAt: attempt.submittedAt,
         };
       });
+
+    // Subject performance: aggregate from attempt answers
+    const subjectPerformanceMap: Record<string, { correct: number; total: number }> = {};
+    for (const attempt of attempts) {
+      for (const answer of attempt.answers) {
+        const question = await ctx.db.get(answer.questionId);
+        if (!question) continue;
+        const subject = question.subject;
+        if (!subjectPerformanceMap[subject]) {
+          subjectPerformanceMap[subject] = { correct: 0, total: 0 };
+        }
+        subjectPerformanceMap[subject].total++;
+        // Check if answer is correct
+        const isCorrect =
+          answer.selected.length > 0 &&
+          answer.selected.length === question.correctOptions.length &&
+          answer.selected.every((s) => question.correctOptions.includes(s));
+        if (isCorrect) {
+          subjectPerformanceMap[subject].correct++;
+        }
+      }
+    }
+    const subjectPerformance = Object.entries(subjectPerformanceMap).map(
+      ([subject, data]) => ({
+        subject,
+        correct: data.correct,
+        total: data.total,
+        accuracy: data.total > 0 ? (data.correct / data.total) * 100 : 0,
+      })
+    );
+
+    // Leaderboard: rank among students in the same organization
+    const orgId = user.organizationId;
+    let rank = 1;
+    let totalStudents = 1;
+    let percentile = 100;
+
+    if (orgId) {
+      const orgStudents = await ctx.db
+        .query("users")
+        .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+        .filter((q) => q.eq(q.field("role"), "student"))
+        .collect();
+
+      totalStudents = orgStudents.length;
+
+      // Calculate total scores for all students
+      const studentScores = await Promise.all(
+        orgStudents.map(async (student) => {
+          const studentAttempts = await ctx.db
+            .query("attempts")
+            .withIndex("by_user_id", (q) => q.eq("userId", student._id))
+            .filter((q) => q.eq(q.field("status"), "submitted"))
+            .collect();
+          const score = studentAttempts.reduce((sum, a) => sum + a.score, 0);
+          return { userId: student._id, score };
+        })
+      );
+
+      studentScores.sort((a, b) => b.score - a.score);
+      const myIndex = studentScores.findIndex((s) => s.userId === user._id);
+      rank = myIndex >= 0 ? myIndex + 1 : totalStudents;
+      percentile =
+        totalStudents > 1
+          ? Math.round(((totalStudents - rank) / (totalStudents - 1)) * 100)
+          : 100;
+    }
+
+    // Available tests: published tests accessible to this student's batch
+    const orgTests = orgId
+      ? await ctx.db
+          .query("tests")
+          .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+          .filter((q) => q.eq(q.field("status"), "published"))
+          .collect()
+      : [];
+
+    const attemptedTestIds = [...new Set(rawAttempts.map((a) => a.testId as string))];
+    const attemptedTestIdSet = new Set(attemptedTestIds);
+
+    const availableTests = orgTests
+      .filter((t) => {
+        // Filter by batch if test has specific batches
+        if (t.batchIds && t.batchIds.length > 0 && user.batchId) {
+          return t.batchIds.includes(user.batchId);
+        }
+        return !t.batchIds || t.batchIds.length === 0;
+      })
+      .filter((t) => !attemptedTestIdSet.has(t._id as string))
+      .slice(0, 10)
+      .map((t) => ({
+        id: t._id as string,
+        title: t.title,
+        duration: t.duration,
+        totalMarks: t.totalMarks,
+      }));
 
     return {
       profile: {
@@ -443,7 +540,11 @@ export const getStudentContext = query({
         totalIncorrect,
         totalUnanswered,
       },
+      leaderboard: { rank, totalStudents, percentile },
+      subjectPerformance,
       recentAttempts,
+      availableTests,
+      attemptedTestIds,
     };
   },
 });
