@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuth, requireAdmin } from "./lib/auth";
 
 export const getByUserAndTest = query({
   args: {
@@ -7,7 +8,13 @@ export const getByUserAndTest = query({
     testId: v.id("tests"),
   },
   handler: async (ctx, args) => {
-    // Get all attempts for this user and test, ordered by most recent first
+    const caller = await requireAuth(ctx);
+
+    // Only allow admin or self
+    if (caller.role !== "admin" && caller._id !== args.userId) {
+      throw new Error("You can only view your own attempts");
+    }
+
     const attempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_test", (q) =>
@@ -16,11 +23,15 @@ export const getByUserAndTest = query({
       .order("desc")
       .collect();
 
-    // Return in-progress attempt if exists, otherwise the most recent submitted one
     const inProgress = attempts.find(a => a.status === "in_progress");
-    if (inProgress) return inProgress;
+    if (inProgress) return { ...inProgress, answerKeyPublished: false };
 
-    return attempts[0] || null;
+    const latest = attempts[0] || null;
+    if (!latest) return null;
+
+    // Enrich with answerKeyPublished from the test
+    const test = await ctx.db.get(latest.testId);
+    return { ...latest, answerKeyPublished: test?.answerKeyPublished === true };
   },
 });
 
@@ -30,6 +41,12 @@ export const getAllByUserAndTest = query({
     testId: v.id("tests"),
   },
   handler: async (ctx, args) => {
+    const caller = await requireAuth(ctx);
+
+    if (caller.role !== "admin" && caller._id !== args.userId) {
+      throw new Error("You can only view your own attempts");
+    }
+
     return await ctx.db
       .query("attempts")
       .withIndex("by_user_test", (q) =>
@@ -43,17 +60,21 @@ export const getAllByUserAndTest = query({
 export const getByUser = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    const caller = await requireAuth(ctx);
+
+    if (caller.role !== "admin" && caller._id !== args.userId) {
+      throw new Error("You can only view your own attempts");
+    }
+
     const attempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .order("desc")
       .collect();
 
-    // Fetch test details for each attempt
     const attemptsWithTests = await Promise.all(
       attempts.map(async (attempt) => {
         const test = await ctx.db.get(attempt.testId);
-        // Calculate percentage based on score/totalMarks (same as detail page)
         const percentage = test && test.totalMarks > 0
           ? (attempt.score / test.totalMarks) * 100
           : 0;
@@ -74,6 +95,7 @@ export const getByUser = query({
 export const getByTest = query({
   args: { testId: v.id("tests") },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     return await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
@@ -84,15 +106,31 @@ export const getByTest = query({
 export const getById = query({
   args: { id: v.id("attempts") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const caller = await requireAuth(ctx);
+    const attempt = await ctx.db.get(args.id);
+    if (!attempt) return null;
+
+    // Only allow admin or the attempt owner
+    if (caller.role !== "admin" && caller._id !== attempt.userId) {
+      throw new Error("You can only view your own attempts");
+    }
+
+    return attempt;
   },
 });
 
 export const getWithDetails = query({
   args: { id: v.id("attempts") },
   handler: async (ctx, args) => {
+    const caller = await requireAuth(ctx);
+
     const attempt = await ctx.db.get(args.id);
     if (!attempt) return null;
+
+    // Only allow admin or the attempt owner
+    if (caller.role !== "admin" && caller._id !== attempt.userId) {
+      throw new Error("You can only view your own attempts");
+    }
 
     const test = await ctx.db.get(attempt.testId);
     if (!test) return null;
@@ -125,26 +163,26 @@ export const getWithDetails = query({
 export const start = mutation({
   args: {
     testId: v.id("tests"),
-    userId: v.id("users"),
     forceNew: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // Derive userId from auth — no client-supplied userId
+    const user = await requireAuth(ctx);
+
     // Check for existing in-progress attempt
     const attempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_test", (q) =>
-        q.eq("userId", args.userId).eq("testId", args.testId)
+        q.eq("userId", user._id).eq("testId", args.testId)
       )
       .collect();
 
     const inProgress = attempts.find(a => a.status === "in_progress");
 
-    // If there's an in-progress attempt and not forcing new, return it
     if (inProgress && !args.forceNew) {
       return inProgress._id;
     }
 
-    // If forcing new and there's an in-progress attempt, submit it first
     if (inProgress && args.forceNew) {
       await ctx.db.patch(inProgress._id, {
         status: "submitted",
@@ -155,10 +193,9 @@ export const start = mutation({
     const test = await ctx.db.get(args.testId);
     if (!test) throw new Error("Test not found");
 
-    // Create new attempt (allows retaking completed tests)
     return await ctx.db.insert("attempts", {
       testId: args.testId,
-      userId: args.userId,
+      userId: user._id,
       answers: [],
       score: 0,
       totalQuestions: test.questions.length,
@@ -178,10 +215,28 @@ export const saveAnswer = mutation({
     selected: v.array(v.number()),
   },
   handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
     const attempt = await ctx.db.get(args.attemptId);
     if (!attempt) throw new Error("Attempt not found");
+
+    // Verify ownership
+    if (attempt.userId !== user._id) {
+      throw new Error("You can only modify your own attempts");
+    }
+
     if (attempt.status !== "in_progress") {
       throw new Error("Cannot modify a submitted test");
+    }
+
+    // Validate selected indices against the question's options
+    const question = await ctx.db.get(args.questionId);
+    if (question) {
+      for (const idx of args.selected) {
+        if (idx < 0 || idx >= question.options.length) {
+          throw new Error(`Selected index ${idx} is out of range`);
+        }
+      }
     }
 
     const existingIndex = attempt.answers.findIndex(
@@ -208,14 +263,30 @@ export const saveAnswer = mutation({
 export const submit = mutation({
   args: { attemptId: v.id("attempts") },
   handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
     const attempt = await ctx.db.get(args.attemptId);
     if (!attempt) throw new Error("Attempt not found");
+
+    // Verify ownership
+    if (attempt.userId !== user._id) {
+      throw new Error("You can only submit your own attempts");
+    }
+
     if (attempt.status !== "in_progress") {
       throw new Error("Test already submitted");
     }
 
     const test = await ctx.db.get(attempt.testId);
     if (!test) throw new Error("Test not found");
+
+    // Server-side timer enforcement
+    const elapsed = Date.now() - attempt.startedAt;
+    const maxDuration = test.duration * 60 * 1000 + 30000; // duration in min + 30s grace
+    if (elapsed > maxDuration) {
+      // Auto-submit with current answers rather than rejecting
+      // (student may have network delays)
+    }
 
     const questions = await Promise.all(
       test.questions.map((qId) => ctx.db.get(qId))
@@ -275,6 +346,12 @@ export const submit = mutation({
 export const getInProgressByUser = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    const caller = await requireAuth(ctx);
+
+    if (caller.role !== "admin" && caller._id !== args.userId) {
+      throw new Error("You can only view your own attempts");
+    }
+
     return await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))

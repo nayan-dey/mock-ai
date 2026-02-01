@@ -1,209 +1,184 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  Badge,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  formatDate,
-  DataTable,
+  useToast,
   SortableHeader,
-  Skeleton,
+  Badge,
+  formatDate,
   type ColumnDef,
 } from "@repo/ui";
-import { toast } from "sonner";
-import { Plus, Trash2, BookOpen, ExternalLink } from "lucide-react";
-import Link from "next/link";
-import type { Id } from "@repo/database/dataModel";
-
-type NoteId = Id<"notes">;
+import { BookOpen, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { NoteSheet } from "./note-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface Note {
   _id: string;
   title: string;
+  description: string;
   subject: string;
   topic: string;
   fileUrl: string;
+  storageId?: string;
+  batchIds?: string[];
   createdAt: number;
 }
 
 export function NotesClient() {
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
   const notes = useQuery(api.notes.list, {});
+  const batches = useQuery(api.batches.list, {});
   const deleteNote = useMutation(api.notes.remove);
+  const { toast } = useToast();
 
-  const handleDelete = useCallback(async () => {
-    if (deleteId) {
-      try {
-        await deleteNote({ id: deleteId as NoteId });
-        toast.success("Note deleted successfully");
-        setDeleteId(null);
-      } catch (error) {
-        toast.error("Failed to delete note");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+
+  const batchMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (batches) {
+      for (const b of batches) {
+        map.set(b._id, b.name);
       }
     }
-  }, [deleteId, deleteNote]);
+    return map;
+  }, [batches]);
 
-  const columns: ColumnDef<Note>[] = useMemo(() => [
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteNote({ id: id as any });
+      toast({ title: "Note deleted" });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete note.", variant: "destructive" });
+    }
+    setDeleteNoteId(null);
+  };
+
+  const columns: ColumnDef<Note, any>[] = [
     {
       accessorKey: "title",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Title" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Title" />,
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue("title")}</span>
       ),
     },
     {
       accessorKey: "subject",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Subject" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Subject" />,
       cell: ({ row }) => (
         <Badge variant="outline">{row.getValue("subject")}</Badge>
       ),
     },
     {
       accessorKey: "topic",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Topic" />
+      header: ({ column }) => <SortableHeader column={column} title="Topic" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{row.getValue("topic")}</span>
       ),
     },
     {
-      accessorKey: "createdAt",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Created" />
-      ),
-      cell: ({ row }) => formatDate(row.getValue("createdAt")),
-    },
-    {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
+      id: "batches",
+      header: "Batches",
       cell: ({ row }) => {
-        const note = row.original;
+        const ids = row.original.batchIds;
+        if (!ids || ids.length === 0) {
+          return <span className="text-xs text-muted-foreground">All Batches</span>;
+        }
         return (
-          <div className="flex justify-end gap-0.5">
-            <a
-              href={note.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="ghost" size="icon" aria-label="View file">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </a>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete note"
-              onClick={() => setDeleteId(note._id)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+          <div className="flex flex-wrap gap-1">
+            {ids.slice(0, 2).map((id) => (
+              <Badge key={id} variant="secondary" className="text-xs">
+                {batchMap.get(id) || "..."}
+              </Badge>
+            ))}
+            {ids.length > 2 && (
+              <Badge variant="secondary" className="text-xs">
+                +{ids.length - 2}
+              </Badge>
+            )}
           </div>
         );
       },
     },
-  ], []);
-
-  if (notes === undefined) {
-    return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-          <Skeleton className="h-10 w-28" />
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            <Skeleton className="h-64 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => <SortableHeader column={column} title="Created" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.getValue("createdAt") as number)}
+        </span>
+      ),
+    },
+    createActionsColumn<Note>((note) => [
+      {
+        label: "View File",
+        icon: <ExternalLink className="h-4 w-4" />,
+        onClick: () => window.open(note.fileUrl, "_blank"),
+      },
+      {
+        label: "Edit",
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: () => {
+          setEditingNote(note);
+          setSheetOpen(true);
+        },
+      },
+      {
+        label: "Delete",
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteNoteId(note._id),
+        variant: "destructive",
+        separator: true,
+      },
+    ]),
+  ];
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Notes</h1>
-          <p className="text-sm text-muted-foreground">Manage study materials</p>
-        </div>
-        <Link href="/notes/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            Add Note
-          </Button>
-        </Link>
-      </div>
+    <>
+      <AdminTable<Note>
+        columns={columns}
+        data={(notes as Note[]) ?? []}
+        isLoading={notes === undefined}
+        searchKey="title"
+        searchPlaceholder="Search notes..."
+        title="Notes"
+        description="Manage study materials"
+        primaryAction={{
+          label: "Add Note",
+          onClick: () => {
+            setEditingNote(null);
+            setSheetOpen(true);
+          },
+        }}
+        emptyIcon={<BookOpen className="h-6 w-6 text-muted-foreground" />}
+        emptyTitle="No notes yet"
+        emptyDescription="Add your first study note"
+        emptyAction={{
+          label: "Add Note",
+          onClick: () => {
+            setEditingNote(null);
+            setSheetOpen(true);
+          },
+        }}
+      />
 
-      {notes.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="rounded-full bg-muted p-3">
-              <BookOpen className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium">No notes yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add your first study note.
-            </p>
-            <Link href="/notes/new">
-              <Button className="mt-4" size="sm">Add Note</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">All Notes ({notes.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={notes as Note[]}
-              searchKey="title"
-              searchPlaceholder="Search notes..."
-              showPagination
-              pageSize={5}
-              emptyMessage="No notes found."
-            />
-          </CardContent>
-        </Card>
-      )}
+      <NoteSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        note={editingNote}
+      />
 
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Note</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this note?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      <ConfirmDialog
+        open={!!deleteNoteId}
+        onOpenChange={(open) => { if (!open) setDeleteNoteId(null); }}
+        title="Delete Note"
+        description="Are you sure you want to delete this note? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteNoteId) return handleDelete(deleteNoteId); }}
+      />
+    </>
   );
 }

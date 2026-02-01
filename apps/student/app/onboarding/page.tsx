@@ -14,7 +14,7 @@ import {
   Input,
   useToast,
 } from "@repo/ui";
-import { KeyRound, ArrowRight, LogOut } from "lucide-react";
+import { KeyRound, ArrowRight, LogOut, Building2, ChevronLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -43,8 +43,13 @@ export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Check URL param first, then fallback to sessionStorage (survives OAuth redirects)
+  // URL params
   const urlRef = searchParams.get("ref") || "";
+  const urlOrg = searchParams.get("org") || "";
+
+  const [step, setStep] = useState<"institution" | "batch-code">("institution");
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [selectedOrgName, setSelectedOrgName] = useState("");
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -54,15 +59,31 @@ export default function OnboardingPage() {
     user?.id ? { clerkId: user.id } : "skip"
   );
 
+  // Fetch all institutions for dropdown
+  const organizations = useQuery(api.organizations.listPublic);
+
+  // If org slug is in URL, look it up
+  const orgFromSlug = useQuery(
+    api.organizations.getBySlug,
+    urlOrg ? { slug: urlOrg } : "skip"
+  );
+
   const joinByReferralCode = useMutation(api.batches.joinByReferralCode);
 
-  // Auto-populate from URL ref param or sessionStorage fallback
+  // Auto-populate from URL params or sessionStorage
   useEffect(() => {
     const refCode = urlRef || sessionStorage.getItem("batch_ref_code") || "";
     if (refCode) {
       setCode(refCode.toUpperCase());
     }
-  }, [urlRef]);
+
+    const orgSlug = urlOrg || sessionStorage.getItem("org_slug") || "";
+    if (orgSlug && orgFromSlug) {
+      setSelectedOrgId(orgFromSlug._id);
+      setSelectedOrgName(orgFromSlug.name);
+      setStep("batch-code");
+    }
+  }, [urlRef, urlOrg, orgFromSlug]);
 
   // If user already has a batch, redirect to dashboard
   if (dbUser?.batchId) {
@@ -92,19 +113,27 @@ export default function OnboardingPage() {
     );
   }
 
+  const handleSelectInstitution = (orgId: string, orgName: string) => {
+    setSelectedOrgId(orgId);
+    setSelectedOrgName(orgName);
+    setStep("batch-code");
+    setError("");
+  };
+
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim() || !dbUser) return;
+    if (!code.trim() || !dbUser || !selectedOrgId) return;
 
     setError("");
     setIsSubmitting(true);
     try {
       const result = await joinByReferralCode({
-        userId: dbUser._id,
         referralCode: code.trim(),
+        organizationId: selectedOrgId as any,
       });
-      // Clean up stored ref code
+      // Clean up stored values
       sessionStorage.removeItem("batch_ref_code");
+      sessionStorage.removeItem("org_slug");
       toast({
         title: "Welcome!",
         description: `You've joined ${result.batchName}. Let's get started!`,
@@ -119,6 +148,61 @@ export default function OnboardingPage() {
     }
   };
 
+  // Step 1: Institution selection
+  if (step === "institution") {
+    return (
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-6 sm:py-8">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Building2 className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">
+              Welcome, {user?.firstName || dbUser.name}!
+            </CardTitle>
+            <CardDescription>
+              Select your institution to get started.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {organizations === undefined ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full rounded-lg" />
+                <Skeleton className="h-12 w-full rounded-lg" />
+              </div>
+            ) : organizations.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground">
+                No institutions available yet. Please contact your instructor.
+              </p>
+            ) : (
+              organizations.map((org) => (
+                <Button
+                  key={org._id}
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                  onClick={() => handleSelectInstitution(org._id, org.name)}
+                >
+                  <Building2 className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <span className="text-left">{org.name}</span>
+                </Button>
+              ))
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-3 w-full gap-2 text-muted-foreground"
+              onClick={() => signOut({ redirectUrl: "/" })}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Step 2: Batch code entry
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-6 sm:py-8">
       <Card className="w-full max-w-sm">
@@ -127,7 +211,7 @@ export default function OnboardingPage() {
             <KeyRound className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl">
-            Welcome, {user?.firstName || dbUser.name}!
+            Join {selectedOrgName}
           </CardTitle>
           <CardDescription>
             Enter your batch code to get started. Ask your instructor for the
@@ -171,6 +255,20 @@ export default function OnboardingPage() {
             variant="ghost"
             size="sm"
             className="mt-3 w-full gap-2 text-muted-foreground"
+            onClick={() => {
+              setStep("institution");
+              setSelectedOrgId(null);
+              setSelectedOrgName("");
+              setError("");
+            }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Choose a different institution
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full gap-2 text-muted-foreground"
             onClick={() => signOut({ redirectUrl: "/" })}
           >
             <LogOut className="h-4 w-4" />

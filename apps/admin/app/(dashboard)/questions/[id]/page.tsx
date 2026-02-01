@@ -1,10 +1,5 @@
-import { EditQuestionClient } from "./edit-question-client";
+import { redirect } from "next/navigation";
 
-interface EditQuestionPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function EditQuestionPage({ params }: EditQuestionPageProps) {
-  const { id } = await params;
-  return <EditQuestionClient questionId={id} />;
+export default function EditQuestionPage() {
+  redirect("/questions");
 }

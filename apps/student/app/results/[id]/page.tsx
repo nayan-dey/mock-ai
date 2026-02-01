@@ -102,9 +102,9 @@ export default function ResultDetailPage() {
     });
   }, [attemptWithDetails, filter]);
 
-// Auto-trigger confetti for good scores (60%+)
+// Auto-trigger confetti for good scores (60%+) — only if answer key is published
   useEffect(() => {
-    if (attemptWithDetails && !hasTriggeredConfetti.current) {
+    if (attemptWithDetails && !hasTriggeredConfetti.current && attemptWithDetails.answerKeyPublished) {
       const score = attemptWithDetails.score;
       const total = attemptWithDetails.test?.totalMarks || 1;
       const pct = (score / total) * 100;
@@ -145,7 +145,7 @@ export default function ResultDetailPage() {
         <div className="mb-6">
           <div className="flex items-center gap-3">
             <BackButton href="/results" />
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-lg font-semibold tracking-tight">
               {attemptWithDetails.test.title}
             </h1>
           </div>
@@ -194,7 +194,7 @@ export default function ResultDetailPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <BackButton href="/results" />
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="text-lg font-semibold tracking-tight">
                 {test.title}
               </h1>
             </div>

@@ -45,6 +45,7 @@ import {
   Pencil,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
+import { ConfirmDialog } from "./confirm-dialog";
 
 interface UserDetailSheetProps {
   userId: string | null;
@@ -87,6 +88,8 @@ export function UserDetailSheet({
   const [suspendReason, setSuspendReason] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
 
+  const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
+
   // Fee form state
   const [showAddFeeDialog, setShowAddFeeDialog] = useState(false);
   const [editingFee, setEditingFee] = useState<Fee | null>(null);
@@ -101,10 +104,12 @@ export function UserDetailSheet({
     api.users.getByClerkId,
     clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
   );
-  const user = useQuery(
+  const userData = useQuery(
     api.users.getById,
     userId ? { id: userId as Id<"users"> } : "skip"
   );
+  // Cast to any to access all possible fields from the Convex union type
+  const user = userData as any;
   const batch = useQuery(
     api.batches.getById,
     user?.batchId ? { id: user.batchId } : "skip"
@@ -132,7 +137,6 @@ export function UserDetailSheet({
     if (!currentAdmin || !userId) return;
     await suspendUser({
       userId: userId as Id<"users">,
-      adminId: currentAdmin._id,
       reason: suspendReason || undefined,
     });
     setShowSuspendDialog(false);
@@ -143,7 +147,6 @@ export function UserDetailSheet({
     if (!currentAdmin || !selectedBatchId || !userId) return;
     await unsuspendUser({
       userId: userId as Id<"users">,
-      adminId: currentAdmin._id,
       batchId: selectedBatchId as Id<"batches">,
     });
     setShowUnsuspendDialog(false);
@@ -198,7 +201,6 @@ export function UserDetailSheet({
           dueDate: dueDateTimestamp,
           paidDate: paidDateTimestamp,
           description: description || undefined,
-          updatedBy: currentAdmin._id,
         });
         toast({ title: "Fee updated" });
       } else {
@@ -209,7 +211,6 @@ export function UserDetailSheet({
           dueDate: dueDateTimestamp,
           paidDate: paidDateTimestamp,
           description: description || undefined,
-          createdBy: currentAdmin._id,
         });
         toast({ title: "Fee record added" });
       }
@@ -229,7 +230,6 @@ export function UserDetailSheet({
     try {
       await markAsPaid({
         id: feeId as Id<"fees">,
-        updatedBy: currentAdmin._id,
       });
       toast({ title: "Marked as paid" });
     } catch (err: any) {
@@ -243,11 +243,9 @@ export function UserDetailSheet({
 
   const handleDeleteFee = async (feeId: string) => {
     if (!currentAdmin) return;
-    if (!confirm("Are you sure you want to delete this fee record?")) return;
     try {
       await removeFee({
         id: feeId as Id<"fees">,
-        deletedBy: currentAdmin._id,
       });
       toast({ title: "Fee record deleted" });
     } catch (err: any) {
@@ -257,6 +255,7 @@ export function UserDetailSheet({
         variant: "destructive",
       });
     }
+    setDeleteFeeId(null);
   };
 
   const totalDue =
@@ -281,7 +280,7 @@ export function UserDetailSheet({
           <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
             {user === undefined ? (
               <div className="flex items-center justify-center py-12">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
               </div>
             ) : user === null ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -296,7 +295,7 @@ export function UserDetailSheet({
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <h2 className="mt-3 text-lg font-semibold">{user.name}</h2>
+                  <h2 className="mt-3 text-lg font-semibold truncate max-w-full">{user.name}</h2>
                   <div className="mt-2 flex items-center gap-2">
                     <Badge
                       variant={
@@ -498,7 +497,7 @@ export function UserDetailSheet({
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteFee(fee._id)}
+                                onClick={() => setDeleteFeeId(fee._id)}
                               >
                                 <Trash2 className="h-3 w-3" />
                                 Delete
@@ -519,7 +518,7 @@ export function UserDetailSheet({
                       </div>
                     ) : (
                       <div className="flex items-center justify-center py-8">
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
                       </div>
                     )}
                   </>
@@ -612,6 +611,16 @@ export function UserDetailSheet({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Fee Confirmation */}
+      <ConfirmDialog
+        open={!!deleteFeeId}
+        onOpenChange={(open) => { if (!open) setDeleteFeeId(null); }}
+        title="Delete Fee Record"
+        description="Are you sure you want to delete this fee record? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteFeeId) return handleDeleteFee(deleteFeeId); }}
+      />
 
       {/* Add/Edit Fee Dialog */}
       <Dialog

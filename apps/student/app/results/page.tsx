@@ -40,9 +40,10 @@ interface AttemptData {
 
 export default function ResultsPage() {
   const { user } = useUser();
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,
@@ -56,7 +57,7 @@ export default function ResultsPage() {
   const submittedAttempts = useMemo(() => {
     if (!attempts) return [];
     return attempts
-      .filter((a) => a.status === "submitted")
+      .filter((a) => a.status === "submitted" && a.answerKeyPublished)
       .map((a) => ({
         ...a,
         // Use percentage from backend (score/totalMarks) for consistency with detail page
@@ -216,7 +217,7 @@ export default function ResultsPage() {
       <div className="mb-6 flex items-center gap-3">
         <BackButton href="/me" />
         <div className="space-y-0.5">
-          <h1 className="text-2xl font-semibold tracking-tight">Results</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Results</h1>
           <p className="text-sm text-muted-foreground">
             Track your performance across all tests
           </p>

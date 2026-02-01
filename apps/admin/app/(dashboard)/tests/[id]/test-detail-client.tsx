@@ -135,28 +135,40 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "published":
-        return <Badge variant="success">Published</Badge>;
+        return (
+          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
+            Published
+          </Badge>
+        );
       case "draft":
-        return <Badge variant="secondary">Draft</Badge>;
+        return (
+          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-500">
+            Draft
+          </Badge>
+        );
       case "archived":
-        return <Badge variant="outline">Archived</Badge>;
+        return (
+          <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
+            Archived
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-4 p-4 md:p-6">
       <Link href="/tests">
-        <Button variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground hover:text-foreground">
+        <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
           Back to Tests
         </Button>
       </Link>
 
-      <div className="mb-6">
+      <div>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{testWithQuestions.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{testWithQuestions.title}</h1>
           {getStatusBadge(testWithQuestions.status)}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{testWithQuestions.description}</p>
@@ -179,66 +191,54 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
       </div>
 
       {/* Stats Cards */}
-      <div className="mb-6 grid gap-3 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Questions</p>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {testWithQuestions.questions.length}
-                </p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <FileQuestion className="h-5 w-5 text-primary" />
-              </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Questions</CardTitle>
+            <FileQuestion className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">
+              {testWithQuestions.questions.length}
             </div>
+            <p className="text-xs text-muted-foreground">In this test</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Duration</p>
-                <p className="text-2xl font-semibold tabular-nums">{testWithQuestions.duration} min</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                <Clock className="h-5 w-5 text-blue-500" />
-              </div>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Duration</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{testWithQuestions.duration} min</div>
+            <p className="text-xs text-muted-foreground">Time limit</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Total Marks</p>
-                <p className="text-2xl font-semibold tabular-nums">{testWithQuestions.totalMarks}</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-                <Trophy className="h-5 w-5 text-amber-500" />
-              </div>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Marks</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{testWithQuestions.totalMarks}</div>
+            <p className="text-xs text-muted-foreground">Maximum score</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Attempts</p>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {testAnalytics?.totalAttempts || 0}
-                </p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
-                <Users className="h-5 w-5 text-purple-500" />
-              </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Attempts</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">
+              {testAnalytics?.totalAttempts || 0}
             </div>
+            <p className="text-xs text-muted-foreground">Submissions</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-6">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="questions" className="flex-1 sm:flex-none">Questions</TabsTrigger>
           <TabsTrigger value="analytics" className="flex-1 sm:flex-none">Analytics</TabsTrigger>
@@ -275,7 +275,7 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
                     </div>
                     <p className="mb-3 text-sm font-medium">{question.text}</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {question.options.map((option, optIndex) => (
+                      {question.options?.map((option, optIndex) => (
                         <div
                           key={optIndex}
                           className={`rounded-md border p-2 text-sm ${
@@ -487,7 +487,7 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
                 >
                   {isSavingBatches ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                       Saving...
                     </>
                   ) : (

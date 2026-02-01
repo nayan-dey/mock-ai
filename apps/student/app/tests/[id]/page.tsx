@@ -43,9 +43,10 @@ export default function TestPage() {
   const { user } = useUser();
   const testId = params.id as string;
 
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
   const testWithQuestions = useQuery(api.tests.getWithQuestions, {
     id: testId as TestId,
   });
@@ -253,7 +254,6 @@ export default function TestPage() {
       }
       const id = await startAttempt({
         testId: testId as TestId,
-        userId: dbUser._id,
         forceNew,
       });
       setAttemptId(id);
@@ -409,27 +409,39 @@ export default function TestPage() {
                   </div>
                 </div>
                 <div className="p-4">
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="rounded-lg bg-background p-3">
-                      <p className="font-serif text-xl font-bold">{existingAttempt.score.toFixed(1)}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Score</p>
+                  {existingAttempt.answerKeyPublished ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded-lg bg-background p-3">
+                          <p className="font-serif text-xl font-bold">{existingAttempt.score.toFixed(1)}</p>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Score</p>
+                        </div>
+                        <div className="rounded-lg bg-background p-3">
+                          <p className="font-serif text-xl font-bold text-success">{existingAttempt.correct}</p>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Correct</p>
+                        </div>
+                        <div className="rounded-lg bg-background p-3">
+                          <p className="font-serif text-xl font-bold text-destructive">{existingAttempt.incorrect}</p>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Wrong</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="link"
+                        className="mt-3 h-auto p-0 text-sm text-success"
+                        onClick={() => router.push(`/results/${existingAttempt._id}`)}
+                      >
+                        View Detailed Results
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Results Pending</p>
+                        <p className="text-xs text-muted-foreground">The answer key has not been published yet.</p>
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-background p-3">
-                      <p className="font-serif text-xl font-bold text-success">{existingAttempt.correct}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Correct</p>
-                    </div>
-                    <div className="rounded-lg bg-background p-3">
-                      <p className="font-serif text-xl font-bold text-destructive">{existingAttempt.incorrect}</p>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Wrong</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="link"
-                    className="mt-3 h-auto p-0 text-sm text-success"
-                    onClick={() => router.push(`/results/${existingAttempt._id}`)}
-                  >
-                    View Detailed Results
-                  </Button>
+                  )}
                 </div>
               </div>
             )}

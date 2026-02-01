@@ -18,7 +18,7 @@ export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
 
   const conversations = useQuery(
     api.chat.getUserConversations,
-    userId ? { userId: userId as any } : "skip"
+    userId ? {} : "skip"
   );
 
   const deleteConversation = useMutation(api.chat.deleteConversation);

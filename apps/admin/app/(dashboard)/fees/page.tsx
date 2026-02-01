@@ -3,7 +3,8 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const MONTH_NAMES = [
   "January",
@@ -80,19 +82,46 @@ export default function FeesPage() {
   const { user: clerkUser } = useUser();
   const { toast } = useToast();
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [selectedStudent, setSelectedStudent] = useState<{
     id: string;
     name: string;
   } | null>(null);
+  const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
 
-  // Filters
-  const [selectedBatches, setSelectedBatches] = useState<Set<string>>(
-    new Set()
-  );
-  const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(
-    new Set()
-  );
+  // URL-synced filters
+  const selectedBatches = useMemo(() => new Set(searchParams.get("batches")?.split(",").filter(Boolean) ?? []), [searchParams]);
+  const selectedMonths = useMemo(() => new Set(searchParams.get("months")?.split(",").filter(Boolean) ?? []), [searchParams]);
+  const selectedStatuses = useMemo(() => new Set(searchParams.get("statuses")?.split(",").filter(Boolean) ?? []), [searchParams]);
+
+  const updateUrlSet = useCallback((key: string, newSet: Set<string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newSet.size === 0) {
+      params.delete(key);
+    } else {
+      params.set(key, Array.from(newSet).join(","));
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  const setSelectedBatches = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const newSet = typeof v === "function" ? v(selectedBatches) : v;
+    updateUrlSet("batches", newSet);
+  }, [selectedBatches, updateUrlSet]);
+
+  const setSelectedMonths = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const newSet = typeof v === "function" ? v(selectedMonths) : v;
+    updateUrlSet("months", newSet);
+  }, [selectedMonths, updateUrlSet]);
+
+  const setSelectedStatuses = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const newSet = typeof v === "function" ? v(selectedStatuses) : v;
+    updateUrlSet("statuses", newSet);
+  }, [selectedStatuses, updateUrlSet]);
 
   const currentAdmin = useQuery(
     api.users.getByClerkId,
@@ -172,7 +201,6 @@ export default function FeesPage() {
     try {
       await markAsPaid({
         id: feeId as Id<"fees">,
-        updatedBy: currentAdmin._id,
       });
       toast({ title: "Marked as paid" });
     } catch (err: any) {
@@ -186,11 +214,9 @@ export default function FeesPage() {
 
   const handleDelete = async (feeId: string) => {
     if (!currentAdmin) return;
-    if (!confirm("Are you sure you want to delete this fee record?")) return;
     try {
       await removeFee({
         id: feeId as Id<"fees">,
-        deletedBy: currentAdmin._id,
       });
       toast({ title: "Fee record deleted" });
     } catch (err: any) {
@@ -200,6 +226,7 @@ export default function FeesPage() {
         variant: "destructive",
       });
     }
+    setDeleteFeeId(null);
   };
 
   // Toggle helpers for multi-select
@@ -224,9 +251,9 @@ export default function FeesPage() {
         <SortableHeader column={column} title="Student" />
       ),
       cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.getValue("studentName")}</p>
-          <p className="text-xs text-muted-foreground">
+        <div className="max-w-[200px]">
+          <p className="font-medium truncate">{row.getValue("studentName")}</p>
+          <p className="text-xs text-muted-foreground truncate">
             {row.original.studentEmail}
           </p>
         </div>
@@ -292,15 +319,21 @@ export default function FeesPage() {
       header: ({ column }) => (
         <SortableHeader column={column} title="Status" />
       ),
-      cell: ({ row }) => (
-        <Badge
-          variant={
-            row.getValue("status") === "paid" ? "success" : "destructive"
-          }
-        >
-          {row.getValue("status") === "paid" ? "Paid" : "Due"}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const status = row.getValue("status") as string;
+        return (
+          <Badge
+            variant="outline"
+            className={
+              status === "paid"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                : "border-destructive/20 bg-destructive/10 text-destructive"
+            }
+          >
+            {status === "paid" ? "Paid" : "Due"}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "paidDate",
@@ -321,7 +354,7 @@ export default function FeesPage() {
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="ghost" size="icon-sm" aria-label="Fee actions">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -347,7 +380,7 @@ export default function FeesPage() {
               )}
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => handleDelete(fee._id)}
+                onClick={() => setDeleteFeeId(fee._id)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -361,21 +394,29 @@ export default function FeesPage() {
 
   if (allFees === undefined) {
     return (
-      <div className="p-8">
-        <div className="mb-8">
-          <Skeleton className="mb-2 h-8 w-32" />
-          <Skeleton className="h-5 w-48" />
+      <div className="space-y-4 p-4 md:p-6">
+        <div className="space-y-1">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-4 w-48" />
         </div>
-        <div className="mb-6 grid grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="mt-1 h-3 w-32" />
+              </CardContent>
+            </Card>
           ))}
         </div>
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           </CardContent>
@@ -385,53 +426,50 @@ export default function FeesPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Fees</h1>
+    <div className="space-y-4 p-4 md:p-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight">Fees</h1>
         <p className="text-muted-foreground">
           Manage student fee records across all batches
         </p>
       </div>
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <IndianRupee className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total Records</p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">
+              Fee entries across all batches
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{stats.due}</p>
-              <p className="text-xs text-muted-foreground">
-                Due — &#8377;{stats.dueAmount.toLocaleString("en-IN")}
-              </p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Due</CardTitle>
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-destructive">{stats.due}</div>
+            <p className="text-xs text-muted-foreground">
+              &#8377;{stats.dueAmount.toLocaleString("en-IN")} outstanding
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
-              <CircleCheck className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-600">
-                {stats.paid}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Paid — &#8377;{stats.paidAmount.toLocaleString("en-IN")}
-              </p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Paid</CardTitle>
+            <CircleCheck className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tabular-nums text-emerald-600">{stats.paid}</div>
+            <p className="text-xs text-muted-foreground">
+              &#8377;{stats.paidAmount.toLocaleString("en-IN")} collected
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -440,20 +478,15 @@ export default function FeesPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <IndianRupee className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>All Fee Records</CardTitle>
-                <CardDescription>
-                  {filteredFees.length}
-                  {filteredFees.length !== allFees.length &&
-                    ` of ${allFees.length}`}{" "}
-                  record{filteredFees.length !== 1 ? "s" : ""} across all
-                  students
-                </CardDescription>
-              </div>
+            <div>
+              <CardTitle className="text-sm font-medium">All Fee Records</CardTitle>
+              <CardDescription className="text-xs">
+                {filteredFees.length}
+                {filteredFees.length !== allFees.length &&
+                  ` of ${allFees.length}`}{" "}
+                record{filteredFees.length !== 1 ? "s" : ""} across all
+                students
+              </CardDescription>
             </div>
           </div>
 
@@ -671,6 +704,15 @@ export default function FeesPage() {
         onOpenChange={(open) => {
           if (!open) setSelectedStudent(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteFeeId}
+        onOpenChange={(open) => { if (!open) setDeleteFeeId(null); }}
+        title="Delete Fee Record"
+        description="Are you sure you want to delete this fee record? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteFeeId) return handleDelete(deleteFeeId); }}
       />
     </div>
   );

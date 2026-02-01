@@ -1,35 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Button,
-  Skeleton,
-  Badge,
   useToast,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DataTable,
   SortableHeader,
+  Badge,
   type ColumnDef,
+  formatDate,
 } from "@repo/ui";
-import {
-  Users,
-  Plus,
-  MoreHorizontal,
-  Trash2,
-  ToggleLeft,
-  ToggleRight,
-  Copy,
-} from "lucide-react";
-import Link from "next/link";
+import { Users, Pencil, Trash2, ToggleRight, Copy } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
+import { BatchEditSheet } from "./batch-edit-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface Batch {
   _id: string;
@@ -41,54 +26,43 @@ interface Batch {
 }
 
 export default function BatchesPage() {
+  const { user } = useUser();
+  const organization = useQuery(
+    api.organizations.getByAdminClerkId,
+    user?.id ? { adminClerkId: user.id } : "skip"
+  );
   const batches = useQuery(api.batches.list, {});
   const updateBatch = useMutation(api.batches.update);
   const removeBatch = useMutation(api.batches.remove);
   const { toast } = useToast();
 
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
+  const [deleteBatchId, setDeleteBatchId] = useState<string | null>(null);
+
+  const handleActivate = async (id: string) => {
     try {
-      await updateBatch({
-        id: id as any,
-        isActive: !currentStatus,
-      });
-      toast({
-        title: "Batch updated",
-        description: `Batch has been ${!currentStatus ? "activated" : "deactivated"}.`,
-      });
+      await updateBatch({ id: id as any, isActive: true });
+      toast({ title: "Batch activated" });
     } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update batch status.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to activate batch.", variant: "destructive" });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this batch?")) return;
-
     try {
       await removeBatch({ id: id as any });
-      toast({
-        title: "Batch deleted",
-        description: "The batch has been removed.",
-      });
+      toast({ title: "Batch deleted" });
     } catch {
-      toast({
-        title: "Error",
-        description: "Failed to delete batch.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete batch.", variant: "destructive" });
     }
+    setDeleteBatchId(null);
   };
 
-  const columns: ColumnDef<Batch>[] = [
+  const columns: ColumnDef<Batch, any>[] = [
     {
       accessorKey: "name",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Name" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Name" />,
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue("name")}</span>
       ),
@@ -97,7 +71,7 @@ export default function BatchesPage() {
       accessorKey: "description",
       header: "Description",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
+        <span className="text-muted-foreground line-clamp-1">
           {row.getValue("description") || "—"}
         </span>
       ),
@@ -107,176 +81,111 @@ export default function BatchesPage() {
       header: "Referral Code",
       cell: ({ row }) => {
         const code = row.getValue("referralCode") as string;
-        const studentBaseUrl =
-          process.env.NEXT_PUBLIC_STUDENT_APP_URL || "http://localhost:3000";
-        const referralUrl = `${studentBaseUrl}/sign-up?ref=${code}`;
         return (
-          <div className="flex items-center gap-2">
-            <code className="rounded bg-muted px-2 py-1 text-sm font-mono">
-              {code}
-            </code>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => {
-                navigator.clipboard.writeText(referralUrl);
-                toast({
-                  title: "Referral link copied!",
-                  description: referralUrl,
-                });
-              }}
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <code className="rounded bg-muted px-2 py-1 text-xs font-mono">
+            {code}
+          </code>
         );
       },
-    },
-    {
-      accessorKey: "isActive",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Status" />
-      ),
-      cell: ({ row }) => (
-        <Badge variant={row.getValue("isActive") ? "success" : "secondary"}>
-          {row.getValue("isActive") ? "Active" : "Inactive"}
-        </Badge>
-      ),
     },
     {
       accessorKey: "createdAt",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Created" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Created" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {new Date(row.getValue("createdAt")).toLocaleDateString()}
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.getValue("createdAt") as number)}
         </span>
       ),
     },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const batch = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => handleToggleActive(batch._id, batch.isActive)}
-              >
-                {batch.isActive ? (
-                  <>
-                    <ToggleLeft className="mr-2 h-4 w-4" />
-                    Deactivate
-                  </>
-                ) : (
-                  <>
-                    <ToggleRight className="mr-2 h-4 w-4" />
-                    Activate
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => handleDelete(batch._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
+    createActionsColumn<Batch>((batch) => {
+      const actions: ActionMenuItem[] = [
+        {
+          label: "Edit",
+          icon: <Pencil className="h-4 w-4" />,
+          onClick: () => {
+            setEditingBatch(batch);
+            setSheetOpen(true);
+          },
+        },
+        {
+          label: "Copy Referral Link",
+          icon: <Copy className="h-4 w-4" />,
+          onClick: () => {
+            const studentBaseUrl =
+              process.env.NEXT_PUBLIC_STUDENT_APP_URL || "http://localhost:3000";
+            const orgSlug = organization?.slug;
+            const url = orgSlug
+              ? `${studentBaseUrl}/sign-up?org=${orgSlug}&ref=${batch.referralCode}`
+              : `${studentBaseUrl}/sign-up?ref=${batch.referralCode}`;
+            navigator.clipboard.writeText(url);
+            toast({ title: "Referral link copied!", description: url });
+          },
+        },
+      ];
+
+      if (!batch.isActive) {
+        actions.push({
+          label: "Activate",
+          icon: <ToggleRight className="h-4 w-4" />,
+          onClick: () => handleActivate(batch._id),
+        });
+      }
+
+      actions.push({
+        label: "Delete",
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteBatchId(batch._id),
+        variant: "destructive" as const,
+        separator: true,
+      });
+
+      return actions;
+    }),
   ];
 
-  if (batches === undefined) {
-    return (
-      <div className="p-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <Skeleton className="mb-2 h-8 w-32" />
-            <Skeleton className="h-5 w-48" />
-          </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Batches</h1>
-          <p className="text-muted-foreground">
-            Manage student batches and groups
-          </p>
-        </div>
-        <Link href="/batches/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Batch
-          </Button>
-        </Link>
-      </div>
+    <>
+      <AdminTable<Batch>
+        columns={columns}
+        data={(batches as Batch[]) ?? []}
+        isLoading={batches === undefined}
+        searchKey="name"
+        searchPlaceholder="Search batches..."
+        title="Batches"
+        description="Manage student batches and groups"
+        primaryAction={{
+          label: "Create Batch",
+          onClick: () => {
+            setEditingBatch(null);
+            setSheetOpen(true);
+          },
+        }}
+        emptyIcon={<Users className="h-6 w-6 text-muted-foreground" />}
+        emptyTitle="No batches yet"
+        emptyDescription="Create your first batch to organize students"
+        emptyAction={{
+          label: "Create Batch",
+          onClick: () => {
+            setEditingBatch(null);
+            setSheetOpen(true);
+          },
+        }}
+      />
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle>All Batches</CardTitle>
-              <CardDescription>
-                {batches.length} batch{batches.length !== 1 ? "es" : ""} created
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {batches.length > 0 ? (
-            <DataTable
-              columns={columns}
-              data={batches as Batch[]}
-              searchKey="name"
-              searchPlaceholder="Search batches..."
-              showPagination
-              pageSize={5}
-              emptyMessage="No batches found."
-            />
-          ) : (
-            <div className="py-12 text-center">
-              <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mb-2 font-medium">No batches yet</h3>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Create your first batch to organize students
-              </p>
-              <Link href="/batches/new">
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Batch
-                </Button>
-              </Link>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <BatchEditSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        batch={editingBatch}
+      />
+
+      <ConfirmDialog
+        open={!!deleteBatchId}
+        onOpenChange={(open) => { if (!open) setDeleteBatchId(null); }}
+        title="Delete Batch"
+        description="Are you sure you want to delete this batch? Students in this batch will be unassigned."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteBatchId) return handleDelete(deleteBatchId); }}
+      />
+    </>
   );
 }

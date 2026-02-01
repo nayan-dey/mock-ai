@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin, requireAuth, getAuthUser, getOrgId } from "./lib/auth";
 
 export const getByClerkId = query({
   args: { clerkId: v.string() },
@@ -14,7 +15,24 @@ export const getByClerkId = query({
 export const getById = query({
   args: { id: v.id("users") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const caller = await requireAuth(ctx);
+    const user = await ctx.db.get(args.id);
+    if (!user) return null;
+
+    // Admins get full data; users can only see their own full data
+    if (caller.role === "admin" || caller._id === args.id) {
+      return user;
+    }
+
+    // Other users get limited data
+    return {
+      _id: user._id,
+      _creationTime: user._creationTime,
+      name: user.name,
+      role: user.role,
+      batchId: user.batchId,
+      createdAt: user.createdAt,
+    };
   },
 });
 
@@ -25,13 +43,18 @@ export const list = query({
     ),
   },
   handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    let users = await ctx.db
+      .query("users")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+
     if (args.role) {
-      return await ctx.db
-        .query("users")
-        .withIndex("by_role", (q) => q.eq("role", args.role!))
-        .collect();
+      users = users.filter((u) => u.role === args.role);
     }
-    return await ctx.db.query("users").collect();
+    return users;
   },
 });
 
@@ -68,6 +91,7 @@ export const updateRole = mutation({
     role: v.union(v.literal("student"), v.literal("teacher"), v.literal("admin")),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
     await ctx.db.patch(args.id, { role: args.role });
   },
 });
@@ -85,6 +109,12 @@ export const upsertFromClerk = mutation({
       .first();
 
     if (existing) {
+      // Block admins from accessing the student portal
+      if (existing.role === "admin") {
+        throw new Error(
+          "This account is registered as an admin. You cannot access the student portal."
+        );
+      }
       await ctx.db.patch(existing._id, {
         email: args.email,
         name: args.name,
@@ -109,25 +139,21 @@ export const upsertAsAdmin = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get allowed admin email from environment variable
-    const allowedEmail = process.env.ADMIN_EMAIL;
-
-    // Validate email against allowed admin email
-    if (allowedEmail && args.email.toLowerCase() !== allowedEmail.toLowerCase()) {
-      throw new Error("Unauthorized: This email is not authorized for admin access.");
-    }
-
     const existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
     if (existing) {
-      // Update name/email and ensure role is admin
+      // Block students from accessing the admin portal
+      if (existing.role === "student") {
+        throw new Error(
+          "This account is registered as a student. You cannot access the admin portal."
+        );
+      }
       await ctx.db.patch(existing._id, {
         email: args.email,
         name: args.name,
-        role: "admin",
       });
       return existing._id;
     }
@@ -144,35 +170,48 @@ export const upsertAsAdmin = mutation({
 
 export const updateProfile = mutation({
   args: {
-    userId: v.id("users"),
     name: v.optional(v.string()),
     bio: v.optional(v.string()),
     age: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { userId, ...updates } = args;
+    // Derive userId from auth — users can only update their own profile
+    const user = await requireAuth(ctx);
+
+    // Validation
+    if (args.name !== undefined && (args.name.length < 1 || args.name.length > 100)) {
+      throw new Error("Name must be 1-100 characters");
+    }
+    if (args.bio !== undefined && args.bio.length > 500) {
+      throw new Error("Bio must be at most 500 characters");
+    }
+    if (args.age !== undefined && (args.age < 1 || args.age > 120)) {
+      throw new Error("Age must be between 1 and 120");
+    }
+
     const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
+      Object.entries(args).filter(([_, value]) => value !== undefined)
     );
-    await ctx.db.patch(userId, filteredUpdates);
+    await ctx.db.patch(user._id, filteredUpdates);
   },
 });
 
 export const suspendUser = mutation({
   args: {
     userId: v.id("users"),
-    adminId: v.id("users"),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const admin = await ctx.db.get(args.adminId);
-    if (!admin || admin.role !== "admin") {
-      throw new Error("Only admins can suspend users");
-    }
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
 
     const user = await ctx.db.get(args.userId);
     if (!user) {
       throw new Error("User not found");
+    }
+
+    if (user.organizationId !== orgId) {
+      throw new Error("Access denied");
     }
 
     if (user.role === "admin") {
@@ -182,7 +221,7 @@ export const suspendUser = mutation({
     await ctx.db.patch(args.userId, {
       isSuspended: true,
       suspendedAt: Date.now(),
-      suspendedBy: args.adminId,
+      suspendedBy: admin._id,
       suspendReason: args.reason,
     });
 
@@ -193,18 +232,19 @@ export const suspendUser = mutation({
 export const unsuspendUser = mutation({
   args: {
     userId: v.id("users"),
-    adminId: v.id("users"),
-    batchId: v.id("batches"), // Required - admin must assign a batch
+    batchId: v.id("batches"),
   },
   handler: async (ctx, args) => {
-    const admin = await ctx.db.get(args.adminId);
-    if (!admin || admin.role !== "admin") {
-      throw new Error("Only admins can unsuspend users");
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    const user = await ctx.db.get(args.userId);
+    if (!user || user.organizationId !== orgId) {
+      throw new Error("Access denied");
     }
 
-    // Verify batch exists and is active
     const batch = await ctx.db.get(args.batchId);
-    if (!batch || !batch.isActive) {
+    if (!batch || !batch.isActive || batch.organizationId !== orgId) {
       throw new Error("Invalid or inactive batch");
     }
 
@@ -223,10 +263,15 @@ export const unsuspendUser = mutation({
 export const listSuspendedUsers = query({
   args: {},
   handler: async (ctx) => {
-    const users = await ctx.db
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    const allSuspended = await ctx.db
       .query("users")
       .withIndex("by_suspended", (q) => q.eq("isSuspended", true))
       .collect();
+
+    const users = allSuspended.filter((u) => u.organizationId === orgId);
 
     const enrichedUsers = await Promise.all(
       users.map(async (user) => {
@@ -250,16 +295,16 @@ export const listSuspendedUsers = query({
 export const getPublicProfile = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const user = await ctx.db.get(args.userId);
     if (!user) return null;
 
-    // Get user settings for privacy
     const settings = await ctx.db
       .query("userSettings")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .first();
 
-    // Get batch info
     const batch = user.batchId ? await ctx.db.get(user.batchId) : null;
 
     return {
@@ -271,8 +316,7 @@ export const getPublicProfile = query({
       batchId: user.batchId,
       batchName: batch?.name || null,
       isSuspended: user.isSuspended || false,
-      suspendReason: user.suspendReason,
-      // Privacy-controlled fields
+      // Strip suspendReason — not for public consumption
       showHeatmap: settings?.showHeatmap ?? true,
       showStats: settings?.showStats ?? true,
       showOnLeaderboard: settings?.showOnLeaderboard ?? true,

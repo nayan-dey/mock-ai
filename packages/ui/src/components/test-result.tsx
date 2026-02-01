@@ -28,7 +28,7 @@ export function TestResult({
   timeTaken,
   className,
 }: TestResultProps) {
-  const percentage = (score / totalMarks) * 100;
+  const percentage = totalMarks > 0 ? (score / totalMarks) * 100 : 0;
   const accuracy = totalQuestions > 0 ? (correct / (correct + incorrect)) * 100 : 0;
 
   const getGrade = () => {

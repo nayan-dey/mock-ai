@@ -1,32 +1,34 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
   Badge,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  formatDate,
-  DataTable,
+  useToast,
   SortableHeader,
-  Skeleton,
+  formatDate,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
-import { Plus, Trash2, FileText, Eye, Globe, Archive, BookOpen } from "lucide-react";
-import Link from "next/link";
-import type { Id } from "@repo/database/dataModel";
-
-type TestId = Id<"tests">;
+import {
+  FileText,
+  Eye,
+  Globe,
+  Archive,
+  ArchiveRestore,
+  BookOpen,
+  Trash2,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useUrlState } from "@/hooks/use-url-state";
 
 interface Test {
   _id: string;
@@ -41,106 +43,171 @@ interface Test {
 }
 
 export function TestsClient() {
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
+  const [durationFilter, setDurationFilter] = useUrlState("duration", "all");
+  const [deleteTestId, setDeleteTestId] = useState<string | null>(null);
 
   const tests = useQuery(api.tests.list, {});
-  const batches = useQuery(api.batches.list, { activeOnly: false });
+  const batches = useQuery(api.batches.list, {});
   const deleteTest = useMutation(api.tests.remove);
   const publishTest = useMutation(api.tests.publish);
   const archiveTest = useMutation(api.tests.archive);
+  const unarchiveTest = useMutation(api.tests.unarchive);
   const toggleAnswerKey = useMutation(api.tests.toggleAnswerKey);
 
-  // Helper to get batch names
-  const getBatchNames = useCallback((batchIds?: string[]) => {
-    if (!batchIds || batchIds.length === 0 || !batches) return null;
-    return batchIds
-      .map((id) => batches.find((b) => b._id === id)?.name)
-      .filter(Boolean);
+  const batchMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (batches) {
+      for (const b of batches) map.set(b._id, b.name);
+    }
+    return map;
   }, [batches]);
 
-  const handleDelete = useCallback(async () => {
-    if (deleteId) {
-      await deleteTest({ id: deleteId as TestId });
-      setDeleteId(null);
-    }
-  }, [deleteId, deleteTest]);
+  // Apply filters
+  const filteredTests = useMemo(() => {
+    if (!tests) return [];
+    let result = tests as Test[];
 
-  const getStatusBadge = useCallback((status: string) => {
+    if (batchFilter !== "all") {
+      result = result.filter(
+        (t) =>
+          !t.batchIds ||
+          t.batchIds.length === 0 ||
+          t.batchIds.includes(batchFilter)
+      );
+    }
+
+    if (durationFilter !== "all") {
+      result = result.filter((t) => {
+        switch (durationFilter) {
+          case "lt30": return t.duration < 30;
+          case "30-60": return t.duration >= 30 && t.duration <= 60;
+          case "60-120": return t.duration > 60 && t.duration <= 120;
+          case "gt120": return t.duration > 120;
+          default: return true;
+        }
+      });
+    }
+
+    return result;
+  }, [tests, batchFilter, durationFilter]);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTest({ id: id as any });
+      toast({ title: "Test deleted" });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete test.", variant: "destructive" });
+    }
+    setDeleteTestId(null);
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "published":
-        return <Badge variant="success">Published</Badge>;
+        return (
+          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
+            Published
+          </Badge>
+        );
       case "draft":
-        return <Badge variant="secondary">Draft</Badge>;
+        return (
+          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-500">
+            Draft
+          </Badge>
+        );
       case "archived":
-        return <Badge variant="outline">Archived</Badge>;
+        return (
+          <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
+            Archived
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
-  }, []);
+  };
 
-  const columns: ColumnDef<Test>[] = useMemo(() => [
+  const facetedFilters: FacetedFilterConfig[] = [
+    {
+      columnId: "status",
+      title: "Status",
+      options: [
+        { label: "Draft", value: "draft" },
+        { label: "Published", value: "published" },
+        { label: "Archived", value: "archived" },
+      ],
+    },
+  ];
+
+  const columns: ColumnDef<Test, any>[] = [
     {
       accessorKey: "title",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Title" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Title" />,
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue("title")}</span>
       ),
     },
     {
       accessorKey: "questions",
-      header: "Questions",
-      cell: ({ row }) => (row.getValue("questions") as string[]).length,
+      header: "Qs",
+      cell: ({ row }) => (
+        <span className="tabular-nums">{(row.getValue("questions") as string[]).length}</span>
+      ),
     },
     {
       accessorKey: "duration",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Duration" />
+      header: ({ column }) => <SortableHeader column={column} title="Duration" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{row.getValue("duration")} min</span>
       ),
-      cell: ({ row }) => `${row.getValue("duration")} min`,
     },
     {
       accessorKey: "totalMarks",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Marks" />
+      header: ({ column }) => <SortableHeader column={column} title="Marks" />,
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.getValue("totalMarks")}</span>
       ),
     },
     {
       accessorKey: "status",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Status" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Status" />,
       cell: ({ row }) => (
         <div className="flex flex-col gap-1">
           {getStatusBadge(row.getValue("status"))}
           {row.original.status !== "draft" && (
-            <Badge variant={row.original.answerKeyPublished ? "success" : "outline"} className="text-[10px] w-fit">
+            <Badge
+              variant={row.original.answerKeyPublished ? "success" : "outline"}
+              className="text-[10px] w-fit"
+            >
               {row.original.answerKeyPublished ? "Key Published" : "Key Hidden"}
             </Badge>
           )}
         </div>
       ),
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     {
-      accessorKey: "batchIds",
+      id: "batches",
       header: "Batches",
       cell: ({ row }) => {
-        const batchNames = getBatchNames(row.original.batchIds);
-        if (!batchNames || batchNames.length === 0) {
+        const ids = row.original.batchIds;
+        if (!ids || ids.length === 0) {
           return <span className="text-xs text-muted-foreground">All</span>;
         }
         return (
           <div className="flex flex-wrap gap-1">
-            {batchNames.slice(0, 2).map((name) => (
-              <Badge key={name} variant="outline" className="text-xs">
-                {name}
+            {ids.slice(0, 2).map((id) => (
+              <Badge key={id} variant="secondary" className="text-xs">
+                {batchMap.get(id) || "..."}
               </Badge>
             ))}
-            {batchNames.length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{batchNames.length - 2}
-              </Badge>
+            {ids.length > 2 && (
+              <Badge variant="secondary" className="text-xs">+{ids.length - 2}</Badge>
             )}
           </div>
         );
@@ -148,155 +215,153 @@ export function TestsClient() {
     },
     {
       accessorKey: "createdAt",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Created" />
+      header: ({ column }) => <SortableHeader column={column} title="Created" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.getValue("createdAt") as number)}
+        </span>
       ),
-      cell: ({ row }) => formatDate(row.getValue("createdAt")),
     },
-    {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
-      cell: ({ row }) => {
-        const test = row.original;
-        return (
-          <div className="flex justify-end gap-0.5">
-            <Link href={`/tests/${test._id}`}>
-              <Button variant="ghost" size="icon" aria-label="View test details">
-                <Eye className="h-4 w-4" />
-              </Button>
-            </Link>
-            {test.status === "draft" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Publish test"
-                onClick={() => publishTest({ id: test._id as TestId })}
-              >
-                <Globe className="h-4 w-4 text-success" />
-              </Button>
-            )}
-            {test.status === "published" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Archive test"
-                onClick={() => archiveTest({ id: test._id as TestId })}
-              >
-                <Archive className="h-4 w-4 text-warning" />
-              </Button>
-            )}
-            {test.status !== "draft" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={test.answerKeyPublished ? "Unpublish answer key" : "Publish answer key"}
-                title={test.answerKeyPublished ? "Unpublish answer key" : "Publish answer key"}
-                onClick={() => toggleAnswerKey({ id: test._id as TestId })}
-              >
-                <BookOpen className={`h-4 w-4 ${test.answerKeyPublished ? "text-emerald-500" : "text-muted-foreground"}`} />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete test"
-              onClick={() => setDeleteId(test._id)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
-        );
-      },
-    },
-  ], [archiveTest, getBatchNames, getStatusBadge, publishTest, toggleAnswerKey]);
+    createActionsColumn<Test>((test) => {
+      const actions: any[] = [
+        {
+          label: "View Details",
+          icon: <Eye className="h-4 w-4" />,
+          onClick: () => router.push(`/tests/${test._id}`),
+        },
+      ];
 
-  if (tests === undefined) {
-    return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            <Skeleton className="h-64 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+      if (test.status === "draft") {
+        actions.push({
+          label: "Publish",
+          icon: <Globe className="h-4 w-4" />,
+          onClick: async () => {
+            try {
+              await publishTest({ id: test._id as any });
+              toast({ title: "Test published" });
+            } catch {
+              toast({ title: "Error", description: "Failed to publish.", variant: "destructive" });
+            }
+          },
+        });
+      }
+
+      if (test.status === "published") {
+        actions.push({
+          label: "Archive",
+          icon: <Archive className="h-4 w-4" />,
+          onClick: async () => {
+            try {
+              await archiveTest({ id: test._id as any });
+              toast({ title: "Test archived" });
+            } catch {
+              toast({ title: "Error", description: "Failed to archive.", variant: "destructive" });
+            }
+          },
+        });
+      }
+
+      if (test.status === "archived") {
+        actions.push({
+          label: "Unarchive",
+          icon: <ArchiveRestore className="h-4 w-4" />,
+          onClick: async () => {
+            try {
+              await unarchiveTest({ id: test._id as any });
+              toast({ title: "Test unarchived" });
+            } catch {
+              toast({ title: "Error", description: "Failed to unarchive.", variant: "destructive" });
+            }
+          },
+        });
+      }
+
+      if (test.status !== "draft") {
+        actions.push({
+          label: test.answerKeyPublished ? "Hide Answer Key" : "Publish Answer Key",
+          icon: <BookOpen className="h-4 w-4" />,
+          onClick: async () => {
+            try {
+              await toggleAnswerKey({ id: test._id as any });
+              toast({ title: test.answerKeyPublished ? "Answer key hidden" : "Answer key published" });
+            } catch {
+              toast({ title: "Error", description: "Failed to toggle answer key.", variant: "destructive" });
+            }
+          },
+        });
+      }
+
+      actions.push({
+        label: "Delete",
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteTestId(test._id),
+        variant: "destructive",
+        separator: true,
+      });
+
+      return actions;
+    }),
+  ];
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Tests</h1>
-          <p className="text-sm text-muted-foreground">Manage your mock tests</p>
-        </div>
-        <Link href="/tests/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            Create Test
-          </Button>
-        </Link>
-      </div>
+    <>
+    <AdminTable<Test>
+      columns={columns}
+      data={filteredTests}
+      isLoading={tests === undefined}
+      searchKey="title"
+      searchPlaceholder="Search tests..."
+      title="Tests"
+      description="Manage your mock tests"
+      primaryAction={{
+        label: "Create Test",
+        onClick: () => router.push("/tests/new"),
+      }}
+      emptyIcon={<FileText className="h-6 w-6 text-muted-foreground" />}
+      emptyTitle="No tests yet"
+      emptyDescription="Create your first test to get started"
+      emptyAction={{
+        label: "Create Test",
+        onClick: () => router.push("/tests/new"),
+      }}
+      facetedFilters={facetedFilters}
+      toolbarExtra={
+        <>
+          <Select value={batchFilter} onValueChange={setBatchFilter}>
+            <SelectTrigger className="h-8 w-[160px]">
+              <SelectValue placeholder="All Batches" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches?.map((b) => (
+                <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={durationFilter} onValueChange={setDurationFilter}>
+            <SelectTrigger className="h-8 w-[140px]">
+              <SelectValue placeholder="All Durations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Durations</SelectItem>
+              <SelectItem value="lt30">&lt; 30 min</SelectItem>
+              <SelectItem value="30-60">30-60 min</SelectItem>
+              <SelectItem value="60-120">60-120 min</SelectItem>
+              <SelectItem value="gt120">&gt; 120 min</SelectItem>
+            </SelectContent>
+          </Select>
+        </>
+      }
+    />
 
-      {tests.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="rounded-full bg-muted p-3">
-              <FileText className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium">No tests yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create your first test to get started.
-            </p>
-            <Link href="/tests/new">
-              <Button className="mt-4" size="sm">Create Test</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>All Tests ({tests.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={tests as Test[]}
-              searchKey="title"
-              searchPlaceholder="Search tests..."
-              showPagination
-              pageSize={5}
-              emptyMessage="No tests found."
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Test</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this test? This action cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    <ConfirmDialog
+      open={!!deleteTestId}
+      onOpenChange={(open) => { if (!open) setDeleteTestId(null); }}
+      title="Delete Test"
+      description="Are you sure you want to delete this test? This action cannot be undone."
+      confirmLabel="Delete"
+      onConfirm={() => { if (deleteTestId) return handleDelete(deleteTestId); }}
+    />
+    </>
   );
 }

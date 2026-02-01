@@ -18,15 +18,16 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning style={{ colorScheme: "light dark" }}>
         <head>
           <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         </head>
         <body>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <ConvexClientProvider>
-              <UserSync />
-              {children}
+              <UserSync>
+                {children}
+              </UserSync>
               <SonnerToaster position="top-center" richColors />
             </ConvexClientProvider>
           </ThemeProvider>

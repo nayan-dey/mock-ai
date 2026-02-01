@@ -1,13 +1,15 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@repo/database";
 import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 export function UserSync() {
   const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const upsertUser = useMutation(api.users.upsertFromClerk);
   const hasSynced = useRef(false);
   const router = useRouter();
@@ -26,7 +28,15 @@ export function UserSync() {
         clerkId: user.id,
         email: user.primaryEmailAddress?.emailAddress || "",
         name: user.fullName || user.firstName || "User",
-      }).catch(console.error);
+      }).catch((error) => {
+        console.error("Student sync error:", error);
+        if (error.message?.includes("admin")) {
+          toast.error("This account is registered as an admin. You cannot use the student portal.");
+          signOut().then(() => {
+            router.push("/sign-in");
+          });
+        }
+      });
     }
   }, [isLoaded, user, upsertUser]);
 
@@ -62,10 +72,15 @@ export function UserSync() {
       dbUser.role === "student" &&
       !dbUser.batchId
     ) {
-      // Preserve ref param if present in current URL
+      // Preserve ref and org params if present in current URL
       const searchParams = new URLSearchParams(window.location.search);
       const ref = searchParams.get("ref");
-      const onboardingUrl = ref ? `/onboarding?ref=${ref}` : "/onboarding";
+      const org = searchParams.get("org");
+      const params = new URLSearchParams();
+      if (org) params.set("org", org);
+      if (ref) params.set("ref", ref);
+      const qs = params.toString();
+      const onboardingUrl = qs ? `/onboarding?${qs}` : "/onboarding";
       router.push(onboardingUrl);
     }
   }, [isLoaded, user, dbUser, pathname, router]);

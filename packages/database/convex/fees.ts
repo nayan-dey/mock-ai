@@ -1,11 +1,19 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const getByStudent = query({
   args: { studentId: v.id("users") },
   handler: async (ctx, args) => {
+    const caller = await requireAuth(ctx);
+
+    // Admin can see any student's fees; students can only see their own
+    if (caller.role !== "admin" && caller._id !== args.studentId) {
+      throw new Error("You can only view your own fees");
+    }
+
     const fees = await ctx.db
       .query("fees")
       .withIndex("by_student", (q) => q.eq("studentId", args.studentId))
@@ -17,23 +25,46 @@ export const getByStudent = query({
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    const fees = await ctx.db.query("fees").collect();
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
 
-    const results = await Promise.all(
-      fees.map(async (fee) => {
-        const student = await ctx.db.get(fee.studentId);
-        const batch = student?.batchId
-          ? await ctx.db.get(student.batchId)
-          : null;
-        return {
-          ...fee,
-          studentName: student?.name ?? "Unknown",
-          studentEmail: student?.email ?? "",
-          batchName: batch?.name ?? "No Batch",
-          batchId: student?.batchId ?? null,
-        };
-      })
+    const fees = await ctx.db
+      .query("fees")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+
+    // Batch-fetch all unique student IDs to avoid N+1
+    const studentIds = [...new Set(fees.map((f) => f.studentId))];
+    const students = await Promise.all(studentIds.map((id) => ctx.db.get(id)));
+    const studentMap = new Map(
+      students.filter(Boolean).map((s) => [s!._id, s!])
     );
+
+    // Batch-fetch all unique batch IDs
+    const batchIds = [
+      ...new Set(
+        students
+          .filter(Boolean)
+          .map((s) => s!.batchId)
+          .filter(Boolean)
+      ),
+    ];
+    const batches = await Promise.all(batchIds.map((id) => ctx.db.get(id!)));
+    const batchMap = new Map(
+      batches.filter(Boolean).map((b) => [b!._id, b!])
+    );
+
+    const results = fees.map((fee) => {
+      const student = studentMap.get(fee.studentId);
+      const batch = student?.batchId ? batchMap.get(student.batchId) : null;
+      return {
+        ...fee,
+        studentName: student?.name ?? "Unknown",
+        studentEmail: student?.email ?? "",
+        batchName: batch?.name ?? "No Batch",
+        batchId: student?.batchId ?? null,
+      };
+    });
 
     return results.sort((a, b) => b.dueDate - a.dueDate);
   },
@@ -42,13 +73,18 @@ export const getAll = query({
 export const getDueNotifications = query({
   args: {},
   handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
     const cutoff = Date.now() - THIRTY_DAYS_MS;
-    const dueFees = await ctx.db
+    const allDueFees = await ctx.db
       .query("fees")
-      .withIndex("by_status", (q) => q.eq("status", "due"))
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
       .collect();
 
-    const overdue = dueFees.filter((fee) => fee.dueDate <= cutoff);
+    const overdue = allDueFees.filter(
+      (fee) => fee.status === "due" && fee.dueDate <= cutoff
+    );
 
     const results = await Promise.all(
       overdue.map(async (fee) => {
@@ -68,13 +104,16 @@ export const getDueNotifications = query({
 export const getDueCount = query({
   args: {},
   handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
     const cutoff = Date.now() - THIRTY_DAYS_MS;
-    const dueFees = await ctx.db
+    const allFees = await ctx.db
       .query("fees")
-      .withIndex("by_status", (q) => q.eq("status", "due"))
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
       .collect();
 
-    return dueFees.filter((fee) => fee.dueDate <= cutoff).length;
+    return allFees.filter((fee) => fee.status === "due" && fee.dueDate <= cutoff).length;
   },
 });
 
@@ -86,12 +125,13 @@ export const create = mutation({
     dueDate: v.number(),
     paidDate: v.optional(v.number()),
     description: v.optional(v.string()),
-    createdBy: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const creator = await ctx.db.get(args.createdBy);
-    if (!creator || (creator.role !== "admin" && creator.role !== "teacher")) {
-      throw new Error("Only admins and teachers can manage fees.");
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    if (args.amount <= 0) {
+      throw new Error("Amount must be positive");
     }
 
     return await ctx.db.insert("fees", {
@@ -101,7 +141,8 @@ export const create = mutation({
       dueDate: args.dueDate,
       paidDate: args.paidDate,
       description: args.description,
-      createdBy: args.createdBy,
+      organizationId: orgId,
+      createdBy: admin._id,
       createdAt: Date.now(),
     });
   },
@@ -115,15 +156,19 @@ export const update = mutation({
     dueDate: v.optional(v.number()),
     paidDate: v.optional(v.number()),
     description: v.optional(v.string()),
-    updatedBy: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const updater = await ctx.db.get(args.updatedBy);
-    if (!updater || (updater.role !== "admin" && updater.role !== "teacher")) {
-      throw new Error("Only admins and teachers can manage fees.");
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    const fee = await ctx.db.get(args.id);
+    if (fee && fee.organizationId !== orgId) throw new Error("Access denied");
+
+    if (args.amount !== undefined && args.amount <= 0) {
+      throw new Error("Amount must be positive");
     }
 
-    const { id, updatedBy, ...updates } = args;
+    const { id, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
@@ -134,13 +179,12 @@ export const update = mutation({
 export const markAsPaid = mutation({
   args: {
     id: v.id("fees"),
-    updatedBy: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const updater = await ctx.db.get(args.updatedBy);
-    if (!updater || (updater.role !== "admin" && updater.role !== "teacher")) {
-      throw new Error("Only admins and teachers can manage fees.");
-    }
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const fee = await ctx.db.get(args.id);
+    if (fee && fee.organizationId !== orgId) throw new Error("Access denied");
 
     await ctx.db.patch(args.id, {
       status: "paid",
@@ -152,14 +196,12 @@ export const markAsPaid = mutation({
 export const remove = mutation({
   args: {
     id: v.id("fees"),
-    deletedBy: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const deleter = await ctx.db.get(args.deletedBy);
-    if (!deleter || (deleter.role !== "admin" && deleter.role !== "teacher")) {
-      throw new Error("Only admins and teachers can manage fees.");
-    }
-
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const fee = await ctx.db.get(args.id);
+    if (fee && fee.organizationId !== orgId) throw new Error("Access denied");
     await ctx.db.delete(args.id);
   },
 });

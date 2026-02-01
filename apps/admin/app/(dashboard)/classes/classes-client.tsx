@@ -1,218 +1,195 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
+  useToast,
+  SortableHeader,
   Badge,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   formatDate,
   formatDuration,
-  DataTable,
-  SortableHeader,
-  Skeleton,
   type ColumnDef,
 } from "@repo/ui";
-import { toast } from "sonner";
-import { Plus, Trash2, Video, ExternalLink } from "lucide-react";
-import Link from "next/link";
-import type { Id } from "@repo/database/dataModel";
-
-type ClassId = Id<"classes">;
+import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ClassSheet } from "./class-sheet";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface ClassItem {
   _id: string;
   title: string;
+  description: string;
   subject: string;
   topic: string;
-  duration: number;
   videoUrl: string;
+  duration: number;
+  thumbnail?: string;
+  batchIds?: string[];
   createdAt: number;
 }
 
 export function ClassesClient() {
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
   const classes = useQuery(api.classes.list, {});
+  const batches = useQuery(api.batches.list, {});
   const deleteClass = useMutation(api.classes.remove);
+  const { toast } = useToast();
 
-  const handleDelete = useCallback(async () => {
-    if (deleteId) {
-      try {
-        await deleteClass({ id: deleteId as ClassId });
-        toast.success("Class deleted successfully");
-        setDeleteId(null);
-      } catch (error) {
-        toast.error("Failed to delete class");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
+  const [deleteClassId, setDeleteClassId] = useState<string | null>(null);
+
+  const batchMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (batches) {
+      for (const b of batches) {
+        map.set(b._id, b.name);
       }
     }
-  }, [deleteId, deleteClass]);
+    return map;
+  }, [batches]);
 
-  const columns: ColumnDef<ClassItem>[] = useMemo(() => [
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteClass({ id: id as any });
+      toast({ title: "Class deleted" });
+    } catch {
+      toast({ title: "Error", description: "Failed to delete class.", variant: "destructive" });
+    }
+    setDeleteClassId(null);
+  };
+
+  const columns: ColumnDef<ClassItem, any>[] = [
     {
       accessorKey: "title",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Title" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Title" />,
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue("title")}</span>
       ),
     },
     {
       accessorKey: "subject",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Subject" />
-      ),
+      header: ({ column }) => <SortableHeader column={column} title="Subject" />,
       cell: ({ row }) => (
         <Badge variant="outline">{row.getValue("subject")}</Badge>
       ),
     },
     {
       accessorKey: "topic",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Topic" />
+      header: ({ column }) => <SortableHeader column={column} title="Topic" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">{row.getValue("topic")}</span>
       ),
     },
     {
       accessorKey: "duration",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Duration" />
+      header: ({ column }) => <SortableHeader column={column} title="Duration" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDuration(row.getValue("duration") as number)}
+        </span>
       ),
-      cell: ({ row }) => formatDuration(row.getValue("duration")),
     },
     {
-      accessorKey: "createdAt",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Created" />
-      ),
-      cell: ({ row }) => formatDate(row.getValue("createdAt")),
-    },
-    {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
+      id: "batches",
+      header: "Batches",
       cell: ({ row }) => {
-        const classItem = row.original;
+        const ids = row.original.batchIds;
+        if (!ids || ids.length === 0) {
+          return <span className="text-xs text-muted-foreground">All Batches</span>;
+        }
         return (
-          <div className="flex justify-end gap-0.5">
-            <a
-              href={classItem.videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="ghost" size="icon" aria-label="View video">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </a>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Delete class"
-              onClick={() => setDeleteId(classItem._id)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+          <div className="flex flex-wrap gap-1">
+            {ids.slice(0, 2).map((id) => (
+              <Badge key={id} variant="secondary" className="text-xs">
+                {batchMap.get(id) || "..."}
+              </Badge>
+            ))}
+            {ids.length > 2 && (
+              <Badge variant="secondary" className="text-xs">
+                +{ids.length - 2}
+              </Badge>
+            )}
           </div>
         );
       },
     },
-  ], []);
-
-  if (classes === undefined) {
-    return (
-      <div className="p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="space-y-1">
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-          <Skeleton className="h-10 w-28" />
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            <Skeleton className="h-64 w-full" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => <SortableHeader column={column} title="Created" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.getValue("createdAt") as number)}
+        </span>
+      ),
+    },
+    createActionsColumn<ClassItem>((classItem) => [
+      {
+        label: "View Video",
+        icon: <ExternalLink className="h-4 w-4" />,
+        onClick: () => window.open(classItem.videoUrl, "_blank"),
+      },
+      {
+        label: "Edit",
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: () => {
+          setEditingClass(classItem);
+          setSheetOpen(true);
+        },
+      },
+      {
+        label: "Delete",
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteClassId(classItem._id),
+        variant: "destructive",
+        separator: true,
+      },
+    ]),
+  ];
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Recorded Classes</h1>
-          <p className="text-sm text-muted-foreground">Manage video lectures</p>
-        </div>
-        <Link href="/classes/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            Add Class
-          </Button>
-        </Link>
-      </div>
+    <>
+      <AdminTable<ClassItem>
+        columns={columns}
+        data={(classes as ClassItem[]) ?? []}
+        isLoading={classes === undefined}
+        searchKey="title"
+        searchPlaceholder="Search classes..."
+        title="Recorded Classes"
+        description="Manage video lectures"
+        primaryAction={{
+          label: "Add Class",
+          onClick: () => {
+            setEditingClass(null);
+            setSheetOpen(true);
+          },
+        }}
+        emptyIcon={<Video className="h-6 w-6 text-muted-foreground" />}
+        emptyTitle="No classes yet"
+        emptyDescription="Add your first recorded class"
+        emptyAction={{
+          label: "Add Class",
+          onClick: () => {
+            setEditingClass(null);
+            setSheetOpen(true);
+          },
+        }}
+      />
 
-      {classes.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="rounded-full bg-muted p-3">
-              <Video className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium">No classes yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add your first recorded class.
-            </p>
-            <Link href="/classes/new">
-              <Button className="mt-4" size="sm">Add Class</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">All Classes ({classes.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={columns}
-              data={classes as ClassItem[]}
-              searchKey="title"
-              searchPlaceholder="Search classes..."
-              showPagination
-              pageSize={5}
-              emptyMessage="No classes found."
-            />
-          </CardContent>
-        </Card>
-      )}
+      <ClassSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        classItem={editingClass}
+      />
 
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Class</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this class?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      <ConfirmDialog
+        open={!!deleteClassId}
+        onOpenChange={(open) => { if (!open) setDeleteClassId(null); }}
+        title="Delete Class"
+        description="Are you sure you want to delete this class? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteClassId) return handleDelete(deleteClassId); }}
+      />
+    </>
   );
 }

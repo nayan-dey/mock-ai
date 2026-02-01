@@ -12,6 +12,7 @@ import {
   CardTitle,
   Button,
   Badge,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -20,6 +21,7 @@ import {
 } from "@repo/ui";
 import { toast } from "sonner";
 import { Database, Users, Play, CheckCircle, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export default function SeedPage() {
   const { user } = useUser();
@@ -27,10 +29,12 @@ export default function SeedPage() {
   const [results, setResults] = useState<Record<string, any>>({});
   const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [studentCount, setStudentCount] = useState(5);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  const dbUser = useQuery(api.users.getByClerkId, {
-    clerkId: user?.id ?? "",
-  });
+  const dbUser = useQuery(
+    api.users.getByClerkId,
+    user?.id ? { clerkId: user.id } : "skip"
+  );
 
   const batches = useQuery(api.batches.list, { activeOnly: false });
 
@@ -43,7 +47,7 @@ export default function SeedPage() {
     if (!user?.id) return;
     setLoading("database");
     try {
-      const result = await seedDatabase({ adminClerkId: user.id });
+      const result = await seedDatabase({});
       setResults((prev) => ({ ...prev, database: result }));
       toast.success("Database seeded successfully");
     } catch (error: any) {
@@ -91,9 +95,6 @@ export default function SeedPage() {
   };
 
   const handleClearAllData = async () => {
-    if (!confirm("Are you sure you want to delete ALL data? This cannot be undone!")) {
-      return;
-    }
     setLoading("clear");
     try {
       const result = await clearAllData({});
@@ -146,7 +147,7 @@ export default function SeedPage() {
               className="w-full gap-2"
             >
               {loading === "database" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Play className="h-4 w-4" />
               )}
@@ -203,9 +204,9 @@ export default function SeedPage() {
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Select Batch</label>
+                <Label htmlFor="seed-batch">Select Batch</Label>
                 <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-                  <SelectTrigger>
+                  <SelectTrigger id="seed-batch">
                     <SelectValue placeholder="Choose a batch" />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,12 +219,12 @@ export default function SeedPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Number of Students</label>
+                <Label htmlFor="seed-count">Number of Students</Label>
                 <Select
                   value={studentCount.toString()}
                   onValueChange={(v) => setStudentCount(parseInt(v))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="seed-count">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -242,7 +243,7 @@ export default function SeedPage() {
               className="w-full gap-2"
             >
               {loading === "students" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Users className="h-4 w-4" />
               )}
@@ -304,7 +305,7 @@ export default function SeedPage() {
               className="w-full gap-2"
             >
               {loading === "myAttempts" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Play className="h-4 w-4" />
               )}
@@ -364,13 +365,13 @@ export default function SeedPage() {
               This action cannot be undone!
             </p>
             <Button
-              onClick={handleClearAllData}
+              onClick={() => setShowClearConfirm(true)}
               disabled={loading !== null}
               variant="destructive"
               className="w-full gap-2"
             >
               {loading === "clear" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
@@ -443,6 +444,16 @@ export default function SeedPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        title="Clear All Data"
+        description="Are you sure you want to delete ALL data? This will permanently remove all users, questions, tests, attempts, batches, classes, and notes. This action cannot be undone!"
+        confirmLabel="Clear All Data"
+        onConfirm={handleClearAllData}
+        isLoading={loading === "clear"}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ export default defineSchema({
   // Organizations for admin onboarding
   organizations: defineTable({
     name: v.string(),
+    slug: v.string(),
     description: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
@@ -12,7 +13,9 @@ export default defineSchema({
     address: v.optional(v.string()),
     adminClerkId: v.string(),
     createdAt: v.number(),
-  }).index("by_admin_clerk_id", ["adminClerkId"]),
+  })
+    .index("by_admin_clerk_id", ["adminClerkId"])
+    .index("by_slug", ["slug"]),
 
   // AI Chat conversations
   chatConversations: defineTable({
@@ -49,12 +52,13 @@ export default defineSchema({
     description: v.optional(v.string()),
     isActive: v.boolean(),
     referralCode: v.string(),
-    organizationId: v.optional(v.id("organizations")),
+    organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_active", ["isActive"])
-    .index("by_referral_code", ["referralCode"]),
+    .index("by_referral_code", ["referralCode"])
+    .index("by_organization", ["organizationId"]),
 
   // User settings for preferences and privacy
   userSettings: defineTable({
@@ -85,7 +89,8 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_role", ["role"])
     .index("by_batch", ["batchId"])
-    .index("by_suspended", ["isSuspended"]),
+    .index("by_suspended", ["isSuspended"])
+    .index("by_organization", ["organizationId"]),
 
   questions: defineTable({
     text: v.string(),
@@ -95,13 +100,15 @@ export default defineSchema({
     subject: v.string(),
     topic: v.string(),
     difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
     .index("by_topic", ["topic"])
     .index("by_difficulty", ["difficulty"])
-    .index("by_subject_topic", ["subject", "topic"]),
+    .index("by_subject_topic", ["subject", "topic"])
+    .index("by_organization", ["organizationId"]),
 
   tests: defineTable({
     title: v.string(),
@@ -114,11 +121,13 @@ export default defineSchema({
     answerKeyPublished: v.optional(v.boolean()),
     scheduledAt: v.optional(v.number()),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
+    organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_status", ["status"])
-    .index("by_created_by", ["createdBy"]),
+    .index("by_created_by", ["createdBy"])
+    .index("by_organization", ["organizationId"]),
 
   attempts: defineTable({
     testId: v.id("tests"),
@@ -153,13 +162,16 @@ export default defineSchema({
     subject: v.string(),
     topic: v.string(),
     fileUrl: v.string(),
+    storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
+    organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
     .index("by_topic", ["topic"])
-    .index("by_subject_topic", ["subject", "topic"]),
+    .index("by_subject_topic", ["subject", "topic"])
+    .index("by_organization", ["organizationId"]),
 
   classes: defineTable({
     title: v.string(),
@@ -170,12 +182,43 @@ export default defineSchema({
     duration: v.number(),
     thumbnail: v.optional(v.string()),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
+    organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
     .index("by_topic", ["topic"])
-    .index("by_subject_topic", ["subject", "topic"]),
+    .index("by_subject_topic", ["subject", "topic"])
+    .index("by_organization", ["organizationId"]),
+
+  // Multi-admin support: maps admin clerkIds to organizations
+  orgAdmins: defineTable({
+    clerkId: v.string(),
+    organizationId: v.id("organizations"),
+    isSuperAdmin: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_organization", ["organizationId"]),
+
+  // Join requests for admins wanting to join an existing org
+  orgJoinRequests: defineTable({
+    organizationId: v.id("organizations"),
+    clerkId: v.string(),
+    userName: v.string(),
+    userEmail: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_org_status", ["organizationId", "status"]),
 
   // Fee records for students
   fees: defineTable({
@@ -185,11 +228,13 @@ export default defineSchema({
     dueDate: v.number(),
     paidDate: v.optional(v.number()),
     description: v.optional(v.string()),
+    organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_student", ["studentId"])
     .index("by_status", ["status"])
     .index("by_due_date", ["dueDate"])
-    .index("by_student_status", ["studentId", "status"]),
+    .index("by_student_status", ["studentId", "status"])
+    .index("by_organization", ["organizationId"]),
 });
