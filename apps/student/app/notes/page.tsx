@@ -76,11 +76,11 @@ export default function NotesPage() {
       ? TOPICS[selectedSubject as keyof typeof TOPICS]
       : [];
 
-  const handleDownload = (fileUrl: string, title: string) => {
-    // Create a temporary anchor element to trigger download
+  const handleDownload = (fileUrl: string | null, title: string) => {
+    if (!fileUrl) return;
     const link = document.createElement('a');
     link.href = fileUrl;
-    link.download = title;
+    link.download = `${title}.pdf`;
     link.target = '_blank';
     document.body.appendChild(link);
     link.click();
@@ -282,17 +282,16 @@ export default function NotesPage() {
           {sortedNotes.map((note) => (
             <Card
               key={note._id}
-              className="transition-colors hover:bg-muted/50 my-3"
+              className="transition-colors hover:bg-muted/50"
             >
-              <CardContent className="flex items-center gap-4 p-4">
-                {/* Icon */}
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <FileText className="h-6 w-6 text-muted-foreground" />
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium truncate">{note.title}</h3>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <h3 className="text-sm font-medium truncate">{note.title}</h3>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline" className="text-[10px]">{note.subject}</Badge>
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
@@ -301,13 +300,12 @@ export default function NotesPage() {
                   </div>
                 </div>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5 shrink-0"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
                   onClick={() => handleDownload(note.fileUrl, note.title)}
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
+                  <Download className="h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>

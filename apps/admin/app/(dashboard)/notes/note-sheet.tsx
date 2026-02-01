@@ -28,8 +28,7 @@ interface NoteSheetProps {
     description: string;
     subject: string;
     topic: string;
-    fileUrl: string;
-    storageId?: string;
+    storageId: string;
     batchIds?: string[];
   } | null;
 }
@@ -51,7 +50,6 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
   // File upload state
   const [file, setFile] = useState<File | null>(null);
   const [uploadedStorageId, setUploadedStorageId] = useState<string | null>(null);
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,7 +64,6 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       setSelectedBatchIds(note?.batchIds ?? []);
       setFile(null);
       setUploadedStorageId(note?.storageId ?? null);
-      setUploadedFileUrl(note?.fileUrl ?? null);
       setIsUploading(false);
     }
   }, [open, note]);
@@ -102,7 +99,6 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       });
       const { storageId } = await result.json();
       setUploadedStorageId(storageId);
-      setUploadedFileUrl(null); // Will derive from storageId
     } catch {
       toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
       setFile(null);
@@ -131,7 +127,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       return;
     }
 
-    if (!isEdit && !uploadedStorageId && !uploadedFileUrl) {
+    if (!uploadedStorageId) {
       toast({ title: "Please upload a PDF file", variant: "destructive" });
       return;
     }
@@ -145,8 +141,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
           description: description.trim(),
           subject,
           topic,
-          ...(uploadedStorageId ? { storageId: uploadedStorageId as any } : {}),
-          ...(uploadedFileUrl ? { fileUrl: uploadedFileUrl } : {}),
+          ...(file ? { storageId: uploadedStorageId as any } : {}),
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
         toast({ title: "Note updated" });
@@ -156,8 +151,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
           description: description.trim(),
           subject,
           topic,
-          fileUrl: uploadedFileUrl || "",
-          ...(uploadedStorageId ? { storageId: uploadedStorageId as any } : {}),
+          storageId: uploadedStorageId as any,
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
         toast({ title: "Note created" });
@@ -174,7 +168,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
     }
   };
 
-  const hasFile = file || uploadedFileUrl || uploadedStorageId;
+  const hasFile = file || uploadedStorageId;
 
   return (
     <AdminSheet
@@ -185,7 +179,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       onSubmit={handleSubmit}
       submitLabel={isEdit ? "Save Changes" : "Add Note"}
       isSubmitting={isSubmitting || isUploading}
-      submitDisabled={!title.trim() || !subject || !topic || (!hasFile && !isEdit)}
+      submitDisabled={!title.trim() || !subject || !topic || !hasFile}
       wide
     >
       <div className="space-y-4">
@@ -262,8 +256,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
                 type="button"
                 onClick={() => {
                   setFile(null);
-                  setUploadedStorageId(null);
-                  if (!isEdit) setUploadedFileUrl(null);
+                  setUploadedStorageId(isEdit ? note?.storageId ?? null : null);
                 }}
                 aria-label="Remove file"
                 className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"

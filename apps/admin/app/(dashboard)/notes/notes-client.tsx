@@ -21,8 +21,8 @@ interface Note {
   description: string;
   subject: string;
   topic: string;
-  fileUrl: string;
-  storageId?: string;
+  storageId: string;
+  fileUrl: string | null;
   batchIds?: string[];
   createdAt: number;
 }
@@ -116,7 +116,7 @@ export function NotesClient() {
       {
         label: "View File",
         icon: <ExternalLink className="h-4 w-4" />,
-        onClick: () => window.open(note.fileUrl, "_blank"),
+        onClick: () => { if (note.fileUrl) window.open(note.fileUrl, "_blank"); },
       },
       {
         label: "Edit",

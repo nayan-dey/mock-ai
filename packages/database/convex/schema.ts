@@ -162,7 +162,7 @@ export default defineSchema({
     description: v.string(),
     subject: v.string(),
     topic: v.string(),
-    fileUrl: v.string(),
+    fileUrl: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
     organizationId: v.id("organizations"),
