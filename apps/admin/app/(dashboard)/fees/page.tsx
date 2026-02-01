@@ -47,7 +47,7 @@ import {
 import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
 import { ExportDropdown } from "@/components/export-dropdown";
 import {
   exportToExcel,
@@ -153,10 +153,7 @@ export default function FeesPage() {
     api.users.getByClerkId,
     clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
   );
-  const organization = useQuery(
-    api.organizations.getByAdminClerkId,
-    clerkUser?.id ? { adminClerkId: clerkUser.id } : "skip"
-  );
+  const organization = useQuery(api.organizations.getMyOrg);
 
   const allFees = useQuery(api.fees.getAll);
   const markAsPaid = useMutation(api.fees.markAsPaid);
@@ -317,7 +314,7 @@ export default function FeesPage() {
   };
 
   const handleExportPdf = () => {
-    exportToPdf(filteredFees, feeExportColumns, "Fees", "Fee Records", organization?.name);
+    exportToPdf(filteredFees, feeExportColumns, "Fees", "Fee Records", organization?.name, organization?.resolvedLogoUrl);
     toast({ title: "Exported to PDF" });
   };
 
@@ -550,7 +547,7 @@ export default function FeesPage() {
       },
     },
     createActionsColumn<GroupedFeeRow>((fee) => {
-      const actions = [
+      const actions: ActionMenuItem[] = [
         {
           label: "View Details",
           icon: <Eye className="h-4 w-4" />,

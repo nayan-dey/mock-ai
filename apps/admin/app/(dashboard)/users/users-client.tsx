@@ -51,10 +51,7 @@ export function UsersClient() {
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});
   const allFees = useQuery(api.fees.getAll);
-  const organization = useQuery(
-    api.organizations.getByAdminClerkId,
-    clerkUser?.id ? { adminClerkId: clerkUser.id } : "skip"
-  );
+  const organization = useQuery(api.organizations.getMyOrg);
 
   // Build per-student fee counts
   const feeCountMap = useMemo(() => {
@@ -149,7 +146,7 @@ export function UsersClient() {
   };
 
   const handleExportPdf = () => {
-    exportToPdf(filteredUsers, userExportColumns, "Users", "Users", organization?.name);
+    exportToPdf(filteredUsers, userExportColumns, "Users", "Users", organization?.name, organization?.resolvedLogoUrl);
   };
 
   const facetedFilters: FacetedFilterConfig[] = [

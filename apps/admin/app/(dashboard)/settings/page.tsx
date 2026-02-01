@@ -112,6 +112,11 @@ export default function OrgSettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
+         {readOnly && (
+          <p className="text-center text-sm text-muted-foreground">
+            Only the super admin can edit organization settings.
+          </p>
+        )}
         {/* Logo */}
         <Card>
           <CardHeader className="pb-3">
@@ -239,11 +244,7 @@ export default function OrgSettingsPage() {
           </Button>
         )}
 
-        {readOnly && (
-          <p className="text-center text-sm text-muted-foreground">
-            Only the super admin can edit organization settings.
-          </p>
-        )}
+       
       </form>
     </div>
   );

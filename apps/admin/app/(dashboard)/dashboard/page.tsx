@@ -74,10 +74,7 @@ export default function DashboardPage() {
   );
 
   // Data for full org export
-  const organization = useQuery(
-    api.organizations.getByAdminClerkId,
-    user?.id ? { adminClerkId: user.id } : "skip"
-  );
+  const organization = useQuery(api.organizations.getMyOrg);
   const allUsers = useQuery(api.users.list, {});
   const allFees = useQuery(api.fees.getAll);
   const allBatches = useQuery(api.batches.list, {});
@@ -207,7 +204,8 @@ export default function DashboardPage() {
       ],
       "OrgData",
       "Organization Data Export",
-      organization?.name
+      organization?.name,
+      organization?.resolvedLogoUrl
     );
   };
 
