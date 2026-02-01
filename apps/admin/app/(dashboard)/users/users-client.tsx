@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
 import {
@@ -17,6 +18,12 @@ import {
 } from "@repo/ui";
 import { Eye, Users } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
 import { useUrlState } from "@/hooks/use-url-state";
 
@@ -35,6 +42,7 @@ interface UserData {
 }
 
 export function UsersClient() {
+  const { user: clerkUser } = useUser();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
   const [joinedFilter, setJoinedFilter] = useUrlState("joined", "all");
@@ -43,6 +51,10 @@ export function UsersClient() {
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});
   const allFees = useQuery(api.fees.getAll);
+  const organization = useQuery(
+    api.organizations.getByAdminClerkId,
+    clerkUser?.id ? { adminClerkId: clerkUser.id } : "skip"
+  );
 
   // Build per-student fee counts
   const feeCountMap = useMemo(() => {
@@ -120,6 +132,25 @@ export function UsersClient() {
 
     return result;
   }, [enrichedUsers, batchFilter, joinedFilter, feeFilter]);
+
+  // Export columns & handlers
+  const userExportColumns: ExportColumn[] = [
+    { header: "Name", key: "name" },
+    { header: "Email", key: "email" },
+    { header: "Role", key: "role", format: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
+    { header: "Batch", key: "batchName", format: (v) => v || "—" },
+    { header: "Fees Paid", key: "feesPaid", format: (v) => String(v) },
+    { header: "Fees Due", key: "feesDue", format: (v) => String(v) },
+    { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+  ];
+
+  const handleExportExcel = () => {
+    exportToExcel(filteredUsers, userExportColumns, "Users", "Users");
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(filteredUsers, userExportColumns, "Users", "Users", organization?.name);
+  };
 
   const facetedFilters: FacetedFilterConfig[] = [
     {
@@ -279,6 +310,11 @@ export function UsersClient() {
                 <SelectItem value="paid">All Paid</SelectItem>
               </SelectContent>
             </Select>
+            <ExportDropdown
+              onExportExcel={handleExportExcel}
+              onExportPdf={handleExportPdf}
+              disabled={filteredUsers.length === 0}
+            />
           </>
         }
       />

@@ -46,6 +46,12 @@ import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 
 const MONTH_NAMES = [
   "January",
@@ -136,6 +142,10 @@ export default function FeesPage() {
   const currentAdmin = useQuery(
     api.users.getByClerkId,
     clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
+  );
+  const organization = useQuery(
+    api.organizations.getByAdminClerkId,
+    clerkUser?.id ? { adminClerkId: clerkUser.id } : "skip"
   );
 
   const allFees = useQuery(api.fees.getAll);
@@ -242,6 +252,29 @@ export default function FeesPage() {
       });
     }
     setDeleteFeeId(null);
+  };
+
+  // Export columns & handlers
+  const feeExportColumns: ExportColumn[] = [
+    { header: "Student Name", key: "studentName" },
+    { header: "Email", key: "studentEmail" },
+    { header: "Batch", key: "batchName" },
+    { header: "Month", key: "dueMonth" },
+    { header: "Description", key: "description", format: (v) => v || "Fee Payment" },
+    { header: "Amount", key: "amount", format: (v) => `₹${Number(v).toLocaleString("en-IN")}` },
+    { header: "Due Date", key: "dueDate", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+    { header: "Status", key: "status", format: (v) => (v === "paid" ? "Paid" : "Due") },
+    { header: "Paid Date", key: "paidDate", format: (v) => (v ? new Date(v).toLocaleDateString("en-IN") : "—") },
+  ];
+
+  const handleExportExcel = () => {
+    exportToExcel(filteredFees, feeExportColumns, "Fees", "Fees");
+    toast({ title: "Exported to Excel" });
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(filteredFees, feeExportColumns, "Fees", "Fee Records", organization?.name);
+    toast({ title: "Exported to PDF" });
   };
 
   // Toggle helpers for multi-select
@@ -595,6 +628,12 @@ export default function FeesPage() {
                 Clear all
               </Button>
             )}
+
+            <ExportDropdown
+              onExportExcel={handleExportExcel}
+              onExportPdf={handleExportPdf}
+              disabled={filteredFees.length === 0}
+            />
           </>
         }
       />

@@ -38,6 +38,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useUrlState } from "@/hooks/use-url-state";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportMultiSheetExcel,
+  exportMultiSectionPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 
 interface LeaderboardEntry {
   userId: string;
@@ -67,6 +73,15 @@ export default function DashboardPage() {
     selectedTestId ? { testId: selectedTestId as any } : "skip"
   );
 
+  // Data for full org export
+  const organization = useQuery(
+    api.organizations.getByAdminClerkId,
+    user?.id ? { adminClerkId: user.id } : "skip"
+  );
+  const allUsers = useQuery(api.users.list, {});
+  const allFees = useQuery(api.fees.getAll);
+  const allBatches = useQuery(api.batches.list, {});
+
   const seedDatabase = useMutation(api.seed.seedDatabase);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
@@ -91,6 +106,109 @@ export default function DashboardPage() {
     } finally {
       setIsSeeding(false);
     }
+  };
+
+  // ─── Full Org Export ──────────────────────────────────────────────────────
+  const orgExportReady = !!allUsers && !!allFees && !!allBatches && !!tests;
+
+  const handleOrgExportExcel = () => {
+    if (!allUsers || !allFees || !allBatches || !tests) return;
+    exportMultiSheetExcel(
+      [
+        {
+          name: "Users",
+          data: allUsers,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Email", key: "email" },
+            { header: "Role", key: "role" },
+            { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+          ],
+        },
+        {
+          name: "Fees",
+          data: allFees,
+          columns: [
+            { header: "Student", key: "studentName" },
+            { header: "Email", key: "studentEmail" },
+            { header: "Amount", key: "amount", format: (v) => `₹${Number(v).toLocaleString("en-IN")}` },
+            { header: "Status", key: "status", format: (v) => (v === "paid" ? "Paid" : "Due") },
+            { header: "Due Date", key: "dueDate", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+            { header: "Paid Date", key: "paidDate", format: (v) => (v ? new Date(v).toLocaleDateString("en-IN") : "—") },
+          ],
+        },
+        {
+          name: "Batches",
+          data: allBatches,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Description", key: "description", format: (v) => v || "" },
+            { header: "Active", key: "isActive", format: (v) => (v ? "Yes" : "No") },
+          ],
+        },
+        {
+          name: "Tests",
+          data: tests,
+          columns: [
+            { header: "Title", key: "title" },
+            { header: "Status", key: "status" },
+            { header: "Duration (min)", key: "duration", format: (v) => String(Math.round(v / 60)) },
+            { header: "Total Marks", key: "totalMarks", format: (v) => String(v) },
+          ],
+        },
+      ],
+      "OrgData"
+    );
+  };
+
+  const handleOrgExportPdf = () => {
+    if (!allUsers || !allFees || !allBatches || !tests) return;
+    exportMultiSectionPdf(
+      [
+        {
+          title: "Users",
+          data: allUsers,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Email", key: "email" },
+            { header: "Role", key: "role" },
+            { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+          ],
+        },
+        {
+          title: "Fees",
+          data: allFees,
+          columns: [
+            { header: "Student", key: "studentName" },
+            { header: "Amount", key: "amount", format: (v) => `₹${Number(v).toLocaleString("en-IN")}` },
+            { header: "Status", key: "status", format: (v) => (v === "paid" ? "Paid" : "Due") },
+            { header: "Due Date", key: "dueDate", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+          ],
+        },
+        {
+          title: "Batches",
+          data: allBatches,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Description", key: "description", format: (v) => v || "" },
+            { header: "Active", key: "isActive", format: (v) => (v ? "Yes" : "No") },
+          ],
+        },
+        {
+          title: "Tests",
+          data: tests,
+          columns: [
+            { header: "Title", key: "title" },
+            { header: "Status", key: "status" },
+            { header: "Duration (min)", key: "duration", format: (v) => String(Math.round(v / 60)) },
+            { header: "Total Marks", key: "totalMarks", format: (v) => String(v) },
+          ],
+        },
+      ],
+      "OrgData",
+      "Organization Data Export",
+      organization?.name
+    );
   };
 
   const leaderboardColumns: ColumnDef<LeaderboardEntry>[] = [
@@ -227,11 +345,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your test platform
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Overview of your test platform
+          </p>
+        </div>
+        <ExportDropdown
+          onExportExcel={handleOrgExportExcel}
+          onExportPdf={handleOrgExportPdf}
+          disabled={!orgExportReady}
+        />
       </div>
 
       {/* Seed Database Card - Show when empty (dev only) */}
