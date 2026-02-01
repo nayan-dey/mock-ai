@@ -71,7 +71,7 @@ export default function BatchesPage() {
       accessorKey: "description",
       header: "Description",
       cell: ({ row }) => (
-        <span className="text-muted-foreground line-clamp-1">
+        <span className="text-muted-foreground truncate block max-w-[200px]">
           {row.getValue("description") || "—"}
         </span>
       ),

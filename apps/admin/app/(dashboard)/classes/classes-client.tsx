@@ -99,14 +99,14 @@ export function ClassesClient() {
           return <span className="text-xs text-muted-foreground">All Batches</span>;
         }
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex gap-1">
             {ids.slice(0, 2).map((id) => (
-              <Badge key={id} variant="secondary" className="text-xs">
+              <Badge key={id} variant="secondary" className="text-xs truncate max-w-[100px]">
                 {batchMap.get(id) || "..."}
               </Badge>
             ))}
             {ids.length > 2 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs shrink-0">
                 +{ids.length - 2}
               </Badge>
             )}

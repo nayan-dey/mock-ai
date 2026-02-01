@@ -78,7 +78,7 @@ export function QuestionsClient() {
       accessorKey: "text",
       header: ({ column }) => <SortableHeader column={column} title="Question" />,
       cell: ({ row }) => (
-        <p className="line-clamp-2 max-w-md font-medium">{row.getValue("text")}</p>
+        <p className="truncate max-w-[250px] font-medium">{row.getValue("text")}</p>
       ),
     },
     {

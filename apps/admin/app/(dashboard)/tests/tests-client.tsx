@@ -147,7 +147,7 @@ export function TestsClient() {
       accessorKey: "title",
       header: ({ column }) => <SortableHeader column={column} title="Title" />,
       cell: ({ row }) => (
-        <span className="font-medium">{row.getValue("title")}</span>
+        <span className="font-medium truncate block max-w-[200px]">{row.getValue("title")}</span>
       ),
     },
     {
@@ -175,12 +175,12 @@ export function TestsClient() {
       accessorKey: "status",
       header: ({ column }) => <SortableHeader column={column} title="Status" />,
       cell: ({ row }) => (
-        <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1.5">
           {getStatusBadge(row.getValue("status"))}
           {row.original.status !== "draft" && (
             <Badge
               variant={row.original.answerKeyPublished ? "success" : "outline"}
-              className="text-[10px] w-fit"
+              className="text-[10px] shrink-0"
             >
               {row.original.answerKeyPublished ? "Key Published" : "Key Hidden"}
             </Badge>
@@ -200,14 +200,14 @@ export function TestsClient() {
           return <span className="text-xs text-muted-foreground">All</span>;
         }
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex gap-1">
             {ids.slice(0, 2).map((id) => (
-              <Badge key={id} variant="secondary" className="text-xs">
+              <Badge key={id} variant="secondary" className="text-xs truncate max-w-[100px]">
                 {batchMap.get(id) || "..."}
               </Badge>
             ))}
             {ids.length > 2 && (
-              <Badge variant="secondary" className="text-xs">+{ids.length - 2}</Badge>
+              <Badge variant="secondary" className="text-xs shrink-0">+{ids.length - 2}</Badge>
             )}
           </div>
         );
@@ -328,7 +328,7 @@ export function TestsClient() {
       toolbarExtra={
         <>
           <Select value={batchFilter} onValueChange={setBatchFilter}>
-            <SelectTrigger className="h-8 w-[160px]">
+            <SelectTrigger className="h-8 w-[160px] shrink-0">
               <SelectValue placeholder="All Batches" />
             </SelectTrigger>
             <SelectContent>
@@ -339,7 +339,7 @@ export function TestsClient() {
             </SelectContent>
           </Select>
           <Select value={durationFilter} onValueChange={setDurationFilter}>
-            <SelectTrigger className="h-8 w-[140px]">
+            <SelectTrigger className="h-8 w-[140px] shrink-0">
               <SelectValue placeholder="All Durations" />
             </SelectTrigger>
             <SelectContent>

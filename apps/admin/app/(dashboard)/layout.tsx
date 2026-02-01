@@ -42,7 +42,7 @@ export default function DashboardLayout({
 
       {/* Desktop layout */}
       <SidebarProvider>
-        <div className="hidden md:contents">
+        <div className="hidden md:flex md:h-svh md:w-full">
           <AppSidebar />
           <div className="flex flex-1 flex-col overflow-hidden">
             <Header />

@@ -20,7 +20,7 @@ export default function AskAIPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -28,7 +28,7 @@ export default function AskAIPage() {
 
   if (!convexUser) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] flex-col items-center justify-center p-4">
+      <div className="flex h-full flex-col items-center justify-center p-4">
         <p className="text-muted-foreground">Unable to load user data</p>
         <Link href="/dashboard">
           <Button variant="outline" className="mt-4">
@@ -41,7 +41,7 @@ export default function AskAIPage() {
 
   return (
     <ChatProvider userId={convexUser._id}>
-      <div className="h-[calc(100vh-4rem)]">
+      <div className="h-full">
         <ChatThread />
       </div>
     </ChatProvider>

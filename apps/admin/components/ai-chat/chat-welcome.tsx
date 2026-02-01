@@ -1,6 +1,6 @@
 "use client";
 
-import { BotMessageSquare } from "lucide-react";
+import { NindoLogo } from "./nindo-logo";
 import { useChatContext } from "./chat-provider";
 
 export function ChatWelcome() {
@@ -19,7 +19,7 @@ export function ChatWelcome() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6">
       <div className="mb-3">
-        <BotMessageSquare className="h-12 w-12 text-primary" strokeWidth={1.5} />
+        <NindoLogo className="h-12 w-12 text-primary" />
       </div>
 
       <h2 className="mb-6 text-lg font-serif font-medium text-foreground">

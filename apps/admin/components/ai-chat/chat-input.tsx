@@ -18,7 +18,7 @@ export function ChatInput() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4">
+    <form onSubmit={handleSubmit} className="sticky bottom-0 bg-background p-4">
       <div className="mx-auto max-w-2xl">
         <div className="flex items-end gap-2 rounded-3xl bg-background border p-2 shadow-sm">
           <input

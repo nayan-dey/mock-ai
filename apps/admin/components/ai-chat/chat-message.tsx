@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { NindoLogo } from "./nindo-logo";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -27,7 +27,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
     <div className="px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-          <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.5} />
+          <NindoLogo className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] leading-relaxed text-foreground">

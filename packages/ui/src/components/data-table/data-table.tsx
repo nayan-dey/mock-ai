@@ -88,7 +88,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-md border">
       {/* Toolbar */}
       <DataTableToolbar
         table={table}
@@ -100,7 +100,7 @@ export function DataTable<TData, TValue>({
       />
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="overflow-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -154,10 +154,12 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination */}
       {showPagination && data.length > pageSize && (
-        <DataTablePagination
-          table={table}
-          pageSizeOptions={pageSizeOptions}
-        />
+        <div className="border-t p-2">
+          <DataTablePagination
+            table={table}
+            pageSizeOptions={pageSizeOptions}
+          />
+        </div>
       )}
     </div>
   );

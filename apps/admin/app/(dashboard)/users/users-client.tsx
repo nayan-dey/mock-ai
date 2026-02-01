@@ -101,9 +101,9 @@ export function UsersClient() {
       header: ({ column }) => <SortableHeader column={column} title="Name" />,
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <span className="font-medium">{row.getValue("name")}</span>
+          <span className="font-medium truncate max-w-[150px]">{row.getValue("name")}</span>
           {row.original.isSuspended && (
-            <Badge variant="destructive" className="text-[10px]">
+            <Badge variant="destructive" className="text-[10px] shrink-0">
               Suspended
             </Badge>
           )}
@@ -114,7 +114,7 @@ export function UsersClient() {
       accessorKey: "email",
       header: ({ column }) => <SortableHeader column={column} title="Email" />,
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.getValue("email")}</span>
+        <span className="text-sm text-muted-foreground truncate block max-w-[180px]">{row.getValue("email")}</span>
       ),
     },
     {
@@ -192,7 +192,7 @@ export function UsersClient() {
         toolbarExtra={
           <>
             <Select value={batchFilter} onValueChange={setBatchFilter}>
-              <SelectTrigger className="h-8 w-[160px]">
+              <SelectTrigger className="h-8 w-[160px] shrink-0">
                 <SelectValue placeholder="All Batches" />
               </SelectTrigger>
               <SelectContent>
@@ -204,7 +204,7 @@ export function UsersClient() {
               </SelectContent>
             </Select>
             <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-              <SelectTrigger className="h-8 w-[140px]">
+              <SelectTrigger className="h-8 w-[140px] shrink-0">
                 <SelectValue placeholder="All Time" />
               </SelectTrigger>
               <SelectContent>
