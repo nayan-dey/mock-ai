@@ -10,11 +10,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
   Button,
   Badge,
   Skeleton,
-  DataTable,
   SortableHeader,
   type ColumnDef,
   useToast,
@@ -28,7 +26,6 @@ import {
 } from "@repo/ui";
 import {
   IndianRupee,
-  MoreHorizontal,
   Eye,
   CheckCircle,
   Trash2,
@@ -40,6 +37,7 @@ import {
 import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { AdminTable, createActionsColumn } from "@/components/admin-table";
 
 const MONTH_NAMES = [
   "January",
@@ -147,7 +145,6 @@ export default function FeesPage() {
     const months = [
       ...new Set(enrichedFees.map((f) => f.dueMonth)),
     ].sort((a, b) => {
-      // Sort chronologically: parse "Month Year" back to date
       const parse = (s: string) => {
         const [month, year] = s.split(" ");
         return new Date(`${month} 1, ${year}`).getTime();
@@ -244,7 +241,7 @@ export default function FeesPage() {
     setter(next);
   };
 
-  const columns: ColumnDef<FeeRow>[] = [
+  const columns: ColumnDef<FeeRow, any>[] = [
     {
       accessorKey: "studentName",
       header: ({ column }) => (
@@ -347,151 +344,61 @@ export default function FeesPage() {
         );
       },
     },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const fee = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Fee actions">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() =>
-                  setSelectedStudent({
-                    id: fee.studentId,
-                    name: fee.studentName,
-                  })
-                }
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View Details
-              </DropdownMenuItem>
-              {fee.status === "due" && (
-                <DropdownMenuItem
-                  onClick={() => handleMarkAsPaid(fee._id)}
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Mark as Paid
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => setDeleteFeeId(fee._id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
+    createActionsColumn<FeeRow>((fee) => {
+      const actions = [
+        {
+          label: "View Details",
+          icon: <Eye className="h-4 w-4" />,
+          onClick: () =>
+            setSelectedStudent({
+              id: fee.studentId,
+              name: fee.studentName,
+            }),
+        },
+      ];
+
+      if (fee.status === "due") {
+        actions.push({
+          label: "Mark as Paid",
+          icon: <CheckCircle className="h-4 w-4" />,
+          onClick: () => handleMarkAsPaid(fee._id),
+        });
+      }
+
+      actions.push({
+        label: "Delete",
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => setDeleteFeeId(fee._id),
+        variant: "destructive" as const,
+        separator: true,
+      });
+
+      return actions;
+    }),
   ];
 
-  if (allFees === undefined) {
-    return (
-      <div className="space-y-4 p-4 md:p-6">
-        <div className="space-y-1">
-          <Skeleton className="h-7 w-32" />
-          <Skeleton className="h-4 w-48" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-7 w-16" />
-                <Skeleton className="mt-1 h-3 w-32" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Fees</h1>
-        <p className="text-muted-foreground">
-          Manage student fee records across all batches
-        </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              Fee entries across all batches
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Due</CardTitle>
-            <AlertCircle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-destructive">{stats.due}</div>
-            <p className="text-xs text-muted-foreground">
-              &#8377;{stats.dueAmount.toLocaleString("en-IN")} outstanding
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid</CardTitle>
-            <CircleCheck className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-emerald-600">{stats.paid}</div>
-            <p className="text-xs text-muted-foreground">
-              &#8377;{stats.paidAmount.toLocaleString("en-IN")} collected
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm font-medium">All Fee Records</CardTitle>
-              <CardDescription className="text-xs">
-                {filteredFees.length}
-                {filteredFees.length !== allFees.length &&
-                  ` of ${allFees.length}`}{" "}
-                record{filteredFees.length !== 1 ? "s" : ""} across all
-                students
-              </CardDescription>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="flex items-center gap-2 overflow-x-auto pt-2">
+    <>
+      <AdminTable<FeeRow>
+        columns={columns}
+        data={filteredFees}
+        isLoading={allFees === undefined}
+        searchKey="studentName"
+        searchPlaceholder="Search by student name..."
+        title="Fees"
+        description="Manage student fee records across all batches"
+        pageSize={10}
+        emptyIcon={<IndianRupee className="h-6 w-6 text-muted-foreground" />}
+        emptyTitle="No fee records yet"
+        emptyDescription="Add fee records from individual student pages"
+        rowClassName={(row: FeeRow) =>
+          row.status === "due"
+            ? "bg-destructive/5 hover:bg-destructive/10"
+            : ""
+        }
+      
+        toolbarExtra={
+          <>
             {/* Batch Filter */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -667,35 +574,9 @@ export default function FeesPage() {
                 Clear all
               </Button>
             )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {allFees.length > 0 ? (
-            <DataTable
-              columns={columns}
-              data={filteredFees}
-              searchKey="studentName"
-              searchPlaceholder="Search by student name..."
-              showPagination
-              pageSize={10}
-              emptyMessage="No fee records found."
-              rowClassName={(row: FeeRow) =>
-                row.status === "due"
-                  ? "bg-destructive/5 hover:bg-destructive/10"
-                  : ""
-              }
-            />
-          ) : (
-            <div className="py-12 text-center">
-              <IndianRupee className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mb-2 font-medium">No fee records yet</h3>
-              <p className="text-sm text-muted-foreground">
-                Add fee records from individual student pages
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
 
       {/* User Detail Sheet */}
       <UserDetailSheet
@@ -714,6 +595,6 @@ export default function FeesPage() {
         confirmLabel="Delete"
         onConfirm={() => { if (deleteFeeId) return handleDelete(deleteFeeId); }}
       />
-    </div>
+    </>
   );
 }

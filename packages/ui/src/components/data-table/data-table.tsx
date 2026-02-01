@@ -40,6 +40,7 @@ interface DataTableProps<TData, TValue> {
   rowClassName?: (row: TData) => string;
   facetedFilters?: FacetedFilterConfig[];
   toolbarExtra?: React.ReactNode;
+  className?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -55,6 +56,7 @@ export function DataTable<TData, TValue>({
   rowClassName,
   facetedFilters,
   toolbarExtra,
+  className,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -88,7 +90,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="rounded-md border">
+    <div className={`rounded-md border flex flex-col ${className ?? ""}`}>
       {/* Toolbar */}
       <DataTableToolbar
         table={table}
@@ -100,7 +102,7 @@ export function DataTable<TData, TValue>({
       />
 
       {/* Table */}
-      <div className="overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -153,7 +155,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination */}
-      {showPagination && data.length > pageSize && (
+      {showPagination && (
         <div className="border-t p-2">
           <DataTablePagination
             table={table}

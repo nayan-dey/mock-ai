@@ -177,7 +177,7 @@ export function UsersClient() {
         emptyIcon={<Users className="h-6 w-6 text-muted-foreground" />}
         emptyTitle="No users yet"
         emptyDescription="Users will appear here when they sign up"
-        facetedFilters={facetedFilters}
+        // facetedFilters={facetedFilters}
         headerExtra={
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <span><strong className="text-foreground">{enrichedUsers.length}</strong> total</span>
