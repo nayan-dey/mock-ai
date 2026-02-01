@@ -8,7 +8,6 @@ import {
   FileText,
   BookOpen,
   Video,
-  BarChart3,
   Shield,
   UserPlus,
   Database,
@@ -61,7 +60,6 @@ export const sidebarData: NavGroup[] = [
   {
     title: "System",
     items: [
-      { title: "Analytics", url: "/analytics", icon: BarChart3 },
       { title: "Admins", url: "/admins", icon: Shield },
       { title: "Join Requests", url: "/requests", icon: UserPlus },
       { title: "Seed Data", url: "/seed", icon: Database },

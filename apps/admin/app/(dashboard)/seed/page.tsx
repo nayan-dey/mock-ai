@@ -24,6 +24,14 @@ import { Database, Users, Play, CheckCircle, Loader2, AlertCircle, Trash2 } from
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export default function SeedPage() {
+  if (process.env.NODE_ENV === "production") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-8">
+        <p className="text-muted-foreground">This page is only available in development.</p>
+      </div>
+    );
+  }
+
   const { user } = useUser();
   const [loading, setLoading] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, any>>({});
