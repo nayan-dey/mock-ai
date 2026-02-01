@@ -3,6 +3,22 @@ import { query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireAuth, requireAdmin, getOrgId } from "./lib/auth";
 
+// Filter to keep only the first submitted attempt per user per test.
+// "First" = earliest startedAt.
+function keepFirstAttempts<T extends { userId: any; testId: any; startedAt: number }>(
+  attempts: T[]
+): T[] {
+  const firstMap = new Map<string, T>();
+  for (const attempt of attempts) {
+    const key = `${attempt.userId}:${attempt.testId}`;
+    const existing = firstMap.get(key);
+    if (!existing || attempt.startedAt < existing.startedAt) {
+      firstMap.set(key, attempt);
+    }
+  }
+  return Array.from(firstMap.values());
+}
+
 // Tier calculation helper
 function calculateTier(testsCompleted: number, avgAccuracy: number, isTopTen: boolean) {
   if (testsCompleted >= 100 && avgAccuracy > 85 && isTopTen) {
@@ -46,8 +62,18 @@ export const getStudentAnalytics = query({
     const allTests = await Promise.all(
       allAttempts.map((attempt) => ctx.db.get(attempt.testId))
     );
-    const attempts = allAttempts.filter((_, i) => allTests[i]?.answerKeyPublished === true);
-    const tests = allTests.filter((t) => t?.answerKeyPublished === true);
+    const publishedAttempts = allAttempts.filter((_, i) => allTests[i]?.answerKeyPublished === true);
+
+    // Only count first attempt per test
+    const attempts = keepFirstAttempts(publishedAttempts);
+
+    // Build a test lookup map for the filtered attempts
+    const testMap = new Map<string, NonNullable<(typeof allTests)[number]>>();
+    for (let i = 0; i < allAttempts.length; i++) {
+      const t = allTests[i];
+      if (t) testMap.set(allAttempts[i].testId as string, t);
+    }
+    const tests = attempts.map((a) => testMap.get(a.testId as string) ?? null);
 
     if (attempts.length === 0) {
       return {
@@ -135,11 +161,14 @@ export const getTestAnalytics = query({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    const attempts = await ctx.db
+    const allTestAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Only count first attempt per user for this test
+    const attempts = keepFirstAttempts(allTestAttempts);
 
     if (attempts.length === 0) {
       return {
@@ -229,11 +258,14 @@ export const getLeaderboard = query({
     const test = await ctx.db.get(args.testId);
     if (!test || !test.answerKeyPublished) return [];
 
-    const attempts = await ctx.db
+    const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Only count each student's first attempt for leaderboard
+    const attempts = keepFirstAttempts(allAttempts);
 
     const leaderboard = await Promise.all(
       attempts
@@ -268,12 +300,17 @@ export const getStudentPerformanceTrend = query({
     }
 
     const limit = args.limit || 10;
-    const allAttempts = await ctx.db
+    const rawAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .order("desc")
       .collect();
+
+    // Only count first attempt per test
+    const allAttempts = keepFirstAttempts(rawAttempts).sort(
+      (a, b) => b.startedAt - a.startedAt
+    );
 
     // Filter to only published answer key attempts, then take limit
     const trend: { testTitle: string; score: number; accuracy: number; submittedAt: number | null; date: string }[] = [];
@@ -387,7 +424,7 @@ export const getGlobalLeaderboard = query({
 
     // Filter to only include attempts for tests with published answer keys
     const testCache = new Map<string, boolean>();
-    const attempts: typeof orgAttempts = [];
+    const publishedAttempts: typeof orgAttempts = [];
     for (const attempt of orgAttempts) {
       const tid = attempt.testId as string;
       if (!testCache.has(tid)) {
@@ -395,9 +432,12 @@ export const getGlobalLeaderboard = query({
         testCache.set(tid, t?.answerKeyPublished === true);
       }
       if (testCache.get(tid)) {
-        attempts.push(attempt);
+        publishedAttempts.push(attempt);
       }
     }
+
+    // Only count each student's first attempt per test for leaderboard
+    const attempts = keepFirstAttempts(publishedAttempts);
 
     const userStats: Record<
       string,
@@ -511,7 +551,7 @@ export const getBatchLeaderboard = query({
 
     // Filter to only include attempts for tests with published answer keys
     const testCache = new Map<string, boolean>();
-    const batchAttempts: typeof batchRawAttempts = [];
+    const publishedBatchAttempts: typeof batchRawAttempts = [];
     for (const attempt of batchRawAttempts) {
       const tid = attempt.testId as string;
       if (!testCache.has(tid)) {
@@ -519,9 +559,12 @@ export const getBatchLeaderboard = query({
         testCache.set(tid, t?.answerKeyPublished === true);
       }
       if (testCache.get(tid)) {
-        batchAttempts.push(attempt);
+        publishedBatchAttempts.push(attempt);
       }
     }
+
+    // Only count each student's first attempt per test for leaderboard
+    const batchAttempts = keepFirstAttempts(publishedBatchAttempts);
 
     const userStats: Record<
       string,
@@ -612,11 +655,14 @@ export const getUserTestRank = query({
       return { rank: null, totalParticipants: 0 };
     }
 
-    const attempts = await ctx.db
+    const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Only count each student's first attempt
+    const attempts = keepFirstAttempts(allAttempts);
 
     const sorted = attempts.sort((a, b) => b.score - a.score);
     const userIndex = sorted.findIndex((a) => a.userId === args.userId);
@@ -658,7 +704,10 @@ export const getAdminDashboard = query({
       .query("attempts")
       .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
-    const attempts = allAttempts.filter((a) => testIds.has(a.testId as string));
+    const orgAttempts = allAttempts.filter((a) => testIds.has(a.testId as string));
+
+    // Only count first attempt per user per test
+    const attempts = keepFirstAttempts(orgAttempts);
 
     return {
       totalStudents: students.length,
@@ -695,7 +744,7 @@ export const getActivityHeatmapData = query({
 
     // Filter to only include attempts for tests with published answer keys
     const testCache = new Map<string, boolean>();
-    const attempts: typeof rawAttempts = [];
+    const publishedAttempts: typeof rawAttempts = [];
     for (const attempt of rawAttempts) {
       const tid = attempt.testId as string;
       if (!testCache.has(tid)) {
@@ -703,9 +752,12 @@ export const getActivityHeatmapData = query({
         testCache.set(tid, t?.answerKeyPublished === true);
       }
       if (testCache.get(tid)) {
-        attempts.push(attempt);
+        publishedAttempts.push(attempt);
       }
     }
+
+    // Only count first attempt per test
+    const attempts = keepFirstAttempts(publishedAttempts);
 
     const activityMap: Record<string, { count: number; totalScore: number }> = {};
 
@@ -755,7 +807,7 @@ export const getPublicStudentAnalytics = query({
 
     // Filter to only published answer key attempts
     const userTestCache = new Map<string, boolean>();
-    const attempts: typeof rawAttempts = [];
+    const publishedUserAttempts: typeof rawAttempts = [];
     for (const attempt of rawAttempts) {
       const tid = attempt.testId as string;
       if (!userTestCache.has(tid)) {
@@ -763,9 +815,12 @@ export const getPublicStudentAnalytics = query({
         userTestCache.set(tid, t?.answerKeyPublished === true);
       }
       if (userTestCache.get(tid)) {
-        attempts.push(attempt);
+        publishedUserAttempts.push(attempt);
       }
     }
+
+    // Only count first attempt per test
+    const attempts = keepFirstAttempts(publishedUserAttempts);
 
     const totalCorrect = attempts.reduce((sum, a) => sum + a.correct, 0);
     const totalQuestions = attempts.reduce(
@@ -804,9 +859,12 @@ export const getPublicStudentAnalytics = query({
       }
     }
 
+    // Only count first attempt per test per user for ranking
+    const firstOnlyPublished = keepFirstAttempts(allPublishedAttempts);
+
     const filteredAttempts = orgUserIds
-      ? allPublishedAttempts.filter((a) => orgUserIds!.has(a.userId as string))
-      : allPublishedAttempts;
+      ? firstOnlyPublished.filter((a) => orgUserIds!.has(a.userId as string))
+      : firstOnlyPublished;
 
     const userScores: Record<string, number> = {};
     for (const attempt of filteredAttempts) {
@@ -858,8 +916,16 @@ export const getStudentAchievements = query({
     );
 
     // Filter to only include attempts for tests with published answer keys
-    const attempts = rawAttempts.filter((_, i) => rawTests[i]?.answerKeyPublished === true);
-    const tests = rawTests.filter((t) => t?.answerKeyPublished === true);
+    const publishedAttempts = rawAttempts.filter((_, i) => rawTests[i]?.answerKeyPublished === true);
+
+    // Only count first attempt per test
+    const attempts = keepFirstAttempts(publishedAttempts);
+    const attemptTestMap = new Map<string, NonNullable<(typeof rawTests)[number]>>();
+    for (let i = 0; i < rawAttempts.length; i++) {
+      const t = rawTests[i];
+      if (t) attemptTestMap.set(rawAttempts[i].testId as string, t);
+    }
+    const tests = attempts.map((a) => attemptTestMap.get(a.testId as string) ?? null);
 
     const achievements: { id: string; name: string; icon: string; earnedAt: number }[] = [];
 

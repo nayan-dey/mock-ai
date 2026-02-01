@@ -227,7 +227,6 @@ export const suspendUser = mutation({
     });
 
     // Notify admins about the suspension
-    const orgId = getOrgId(admin);
     await ctx.scheduler.runAfter(
       0,
       internal.notifications.createNotification,

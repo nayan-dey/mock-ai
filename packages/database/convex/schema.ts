@@ -138,6 +138,7 @@ export default defineSchema({
         selected: v.array(v.number()),
       })
     ),
+    questionOrder: v.optional(v.array(v.id("questions"))),
     score: v.number(),
     totalQuestions: v.number(),
     correct: v.number(),

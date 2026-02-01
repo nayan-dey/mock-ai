@@ -1,7 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { requireAdmin, getOrgId } from "./lib/auth";
+import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 // Clear all data from the database
 export const clearAllData = mutation({
@@ -336,7 +336,12 @@ export const seedMockAttempts = mutation({
     count: v.optional(v.number()),
   },
   handler: async (ctx, { userId, count = 10 }) => {
-    await requireAdmin(ctx);
+    const caller = await requireAuth(ctx);
+
+    // Allow admin or the user themselves
+    if (caller.role !== "admin" && caller._id !== userId) {
+      throw new Error("You can only seed attempts for yourself");
+    }
 
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
@@ -478,5 +483,88 @@ export const seedMockStudents = mutation({
     }
 
     return { message: `Created ${count} mock students with attempts in batch "${batch.name}"`, students: createdStudents };
+  },
+});
+
+export const seedFullYearAttempts = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const caller = await requireAuth(ctx);
+
+    const tests = await ctx.db
+      .query("tests")
+      .filter((q) => q.eq(q.field("status"), "published"))
+      .collect();
+
+    if (tests.length === 0) {
+      throw new Error("No published tests found. Run seedDatabase first.");
+    }
+
+    const now = Date.now();
+    const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
+    let totalAttempts = 0;
+    const activeDaysSet = new Set<string>();
+
+    // Spread attempts across the past year (roughly 2-4 per week)
+    const totalDays = 365;
+    for (let day = 0; day < totalDays; day++) {
+      // ~50% chance of activity on any given day
+      if (Math.random() > 0.5) continue;
+
+      const attemptsToday = 1 + Math.floor(Math.random() * 2); // 1-2 attempts per active day
+      const dayTimestamp = oneYearAgo + day * 24 * 60 * 60 * 1000;
+      const dateKey = new Date(dayTimestamp).toISOString().slice(0, 10);
+      activeDaysSet.add(dateKey);
+
+      for (let a = 0; a < attemptsToday; a++) {
+        const test = tests[Math.floor(Math.random() * tests.length)];
+        const questions = test.questions;
+
+        const answers = await Promise.all(
+          questions.map(async (qId) => {
+            const question = await ctx.db.get(qId);
+            const shouldAnswer = Math.random() > 0.1;
+            if (!shouldAnswer) return { questionId: qId, selected: [] as number[] };
+            const isCorrect = Math.random() > 0.35;
+            const selectedOption = isCorrect
+              ? question?.correctOptions[0] ?? 0
+              : Math.floor(Math.random() * 4);
+            return { questionId: qId, selected: [selectedOption] };
+          })
+        );
+
+        let correct = 0, incorrect = 0, unanswered = 0;
+        for (let j = 0; j < answers.length; j++) {
+          const question = await ctx.db.get(questions[j]);
+          if (!question) continue;
+          if (answers[j].selected.length === 0) unanswered++;
+          else if (question.correctOptions.includes(answers[j].selected[0])) correct++;
+          else incorrect++;
+        }
+
+        const marksPerQuestion = test.totalMarks / test.questions.length;
+        const score = Math.max(0, correct * marksPerQuestion - incorrect * test.negativeMarking);
+        const hoursOffset = Math.floor(Math.random() * 12) * 60 * 60 * 1000;
+        const submittedAt = dayTimestamp + hoursOffset;
+
+        await ctx.db.insert("attempts", {
+          testId: test._id,
+          userId: caller._id,
+          answers,
+          score,
+          totalQuestions: questions.length,
+          correct,
+          incorrect,
+          unanswered,
+          startedAt: submittedAt - test.duration * 1000 * Math.random(),
+          submittedAt,
+          status: "submitted",
+        });
+
+        totalAttempts++;
+      }
+    }
+
+    return { totalAttempts, activeDays: activeDaysSet.size };
   },
 });
