@@ -13,6 +13,24 @@ import {
 import { Users, Pencil, Trash2, ToggleRight, Copy } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
+
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  const el = document.createElement("input");
+  el.readOnly = true;
+  el.value = text;
+  el.style.position = "fixed";
+  el.style.left = "-9999px";
+  el.style.opacity = "0";
+  document.body.appendChild(el);
+  el.focus();
+  el.setSelectionRange(0, text.length);
+  document.execCommand("copy");
+  document.body.removeChild(el);
+  return Promise.resolve();
+}
 import { BatchEditSheet } from "./batch-edit-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -112,12 +130,15 @@ export default function BatchesPage() {
           icon: <Copy className="h-4 w-4" />,
           onClick: () => {
             const studentBaseUrl =
-              process.env.NEXT_PUBLIC_STUDENT_APP_URL || "http://localhost:3000";
+              process.env.NEXT_PUBLIC_STUDENT_APP_URL ||
+              (process.env.NODE_ENV === "production"
+                ? "https://www.nindo.biz"
+                : "http://localhost:3000");
             const orgSlug = organization?.slug;
             const url = orgSlug
               ? `${studentBaseUrl}/sign-up?org=${orgSlug}&ref=${batch.referralCode}`
               : `${studentBaseUrl}/sign-up?ref=${batch.referralCode}`;
-            navigator.clipboard.writeText(url);
+            copyToClipboard(url);
             toast({ title: "Referral link copied!", description: url });
           },
         },

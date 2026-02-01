@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAuth, requireAdmin } from "./lib/auth";
 
 export const getByUserAndTest = query({
@@ -333,6 +334,25 @@ export const submit = mutation({
       submittedAt: Date.now(),
       status: "submitted",
     });
+
+    // Notify admin about test submission
+    const studentUser = await ctx.db.get(attempt.userId);
+    if (studentUser?.organizationId) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.notifications.createNotification,
+        {
+          organizationId: studentUser.organizationId,
+          type: "test_submitted",
+          title: "Test Submitted",
+          message: `${studentUser.name} submitted "${test.title}" — Score: ${Math.max(0, score)}/${test.totalMarks}`,
+          referenceId: args.attemptId,
+          referenceType: "attempt",
+          actorId: attempt.userId,
+          actorName: studentUser.name,
+        }
+      );
+    }
 
     return {
       score: Math.max(0, score),

@@ -220,6 +220,40 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkId"])
     .index("by_org_status", ["organizationId", "status"]),
 
+  // Admin notifications
+  notifications: defineTable({
+    organizationId: v.id("organizations"),
+    type: v.union(
+      v.literal("fee_overdue"),
+      v.literal("fee_paid"),
+      v.literal("test_submitted"),
+      v.literal("join_request"),
+      v.literal("student_enrolled"),
+      v.literal("student_suspended"),
+      v.literal("student_unsuspended")
+    ),
+    title: v.string(),
+    message: v.string(),
+    referenceId: v.optional(v.string()),
+    referenceType: v.optional(
+      v.union(
+        v.literal("fee"),
+        v.literal("attempt"),
+        v.literal("joinRequest"),
+        v.literal("user"),
+        v.literal("batch")
+      )
+    ),
+    actorId: v.optional(v.id("users")),
+    actorName: v.optional(v.string()),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_org_read", ["organizationId", "isRead"])
+    .index("by_org_created", ["organizationId", "createdAt"])
+    .index("by_org_type", ["organizationId", "type"]),
+
   // Fee records for students
   fees: defineTable({
     studentId: v.id("users"),

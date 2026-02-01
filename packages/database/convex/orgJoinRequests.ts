@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 export const create = mutation({
@@ -42,7 +43,7 @@ export const create = mutation({
       throw new Error("Organization not found");
     }
 
-    return await ctx.db.insert("orgJoinRequests", {
+    const requestId = await ctx.db.insert("orgJoinRequests", {
       organizationId: args.organizationId,
       clerkId,
       userName: user.name,
@@ -50,6 +51,24 @@ export const create = mutation({
       status: "pending",
       createdAt: Date.now(),
     });
+
+    // Notify admins about the join request
+    await ctx.scheduler.runAfter(
+      0,
+      internal.notifications.createNotification,
+      {
+        organizationId: args.organizationId,
+        type: "join_request",
+        title: "New Join Request",
+        message: `${user.name} (${user.email}) wants to join as an admin`,
+        referenceId: requestId,
+        referenceType: "joinRequest",
+        actorId: user._id,
+        actorName: user.name,
+      }
+    );
+
+    return requestId;
   },
 });
 

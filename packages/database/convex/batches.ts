@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 function generateReferralCode(): string {
@@ -230,6 +231,22 @@ export const joinByReferralCode = mutation({
       batchId: batch._id,
       organizationId: args.organizationId,
     });
+
+    // Notify admins about the new student enrollment
+    await ctx.scheduler.runAfter(
+      0,
+      internal.notifications.createNotification,
+      {
+        organizationId: args.organizationId,
+        type: "student_enrolled",
+        title: "New Student Enrolled",
+        message: `${user.name} joined batch "${batch.name}" via referral code`,
+        referenceId: user._id,
+        referenceType: "user",
+        actorId: user._id,
+        actorName: user.name,
+      }
+    );
 
     return { success: true, batchName: batch.name };
   },

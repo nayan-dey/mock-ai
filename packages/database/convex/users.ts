@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAdmin, requireAuth, getAuthUser, getOrgId } from "./lib/auth";
 
 export const getByClerkId = query({
@@ -225,6 +226,23 @@ export const suspendUser = mutation({
       suspendReason: args.reason,
     });
 
+    // Notify admins about the suspension
+    const orgId = getOrgId(admin);
+    await ctx.scheduler.runAfter(
+      0,
+      internal.notifications.createNotification,
+      {
+        organizationId: orgId,
+        type: "student_suspended",
+        title: "Student Suspended",
+        message: `${user.name} was suspended${args.reason ? `: ${args.reason}` : ""}`,
+        referenceId: args.userId,
+        referenceType: "user",
+        actorId: admin._id,
+        actorName: admin.name,
+      }
+    );
+
     return { success: true };
   },
 });
@@ -255,6 +273,22 @@ export const unsuspendUser = mutation({
       suspendReason: undefined,
       batchId: args.batchId,
     });
+
+    // Notify admins about the unsuspension
+    await ctx.scheduler.runAfter(
+      0,
+      internal.notifications.createNotification,
+      {
+        organizationId: orgId,
+        type: "student_unsuspended",
+        title: "Student Unsuspended",
+        message: `${user.name} was unsuspended and assigned to batch "${batch.name}"`,
+        referenceId: args.userId,
+        referenceType: "user",
+        actorId: admin._id,
+        actorName: admin.name,
+      }
+    );
 
     return { success: true };
   },
