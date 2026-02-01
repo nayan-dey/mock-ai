@@ -103,6 +103,7 @@ interface AdminTableProps<TData> {
   facetedFilters?: FacetedFilterConfig[];
   showColumnVisibility?: boolean;
   rowClassName?: (row: TData) => string;
+  renderSubRow?: (row: TData) => React.ReactNode | null;
 }
 
 export function AdminTable<TData>({
@@ -125,6 +126,7 @@ export function AdminTable<TData>({
   facetedFilters,
   showColumnVisibility = true,
   rowClassName,
+  renderSubRow,
 }: AdminTableProps<TData>) {
   // Wrap non-action column cells with click handler when onRowClick is provided
   const columns = React.useMemo(() => {
@@ -249,6 +251,7 @@ export function AdminTable<TData>({
             facetedFilters={facetedFilters}
             showColumnVisibility={showColumnVisibility}
             toolbarExtra={toolbarExtra}
+            renderSubRow={renderSubRow}
           />
         </CardContent>
       </Card>

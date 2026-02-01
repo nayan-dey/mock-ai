@@ -440,8 +440,18 @@ export const seedMockStudents = mutation({
       createdStudents.push({ userId, name, email });
     }
 
-    const tests = await ctx.db.query("tests").filter((q) => q.eq(q.field("status"), "published")).collect();
+    const tests = await ctx.db.query("tests")
+      .withIndex("by_organization", (q) => q.eq("organizationId", adminOrgId))
+      .collect()
+      .then((all) => all.filter((t) => t.status === "published"));
     const now = Date.now();
+
+    if (tests.length === 0) {
+      return {
+        message: `Created ${createdStudents.length} mock students (no published tests found, skipped attempts)`,
+        students: createdStudents,
+      };
+    }
 
     for (const student of createdStudents) {
       const attemptCount = 5 + Math.floor(Math.random() * 11);

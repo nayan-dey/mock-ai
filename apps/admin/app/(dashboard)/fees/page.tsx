@@ -41,6 +41,8 @@ import {
   CircleCheck,
   Filter,
   X,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
@@ -90,6 +92,11 @@ interface FeeRow {
   dueMonth: string;
 }
 
+interface GroupedFeeRow extends FeeRow {
+  _allFees: FeeRow[];
+  _feeCount: number;
+}
+
 export default function FeesPage() {
   const { user: clerkUser } = useUser();
   const { toast } = useToast();
@@ -106,6 +113,9 @@ export default function FeesPage() {
   const [markPaidFeeId, setMarkPaidFeeId] = useState<string | null>(null);
   const [markPaidDate, setMarkPaidDate] = useState(
     new Date().toISOString().split("T")[0]
+  );
+  const [expandedStudents, setExpandedStudents] = useState<Set<string>>(
+    new Set()
   );
 
   // URL-synced filters
@@ -189,6 +199,40 @@ export default function FeesPage() {
       return true;
     });
   }, [enrichedFees, selectedBatches, selectedMonths, selectedStatuses]);
+
+  // Group fees by student — one row per student with all their fees attached
+  const groupedFees: GroupedFeeRow[] = useMemo(() => {
+    const groups = new Map<string, FeeRow[]>();
+    for (const fee of filteredFees) {
+      const existing = groups.get(fee.studentId);
+      if (existing) {
+        existing.push(fee);
+      } else {
+        groups.set(fee.studentId, [fee]);
+      }
+    }
+    return Array.from(groups.values()).map((fees) => {
+      // Sort by dueDate descending so the most recent fee is the representative
+      fees.sort((a, b) => b.dueDate - a.dueDate);
+      return {
+        ...fees[0],
+        _allFees: fees,
+        _feeCount: fees.length,
+      };
+    });
+  }, [filteredFees]);
+
+  const toggleStudentExpand = useCallback((studentId: string) => {
+    setExpandedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) {
+        next.delete(studentId);
+      } else {
+        next.add(studentId);
+      }
+      return next;
+    });
+  }, []);
 
   const activeFilterCount =
     (selectedBatches.size > 0 ? 1 : 0) +
@@ -292,75 +336,156 @@ export default function FeesPage() {
     setter(next);
   };
 
-  const columns: ColumnDef<FeeRow, any>[] = [
+  const columns: ColumnDef<GroupedFeeRow, any>[] = [
     {
       accessorKey: "studentName",
       header: ({ column }) => (
         <SortableHeader column={column} title="Student" />
       ),
-      cell: ({ row }) => (
-        <div className="max-w-[200px]">
-          <p className="font-medium truncate">{row.getValue("studentName")}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            {row.original.studentEmail}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const feeCount = row.original._feeCount;
+        const isExpanded = expandedStudents.has(row.original.studentId);
+        return (
+          <div className="flex items-center gap-2">
+            {feeCount > 1 ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleStudentExpand(row.original.studentId);
+                }}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
+            ) : (
+              <span className="w-5 shrink-0" />
+            )}
+            <div className="max-w-[200px] min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="font-medium truncate">
+                  {row.getValue("studentName")}
+                </p>
+                {feeCount > 1 && (
+                  <Badge
+                    variant="secondary"
+                    className="h-5 min-w-5 shrink-0 rounded-full px-1.5 text-[10px]"
+                  >
+                    {feeCount}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {row.original.studentEmail}
+              </p>
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "batchName",
       header: ({ column }) => (
         <SortableHeader column={column} title="Batch" />
       ),
-      cell: ({ row }) => (
-        <Badge variant="outline" className="font-normal">
-          {row.getValue("batchName")}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          const batches = [...new Set(row.original._allFees.map((f) => f.batchName))];
+          return batches.length === 1 ? (
+            <Badge variant="outline" className="font-normal">
+              {batches[0]}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {batches.length} batches
+            </span>
+          );
+        }
+        return (
+          <Badge variant="outline" className="font-normal">
+            {row.getValue("batchName")}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "dueMonth",
       header: ({ column }) => (
         <SortableHeader column={column} title="Month" />
       ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.getValue("dueMonth")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          return (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        }
+        return (
+          <span className="text-muted-foreground">
+            {row.getValue("dueMonth")}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "description",
       header: "Description",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.getValue("description") || "Fee Payment"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          return (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        }
+        return (
+          <span className="text-muted-foreground">
+            {row.getValue("description") || "Fee Payment"}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "amount",
       header: ({ column }) => (
         <SortableHeader column={column} title="Amount" />
       ),
-      cell: ({ row }) => (
-        <span className="font-mono font-semibold">
-          &#8377;{(row.getValue("amount") as number).toLocaleString("en-IN")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          const total = row.original._allFees.reduce((s, f) => s + f.amount, 0);
+          return (
+            <span className="font-mono font-semibold">
+              &#8377;{total.toLocaleString("en-IN")}
+            </span>
+          );
+        }
+        return (
+          <span className="font-mono font-semibold">
+            &#8377;{(row.getValue("amount") as number).toLocaleString("en-IN")}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "dueDate",
       header: ({ column }) => (
         <SortableHeader column={column} title="Due Date" />
       ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {new Date(row.getValue("dueDate") as number).toLocaleDateString(
-            "en-IN"
-          )}
-        </span>
-      ),
+      cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          return (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        }
+        return (
+          <span className="text-muted-foreground">
+            {new Date(row.getValue("dueDate") as number).toLocaleDateString(
+              "en-IN"
+            )}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "status",
@@ -368,6 +493,30 @@ export default function FeesPage() {
         <SortableHeader column={column} title="Status" />
       ),
       cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          const dueCount = row.original._allFees.filter((f) => f.status === "due").length;
+          const paidCount = row.original._allFees.filter((f) => f.status === "paid").length;
+          return (
+            <div className="flex gap-1">
+              {dueCount > 0 && (
+                <Badge
+                  variant="outline"
+                  className="border-destructive/20 bg-destructive/10 text-destructive text-xs"
+                >
+                  {dueCount} Due
+                </Badge>
+              )}
+              {paidCount > 0 && (
+                <Badge
+                  variant="outline"
+                  className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500 text-xs"
+                >
+                  {paidCount} Paid
+                </Badge>
+              )}
+            </div>
+          );
+        }
         const status = row.getValue("status") as string;
         return (
           <Badge
@@ -387,6 +536,11 @@ export default function FeesPage() {
       accessorKey: "paidDate",
       header: "Paid Date",
       cell: ({ row }) => {
+        if (row.original._feeCount > 1) {
+          return (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        }
         const pd = row.getValue("paidDate") as number | undefined;
         return (
           <span className="text-muted-foreground">
@@ -395,7 +549,7 @@ export default function FeesPage() {
         );
       },
     },
-    createActionsColumn<FeeRow>((fee) => {
+    createActionsColumn<GroupedFeeRow>((fee) => {
       const actions = [
         {
           label: "View Details",
@@ -433,9 +587,9 @@ export default function FeesPage() {
 
   return (
     <>
-      <AdminTable<FeeRow>
+      <AdminTable<GroupedFeeRow>
         columns={columns}
-        data={filteredFees}
+        data={groupedFees}
         isLoading={allFees === undefined}
         searchKey="studentName"
         searchPlaceholder="Search by student name..."
@@ -445,12 +599,132 @@ export default function FeesPage() {
         emptyIcon={<IndianRupee className="h-6 w-6 text-muted-foreground" />}
         emptyTitle="No fee records yet"
         emptyDescription="Add fee records from individual student pages"
-        rowClassName={(row: FeeRow) =>
-          row.status === "due"
+        rowClassName={(row: GroupedFeeRow) =>
+          row._feeCount === 1 && row.status === "due"
             ? "bg-destructive/5 hover:bg-destructive/10"
             : ""
         }
-      
+        renderSubRow={(row: GroupedFeeRow) => {
+          if (row._feeCount <= 1 || !expandedStudents.has(row.studentId))
+            return null;
+          const otherFees = row._allFees;
+          return (
+            <div className="px-4 py-2">
+              <table className="w-full text-sm">
+                <tbody>
+                  {otherFees.map((fee) => (
+                    <tr
+                      key={fee._id}
+                      className={`border-b last:border-b-0 border-border/50 ${
+                        fee.status === "due"
+                          ? "bg-destructive/5"
+                          : ""
+                      }`}
+                    >
+                      <td className="py-2 pl-7 pr-3 w-[200px]">
+                        <span className="text-xs text-muted-foreground">
+                          {getMonthLabel(fee.dueDate)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3">
+                        <Badge variant="outline" className="font-normal text-xs">
+                          {fee.batchName}
+                        </Badge>
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="text-xs text-muted-foreground">
+                          {getMonthLabel(fee.dueDate)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="text-xs text-muted-foreground">
+                          {fee.description || "Fee Payment"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="font-mono text-xs font-semibold">
+                          &#8377;
+                          {fee.amount.toLocaleString("en-IN")}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(fee.dueDate).toLocaleDateString("en-IN")}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3">
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            fee.status === "paid"
+                              ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                              : "border-destructive/20 bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {fee.status === "paid" ? "Paid" : "Due"}
+                        </Badge>
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="text-xs text-muted-foreground">
+                          {fee.paidDate
+                            ? new Date(fee.paidDate).toLocaleDateString("en-IN")
+                            : "—"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setSelectedStudent({
+                                  id: fee.studentId,
+                                  name: fee.studentName,
+                                })
+                              }
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            {fee.status === "due" && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setMarkPaidDate(
+                                    new Date().toISOString().split("T")[0]
+                                  );
+                                  setMarkPaidFeeId(fee._id);
+                                }}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Mark as Paid
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteFeeId(fee._id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }}
         toolbarExtra={
           <>
             {/* Batch Filter */}
