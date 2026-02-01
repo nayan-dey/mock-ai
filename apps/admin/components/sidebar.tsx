@@ -24,7 +24,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b">
         <Link
           href="/dashboard"
-          className="flex h-12 items-center gap-2 px-2"
+          className="flex h-[39px] items-center gap-2 px-2"
         >
           <img
             src="/logo.svg"

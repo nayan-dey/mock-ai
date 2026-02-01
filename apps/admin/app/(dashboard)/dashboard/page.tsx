@@ -99,7 +99,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <Button asChild className="gap-2">
-              <Link href="/batches/new">
+              <Link href="/batches">
                 Create Batch <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
