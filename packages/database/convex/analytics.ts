@@ -457,6 +457,7 @@ export const getGlobalLeaderboard = query({
     const leaderboard = await Promise.all(
       sorted.map(async (stats, index) => {
         const user = await ctx.db.get(stats.userId);
+        const batch = user?.batchId ? await ctx.db.get(user.batchId) : null;
         const avgAccuracy = stats.totalQuestions > 0
           ? (stats.totalCorrect / stats.totalQuestions) * 100
           : 0;
@@ -470,6 +471,7 @@ export const getGlobalLeaderboard = query({
           rank: index + 1,
           userId: stats.userId,
           userName: user?.name || "Unknown",
+          batchName: batch?.name || null,
           totalScore: stats.totalScore,
           testsCompleted: stats.testsCompleted,
           avgAccuracy,

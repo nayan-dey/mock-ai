@@ -97,7 +97,7 @@ export default function DashboardPage() {
     {
       accessorKey: "rank",
       header: ({ column }) => (
-        <SortableHeader column={column} title="Rank" className="w-12" />
+        <SortableHeader column={column} title="Rank" />
       ),
       cell: ({ row }) => {
         const rank = row.getValue("rank") as number;
@@ -131,7 +131,7 @@ export default function DashboardPage() {
         <SortableHeader column={column} title="Score" />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums font-medium">{(row.getValue("score") as number).toFixed(1)}</span>
+        <span className="tabular-nums font-medium">{(row.getValue("score") as number).toFixed(2)}</span>
       ),
     },
     {
@@ -365,10 +365,13 @@ export default function DashboardPage() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {entry.testsCompleted} test{entry.testsCompleted !== 1 ? "s" : ""} completed
+                          {entry.batchName && (
+                            <span> &middot; {entry.batchName}</span>
+                          )}
                         </p>
                       </div>
                       <div className="text-sm font-medium tabular-nums">
-                        {entry.totalScore}
+                        {entry.totalScore.toFixed(2)}
                       </div>
                     </div>
                   ))
@@ -453,12 +456,12 @@ export default function DashboardPage() {
 
               {/* Leaderboard */}
               {testLeaderboard && testLeaderboard.length > 0 && (
-                <Card>
+                <Card className="flex-1 min-h-0 flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-sm font-medium">Leaderboard</CardTitle>
                     <CardDescription className="text-xs">Students ranked by score</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-0 flex-1 min-h-0 flex flex-col">
                     <DataTable
                       columns={leaderboardColumns}
                       data={testLeaderboard as LeaderboardEntry[]}
@@ -467,6 +470,8 @@ export default function DashboardPage() {
                       showPagination
                       pageSize={5}
                       emptyMessage="No entries found."
+                      showColumnVisibility
+                      rowClassName={() => "hover:bg-muted/50 transition-colors"}
                     />
                   </CardContent>
                 </Card>
