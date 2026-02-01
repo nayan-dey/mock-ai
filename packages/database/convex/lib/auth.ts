@@ -1,5 +1,5 @@
 import { GenericQueryCtx, GenericMutationCtx } from "convex/server";
-import type { DataModel } from "../_generated/dataModel";
+import type { DataModel, Id } from "../_generated/dataModel";
 
 type QueryCtx = GenericQueryCtx<DataModel>;
 type MutationCtx = GenericMutationCtx<DataModel>;
@@ -54,7 +54,7 @@ export function getOrgId(user: { organizationId?: string }) {
   if (!user.organizationId) {
     throw new Error("Organization not configured. Please complete onboarding.");
   }
-  return user.organizationId as any; // Id<"organizations">
+  return user.organizationId as Id<"organizations">;
 }
 
 /**

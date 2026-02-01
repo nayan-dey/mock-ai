@@ -72,7 +72,7 @@ export default function TestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
   const [showInstructions, setShowInstructions] = useState(false);
-  const [questionOrder, setQuestionOrder] = useState<string[] | null>(null);
+  const [questionOrder, setQuestionOrder] = useState<Id<"questions">[] | null>(null);
 
   // Swipe navigation refs — direct DOM manipulation during drag for zero re-renders
   const questionAreaRef = useRef<HTMLDivElement>(null);
@@ -286,7 +286,7 @@ export default function TestPage() {
   // Sync questionOrder from existingAttempt when it becomes available after starting
   useEffect(() => {
     if (isStarted && existingAttempt?.questionOrder && !questionOrder) {
-      setQuestionOrder(existingAttempt.questionOrder as string[]);
+      setQuestionOrder(existingAttempt.questionOrder as Id<"questions">[]);
     }
   }, [isStarted, existingAttempt, questionOrder]);
 
@@ -296,7 +296,7 @@ export default function TestPage() {
     setAttemptId(existingAttempt._id);
     setStartTime(existingAttempt.startedAt);
     if (existingAttempt.questionOrder) {
-      setQuestionOrder(existingAttempt.questionOrder as string[]);
+      setQuestionOrder(existingAttempt.questionOrder as Id<"questions">[]);
     }
     const answersMap = new Map<string, number[]>();
     existingAttempt.answers.forEach((a) => {
