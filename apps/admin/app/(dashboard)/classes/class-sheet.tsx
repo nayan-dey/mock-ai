@@ -65,11 +65,10 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
     }
   }, [open, classItem]);
 
-  useEffect(() => {
-    if (subject && classItem?.subject !== subject) {
-      setTopic("");
-    }
-  }, [subject, classItem?.subject]);
+  const handleSubjectChange = (value: string) => {
+    setSubject(value);
+    setTopic("");
+  };
 
   const topics = subject ? TOPICS[subject as keyof typeof TOPICS] || [] : [];
 
@@ -178,7 +177,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="class-subject">Subject *</Label>
-            <Select value={subject} onValueChange={setSubject}>
+            <Select value={subject} onValueChange={handleSubjectChange}>
               <SelectTrigger id="class-subject">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>

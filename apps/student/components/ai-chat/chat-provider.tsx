@@ -5,13 +5,6 @@ import { useQuery } from "convex/react";
 import { api } from "@repo/database";
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
-interface DailyLimit {
-  count: number;
-  limit: number;
-  remaining: number;
-  hasReachedLimit: boolean;
-}
-
 interface ChatContextType {
   messages: ReturnType<typeof useChat>["messages"];
   input: string;
@@ -23,7 +16,6 @@ interface ChatContextType {
   stop: ReturnType<typeof useChat>["stop"];
   setInput: ReturnType<typeof useChat>["setInput"];
   isContextLoading: boolean;
-  dailyLimit: DailyLimit | undefined;
   currentConversationId: string | null;
   selectConversation: (conversationId: string | null) => void;
   startNewChat: () => void;
@@ -51,12 +43,6 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
   // Fetch student context using Convex React hook
   const studentContext = useQuery(
     api.chat.getStudentContext,
-    userId ? {} : "skip"
-  );
-
-  // Fetch daily message limit
-  const dailyLimit = useQuery(
-    api.chat.getDailyMessageCount,
     userId ? {} : "skip"
   );
 
@@ -109,7 +95,6 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
   });
 
   // Update messages when initialMessages change (when switching conversations)
-  // Remove the length > 0 check - we need to update even when switching to an empty conversation
   useEffect(() => {
     // Only update if we're not in a loading state
     if (!isMessagesLoading) {
@@ -142,7 +127,6 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
         stop,
         setInput,
         isContextLoading,
-        dailyLimit,
         currentConversationId,
         selectConversation,
         startNewChat,

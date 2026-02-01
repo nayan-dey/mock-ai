@@ -153,26 +153,6 @@ export async function POST(req: Request) {
       convex.setAuth(convexToken);
     }
 
-    // Check daily message limit server-side (fail closed)
-    try {
-      const dailyLimit = await convex.query(api.chat.getDailyMessageCount, {});
-      if (dailyLimit.hasReachedLimit) {
-        return new Response(
-          JSON.stringify({
-            error: "Daily message limit reached. You can send 3 messages per day."
-          }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
-        );
-      }
-    } catch (rateLimitError) {
-      // Fail closed — deny request if rate limit check fails
-      console.error("Rate limit check failed, denying request:", rateLimitError);
-      return new Response(
-        JSON.stringify({ error: "Unable to verify rate limit. Please try again." }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     // Fetch student context server-side (don't trust client)
     let studentContext;
     try {
