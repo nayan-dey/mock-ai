@@ -116,8 +116,8 @@ export default function ProfilePage() {
       <div className="mb-8 flex flex-col items-center text-center">
         <div className="relative">
           <Avatar className="h-20 w-20 border-2 border-border">
-            {user?.imageUrl ? (
-              <img src={user.imageUrl} alt={dbUser.name} className="h-full w-full object-cover" />
+            {(dbUser.profileImageUrl || user?.imageUrl) ? (
+              <img src={dbUser.profileImageUrl || user?.imageUrl} alt={dbUser.name} className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
                 {getInitials(dbUser.name)}

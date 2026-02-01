@@ -6,10 +6,15 @@ import { requireAdmin, requireAuth, getAuthUser, getOrgId } from "./lib/auth";
 export const getByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
+    if (!user) return null;
+    const profileImageUrl = user.profileImageId
+      ? await ctx.storage.getUrl(user.profileImageId)
+      : null;
+    return { ...user, profileImageUrl };
   },
 });
 
@@ -169,11 +174,19 @@ export const upsertAsAdmin = mutation({
   },
 });
 
+export const generateProfileImageUploadUrl = mutation({
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 export const updateProfile = mutation({
   args: {
     name: v.optional(v.string()),
     bio: v.optional(v.string()),
     age: v.optional(v.number()),
+    profileImageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     // Derive userId from auth — users can only update their own profile
@@ -340,11 +353,16 @@ export const getPublicProfile = query({
 
     const batch = user.batchId ? await ctx.db.get(user.batchId) : null;
 
+    const profileImageUrl = user.profileImageId
+      ? await ctx.storage.getUrl(user.profileImageId)
+      : null;
+
     return {
       _id: user._id,
       name: user.name,
       bio: user.bio,
       age: user.age,
+      profileImageUrl,
       createdAt: user.createdAt,
       batchId: user.batchId,
       batchName: batch?.name || null,

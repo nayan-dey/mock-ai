@@ -196,9 +196,13 @@ export default function ProfilePage() {
         <div className="relative">
           <div className={`rounded-full p-1 ${getTierGradient(tier)}`}>
             <Avatar className="h-24 w-24 border-4 border-background">
-              <AvatarFallback className="bg-muted text-2xl font-semibold">
-                {getInitials(profile.name)}
-              </AvatarFallback>
+              {profile.profileImageUrl ? (
+                <img src={profile.profileImageUrl} alt={profile.name} className="h-full w-full object-cover" />
+              ) : (
+                <AvatarFallback className="bg-muted text-2xl font-semibold">
+                  {getInitials(profile.name)}
+                </AvatarFallback>
+              )}
             </Avatar>
           </div>
         </div>

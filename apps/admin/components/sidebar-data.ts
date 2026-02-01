@@ -12,6 +12,7 @@ import {
   UserPlus,
   Database,
   BotMessageSquare,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -62,6 +63,7 @@ export const sidebarData: NavGroup[] = [
     items: [
       { title: "Admins", url: "/admins", icon: Shield },
       { title: "Join Requests", url: "/requests", icon: UserPlus },
+      { title: "Settings", url: "/settings", icon: Settings },
       { title: "Seed Data", url: "/seed", icon: Database },
     ],
   },

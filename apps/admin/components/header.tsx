@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
@@ -95,6 +96,7 @@ export function Header() {
     name: string;
   } | null>(null);
 
+  const org = useQuery(api.organizations.getMyOrg);
   const unreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;
   const notifications = useQuery(
     api.notifications.getAll,
@@ -143,6 +145,29 @@ export function Header() {
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
+
+      {/* Org name + logo */}
+      {org && (
+        <Link
+          href="/settings"
+          className="flex items-center gap-2 rounded-md px-2 py-1 transition-colors hover:bg-muted"
+        >
+          {org.resolvedLogoUrl ? (
+            <img
+              src={org.resolvedLogoUrl}
+              alt={org.name}
+              className="h-6 w-6 shrink-0 rounded object-cover"
+            />
+          ) : (
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
+              {org.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span className="text-sm font-semibold text-primary">
+            {org.name}
+          </span>
+        </Link>
+      )}
 
       <div className="flex flex-1 items-center justify-end gap-2">
         {/* Notification Bell */}

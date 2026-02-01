@@ -18,6 +18,7 @@ import {
   Textarea,
   sonnerToast as toast,
   BackButton,
+  ImageUpload,
 } from "@repo/ui";
 import { Save } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -64,7 +65,9 @@ export default function EditProfilePage() {
   );
 
   const updateProfile = useMutation(api.users.updateProfile);
+  const generateUploadUrl = useMutation(api.users.generateProfileImageUploadUrl);
 
+  const [profileImageId, setProfileImageId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     bio: "",
@@ -91,7 +94,8 @@ export default function EditProfilePage() {
         name: formData.name || undefined,
         bio: formData.bio || undefined,
         age: formData.age ? parseInt(formData.age, 10) : undefined,
-      });
+        profileImageId: profileImageId || undefined,
+      } as any);
       toast.success("Profile updated successfully");
       router.push("/me");
     } catch (error) {
@@ -112,33 +116,42 @@ export default function EditProfilePage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      {/* Header with back button */}
+      {/* Header with back button and save */}
       <div className="mb-6 flex items-center gap-3">
         <BackButton href="/me" />
-        <h1 className="text-lg font-semibold">Edit Profile</h1>
-      </div>
-
-      {/* Avatar */}
-      <div className="mb-6 flex flex-col items-center">
-        <Avatar className="h-24 w-24 border-2 border-border">
-          {user?.imageUrl ? (
-            <img
-              src={user.imageUrl}
-              alt={dbUser.name}
-              className="h-full w-full object-cover"
-            />
+        <h1 className="flex-1 text-lg font-semibold">Edit Profile</h1>
+        <Button
+          type="submit"
+          size="sm"
+          form="edit-profile-form"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            "Saving..."
           ) : (
-            <AvatarFallback className="bg-primary/10 text-2xl font-semibold text-primary">
-              {getInitials(dbUser.name)}
-            </AvatarFallback>
+            <>
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+              Save
+            </>
           )}
-        </Avatar>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Profile photo managed by Clerk
-        </p>
+        </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Profile Photo */}
+      <div className="mb-6">
+        <ImageUpload
+          currentImageUrl={dbUser.profileImageUrl || user?.imageUrl || null}
+          onUpload={(id) => setProfileImageId(id)}
+          onRemove={() => setProfileImageId(null)}
+          generateUploadUrl={generateUploadUrl}
+          maxSizeMB={5}
+          shape="circle"
+          size="lg"
+          label="Profile Photo"
+        />
+      </div>
+
+      <form id="edit-profile-form" onSubmit={handleSubmit} className="space-y-4">
         {/* Name */}
         <Card>
           <CardHeader className="pb-2">
@@ -209,17 +222,6 @@ export default function EditProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Save Button */}
-        <Button type="submit" className="w-full" disabled={isSaving}>
-          {isSaving ? (
-            "Saving..."
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </>
-          )}
-        </Button>
       </form>
 
     </div>

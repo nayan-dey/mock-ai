@@ -189,6 +189,7 @@ export { TestResult } from "./components/test-result";
 export { PageHeader } from "./components/page-header";
 export { StatCard } from "./components/stat-card";
 export { BackButton } from "./components/back-button";
+export { ImageUpload, type ImageUploadProps } from "./components/image-upload";
 
 // Settings components
 export {

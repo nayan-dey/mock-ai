@@ -14,6 +14,7 @@ import {
   Input,
   Label,
   Textarea,
+  ImageUpload,
 } from "@repo/ui";
 import {
   Building2,
@@ -70,14 +71,15 @@ export default function AdminOnboardingPage() {
 
   const createOrganization = useMutation(api.organizations.create);
   const createJoinRequest = useMutation(api.orgJoinRequests.create);
+  const generateLogoUploadUrl = useMutation(api.organizations.generateLogoUploadUrl);
 
   const [step, setStep] = useState<OnboardingStep>("choose");
   const [searchQuery, setSearchQuery] = useState("");
+  const [logoStorageId, setLogoStorageId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    logoUrl: "",
     contactEmail: "",
     phone: "",
     address: "",
@@ -116,11 +118,11 @@ export default function AdminOnboardingPage() {
       await createOrganization({
         name: formData.name.trim(),
         description: formData.description.trim(),
-        logoUrl: formData.logoUrl.trim() || undefined,
+        logoStorageId: logoStorageId || undefined,
         contactEmail: formData.contactEmail.trim() || undefined,
         phone: formData.phone.trim(),
         address: formData.address.trim(),
-      });
+      } as any);
       toast.success("Organization created! Welcome to Nindo.");
       router.push("/dashboard");
     } catch {
@@ -298,18 +300,14 @@ export default function AdminOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="logoUrl">Logo URL (optional)</Label>
-                <Input
-                  id="logoUrl"
-                  type="url"
-                  value={formData.logoUrl}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      logoUrl: e.target.value,
-                    }))
-                  }
-                  placeholder="https://example.com/logo.png"
+                <ImageUpload
+                  onUpload={(id) => setLogoStorageId(id)}
+                  onRemove={() => setLogoStorageId(null)}
+                  generateUploadUrl={generateLogoUploadUrl}
+                  maxSizeMB={10}
+                  shape="square"
+                  size="lg"
+                  label="Organization Logo (optional)"
                 />
               </div>
 

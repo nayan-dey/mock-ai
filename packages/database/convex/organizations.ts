@@ -14,6 +14,7 @@ export const create = mutation({
     name: v.string(),
     description: v.string(),
     logoUrl: v.optional(v.string()),
+    logoStorageId: v.optional(v.id("_storage")),
     contactEmail: v.optional(v.string()),
     phone: v.string(),
     address: v.string(),
@@ -77,6 +78,7 @@ export const create = mutation({
       slug,
       description: args.description,
       logoUrl: args.logoUrl,
+      logoStorageId: args.logoStorageId,
       contactEmail: args.contactEmail,
       phone: args.phone,
       address: args.address,
@@ -131,6 +133,7 @@ export const update = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
+    logoStorageId: v.optional(v.id("_storage")),
     contactEmail: v.optional(v.string()),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
@@ -245,6 +248,31 @@ export const removeAdmin = mutation({
   },
 });
 
+// Generate upload URL for org logo
+export const generateLogoUploadUrl = mutation({
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Get current admin's organization with resolved logo URL
+export const getMyOrg = query({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const org = await ctx.db.get(orgId);
+    if (!org) return null;
+
+    const resolvedLogoUrl = org.logoStorageId
+      ? await ctx.storage.getUrl(org.logoStorageId)
+      : org.logoUrl ?? null;
+
+    return { ...org, resolvedLogoUrl };
+  },
+});
+
 // Check if current user is super admin
 export const isSuperAdmin = query({
   args: {},
@@ -266,12 +294,19 @@ export const listPublic = query({
   args: {},
   handler: async (ctx) => {
     const orgs = await ctx.db.query("organizations").collect();
-    return orgs.map((org) => ({
-      _id: org._id,
-      name: org.name,
-      slug: org.slug,
-      logoUrl: org.logoUrl,
-    }));
+    return Promise.all(
+      orgs.map(async (org) => {
+        const resolvedLogoUrl = org.logoStorageId
+          ? await ctx.storage.getUrl(org.logoStorageId)
+          : org.logoUrl ?? null;
+        return {
+          _id: org._id,
+          name: org.name,
+          slug: org.slug,
+          logoUrl: resolvedLogoUrl,
+        };
+      })
+    );
   },
 });
 
@@ -284,11 +319,14 @@ export const getBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
     if (!org) return null;
+    const resolvedLogoUrl = org.logoStorageId
+      ? await ctx.storage.getUrl(org.logoStorageId)
+      : org.logoUrl ?? null;
     return {
       _id: org._id,
       name: org.name,
       slug: org.slug,
-      logoUrl: org.logoUrl,
+      logoUrl: resolvedLogoUrl,
     };
   },
 });
