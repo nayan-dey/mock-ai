@@ -29,15 +29,32 @@ interface UserData {
   batchName?: string;
   isSuspended?: boolean;
   createdAt: number;
+  feesPaid: number;
+  feesDue: number;
+  feeStatus: "all_paid" | "has_due" | "no_fees";
 }
 
 export function UsersClient() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
   const [joinedFilter, setJoinedFilter] = useUrlState("joined", "all");
+  const [feeFilter, setFeeFilter] = useUrlState("fees", "all");
 
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});
+  const allFees = useQuery(api.fees.getAll);
+
+  // Build per-student fee counts
+  const feeCountMap = useMemo(() => {
+    const map: Record<string, { paid: number; due: number }> = {};
+    allFees?.forEach((f) => {
+      const id = f.studentId as string;
+      if (!map[id]) map[id] = { paid: 0, due: 0 };
+      if (f.status === "paid") map[id].paid++;
+      else map[id].due++;
+    });
+    return map;
+  }, [allFees]);
 
   const batchMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -50,17 +67,29 @@ export function UsersClient() {
     if (!users) return [];
     return users
       .filter((u) => u.role !== "admin")
-      .map((user) => ({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        batchId: user.batchId,
-        batchName: user.batchId ? batchMap[user.batchId] : undefined,
-        isSuspended: user.isSuspended,
-        createdAt: user.createdAt,
-      }));
-  }, [users, batchMap]);
+      .map((user) => {
+        const counts = feeCountMap[user._id] ?? { paid: 0, due: 0 };
+        const feeStatus: UserData["feeStatus"] =
+          counts.paid === 0 && counts.due === 0
+            ? "no_fees"
+            : counts.due > 0
+              ? "has_due"
+              : "all_paid";
+        return {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          batchId: user.batchId,
+          batchName: user.batchId ? batchMap[user.batchId] : undefined,
+          isSuspended: user.isSuspended,
+          createdAt: user.createdAt,
+          feesPaid: counts.paid,
+          feesDue: counts.due,
+          feeStatus,
+        };
+      });
+  }, [users, batchMap, feeCountMap]);
 
   // Apply filters
   const filteredUsers = useMemo(() => {
@@ -81,8 +110,16 @@ export function UsersClient() {
       result = result.filter((u) => u.createdAt >= cutoff);
     }
 
+    if (feeFilter !== "all") {
+      if (feeFilter === "due") {
+        result = result.filter((u) => u.feesDue > 0);
+      } else if (feeFilter === "paid") {
+        result = result.filter((u) => u.feesDue === 0 && u.feesPaid > 0);
+      }
+    }
+
     return result;
-  }, [enrichedUsers, batchFilter, joinedFilter]);
+  }, [enrichedUsers, batchFilter, joinedFilter, feeFilter]);
 
   const facetedFilters: FacetedFilterConfig[] = [
     {
@@ -142,6 +179,24 @@ export function UsersClient() {
       ),
     },
     {
+      accessorKey: "feesDue",
+      header: "Fees",
+      cell: ({ row }) => {
+        const paid = row.original.feesPaid;
+        const due = row.original.feesDue;
+        if (paid === 0 && due === 0) {
+          return <span className="text-xs text-muted-foreground">&mdash;</span>;
+        }
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium tabular-nums text-emerald-600">{paid}</span>
+            <span className="text-muted-foreground/40">/</span>
+            <span className={`text-xs font-medium tabular-nums ${due > 0 ? "text-destructive" : "text-muted-foreground"}`}>{due}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: ({ column }) => <SortableHeader column={column} title="Joined" />,
       cell: ({ row }) => (
@@ -168,7 +223,7 @@ export function UsersClient() {
       <AdminTable<UserData>
         columns={columns}
         data={filteredUsers}
-        isLoading={users === undefined || batches === undefined}
+        isLoading={users === undefined || batches === undefined || allFees === undefined}
         searchKey="name"
         searchPlaceholder="Search users..."
         title="Users"
@@ -212,6 +267,16 @@ export function UsersClient() {
                 <SelectItem value="7">Last 7 days</SelectItem>
                 <SelectItem value="30">Last 30 days</SelectItem>
                 <SelectItem value="90">Last 90 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={feeFilter} onValueChange={setFeeFilter}>
+              <SelectTrigger className="h-8 w-[140px] shrink-0">
+                <SelectValue placeholder="All Fees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Fees</SelectItem>
+                <SelectItem value="due">Has Due</SelectItem>
+                <SelectItem value="paid">All Paid</SelectItem>
               </SelectContent>
             </Select>
           </>

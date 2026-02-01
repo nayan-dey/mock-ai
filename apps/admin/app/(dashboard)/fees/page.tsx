@@ -23,6 +23,14 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Label,
+  Input,
 } from "@repo/ui";
 import {
   IndianRupee,
@@ -89,6 +97,10 @@ export default function FeesPage() {
     name: string;
   } | null>(null);
   const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
+  const [markPaidFeeId, setMarkPaidFeeId] = useState<string | null>(null);
+  const [markPaidDate, setMarkPaidDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   // URL-synced filters
   const selectedBatches = useMemo(() => new Set(searchParams.get("batches")?.split(",").filter(Boolean) ?? []), [searchParams]);
@@ -193,11 +205,15 @@ export default function FeesPage() {
     };
   }, [filteredFees]);
 
-  const handleMarkAsPaid = async (feeId: string) => {
-    if (!currentAdmin) return;
+  const handleMarkAsPaid = async () => {
+    if (!currentAdmin || !markPaidFeeId) return;
     try {
+      const paidTimestamp = markPaidDate
+        ? new Date(markPaidDate).getTime()
+        : undefined;
       await markAsPaid({
-        id: feeId as Id<"fees">,
+        id: markPaidFeeId as Id<"fees">,
+        paidDate: paidTimestamp,
       });
       toast({ title: "Marked as paid" });
     } catch (err: any) {
@@ -207,6 +223,8 @@ export default function FeesPage() {
         variant: "destructive",
       });
     }
+    setMarkPaidFeeId(null);
+    setMarkPaidDate(new Date().toISOString().split("T")[0]);
   };
 
   const handleDelete = async (feeId: string) => {
@@ -361,7 +379,10 @@ export default function FeesPage() {
         actions.push({
           label: "Mark as Paid",
           icon: <CheckCircle className="h-4 w-4" />,
-          onClick: () => handleMarkAsPaid(fee._id),
+          onClick: () => {
+            setMarkPaidDate(new Date().toISOString().split("T")[0]);
+            setMarkPaidFeeId(fee._id);
+          },
         });
       }
 
@@ -586,6 +607,51 @@ export default function FeesPage() {
           if (!open) setSelectedStudent(null);
         }}
       />
+
+      {/* Mark as Paid Confirmation */}
+      <Dialog
+        open={!!markPaidFeeId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setMarkPaidFeeId(null);
+            setMarkPaidDate(new Date().toISOString().split("T")[0]);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Fee as Paid</DialogTitle>
+            <DialogDescription>
+              Confirm payment and select the date it was paid.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fees-mark-paid-date">Paid Date</Label>
+              <Input
+                id="fees-mark-paid-date"
+                type="date"
+                value={markPaidDate}
+                onChange={(e) => setMarkPaidDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMarkPaidFeeId(null);
+                setMarkPaidDate(new Date().toISOString().split("T")[0]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleMarkAsPaid} disabled={!markPaidDate}>
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={!!deleteFeeId}

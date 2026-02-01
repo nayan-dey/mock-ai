@@ -179,6 +179,7 @@ export const update = mutation({
 export const markAsPaid = mutation({
   args: {
     id: v.id("fees"),
+    paidDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
@@ -188,7 +189,7 @@ export const markAsPaid = mutation({
 
     await ctx.db.patch(args.id, {
       status: "paid",
-      paidDate: Date.now(),
+      paidDate: args.paidDate ?? Date.now(),
     });
   },
 });
