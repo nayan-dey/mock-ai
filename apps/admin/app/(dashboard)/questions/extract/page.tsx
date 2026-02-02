@@ -84,6 +84,9 @@ export default function ExtractQuestionsPage() {
       const { file, base64 } = selectedFiles[i];
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 360000); // 2 minute timeout
+
         const response = await fetch("/api/extract-questions", {
           method: "POST",
           headers: {
@@ -95,7 +98,22 @@ export default function ExtractQuestionsPage() {
             fileName: file.name,
             model: selectedModel,
           }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          let errorMsg = `Server error (${response.status})`;
+          try {
+            const errorResult = await response.json();
+            if (errorResult.error) errorMsg = errorResult.error;
+          } catch {
+            // Response wasn't JSON, use the status text
+          }
+          errors.push(`${file.name}: ${errorMsg}`);
+          continue;
+        }
 
         const result: ExtractionResult = await response.json();
 
@@ -109,7 +127,11 @@ export default function ExtractQuestionsPage() {
         }
       } catch (err) {
         console.error(`Extraction error for ${file.name}:`, err);
-        errors.push(`${file.name}: Failed to connect to extraction service`);
+        if (err instanceof DOMException && err.name === "AbortError") {
+          errors.push(`${file.name}: Request timed out. The file may be too complex or the AI service is slow. Please try with different model or a smaller file.`);
+        } else {
+          errors.push(`${file.name}: Failed to connect to extraction service`);
+        }
       }
     }
 

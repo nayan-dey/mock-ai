@@ -29,8 +29,15 @@ IMPORTANT RULES:
 - Extract EVERY question you can find
 - If a question has multiple correct answers, include all of them
 - If you're uncertain about the correct answer, still provide your best guess but mark it for review
-- Preserve mathematical notation, formulas, and special characters
 - If the document quality is poor or text is unclear, still attempt extraction and flag for review
+- CRITICAL: Do NOT use LaTeX notation in the output. Write all math expressions as plain readable text using Unicode symbols.
+  - Do NOT wrap anything in dollar signs ($...$) or use LaTeX commands like \\tan, \\frac, \\circ, \\sqrt, etc.
+  - Use Unicode math symbols instead: × (multiply), ÷ (divide), ° (degree), √ (square root), π (pi), ≤, ≥, ≠, ±
+  - Write trig functions as plain text: tan, sin, cos, log (not \\tan, \\sin, \\cos, \\log)
+  - Write fractions as a/b (not \\frac{a}{b})
+  - Write exponents as x^2 or x² (not $x^{2}$)
+  - Examples: Write "tan 45° = 1" NOT "$\\tan 45^\\circ = 1$", Write "2x + 5 = 13" NOT "$2x + 5 = 13$"
+- Preserve Bengali/Bangla text exactly as written using Unicode characters
 
 Available subjects and their topics:
 ${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
@@ -79,7 +86,14 @@ IMPORTANT RULES:
 - Extract EVERY question you can find
 - If a question has multiple correct answers, include all of them
 - If you're uncertain about the correct answer, still provide your best guess but mark it for review
-- Preserve mathematical notation, formulas, and special characters
+- CRITICAL: Do NOT use LaTeX notation in the output. Write all math expressions as plain readable text using Unicode symbols.
+  - Do NOT wrap anything in dollar signs ($...$) or use LaTeX commands like \\tan, \\frac, \\circ, \\sqrt, etc.
+  - Use Unicode math symbols instead: × (multiply), ÷ (divide), ° (degree), √ (square root), π (pi), ≤, ≥, ≠, ±
+  - Write trig functions as plain text: tan, sin, cos, log (not \\tan, \\sin, \\cos, \\log)
+  - Write fractions as a/b (not \\frac{a}{b})
+  - Write exponents as x^2 or x² (not $x^{2}$)
+  - Examples: Write "tan 45° = 1" NOT "$\\tan 45^\\circ = 1$", Write "2x + 5 = 13" NOT "$2x + 5 = 13$"
+- Preserve Bengali/Bangla text exactly as written using Unicode characters
 
 Available subjects and their topics:
 ${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
@@ -132,13 +146,19 @@ export async function extractQuestionsFromText(
 
     const selectedModel = model || ADMIN_EXTRACTION_MODEL;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+
     const result = await generateText({
       model: google(selectedModel),
       prompt: EXTRACTION_PROMPT_TEXT + text,
       temperature: EXTRACTION_MODEL_CONFIG.temperature,
       topP: EXTRACTION_MODEL_CONFIG.topP,
       topK: EXTRACTION_MODEL_CONFIG.topK,
+      abortSignal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     return parseAIResponse(result.text);
   } catch (error) {
@@ -164,6 +184,9 @@ export async function extractQuestionsFromFile(
 
     const selectedModel = model || ADMIN_EXTRACTION_MODEL;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+
     const result = await generateText({
       model: google(selectedModel),
       messages: [
@@ -184,7 +207,10 @@ export async function extractQuestionsFromFile(
       temperature: EXTRACTION_MODEL_CONFIG.temperature,
       topP: EXTRACTION_MODEL_CONFIG.topP,
       topK: EXTRACTION_MODEL_CONFIG.topK,
+      abortSignal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     return parseAIResponse(result.text);
   } catch (error) {
@@ -236,6 +262,14 @@ function parseAIResponse(content: string): GeminiExtractionResult {
 function handleGeminiError(error: unknown): GeminiExtractionResult {
   const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
+  // Handle timeout/abort errors
+  if (error instanceof DOMException && error.name === "AbortError" || errorMessage.includes("aborted")) {
+    return {
+      questions: [],
+      error: "AI processing timed out. The image may be too complex. Please try a clearer image or a smaller file.",
+    };
+  }
+
   // Handle rate limit errors
   if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
     return {
@@ -266,6 +300,96 @@ function handleGeminiError(error: unknown): GeminiExtractionResult {
   };
 }
 
+function cleanLatexArtifacts(text: string): string {
+  let cleaned = text;
+
+  // Remove $$ ... $$ (display math) and $ ... $ (inline math) delimiters
+  cleaned = cleaned.replace(/\$\$(.*?)\$\$/g, "$1");
+  cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
+
+  // Replace \frac{a}{b} with a/b
+  cleaned = cleaned.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "$1/$2");
+
+  // Replace \sqrt{x} with √x and \sqrt[n]{x} with ⁿ√x
+  cleaned = cleaned.replace(/\\sqrt\[([^\]]*)\]\{([^}]*)\}/g, "$1√$2");
+  cleaned = cleaned.replace(/\\sqrt\{([^}]*)\}/g, "√$1");
+
+  // Replace \text{...} with content inside
+  cleaned = cleaned.replace(/\\text\{([^}]*)\}/g, "$1");
+
+  // Replace trig/log functions (remove backslash)
+  cleaned = cleaned.replace(/\\(sin|cos|tan|cot|sec|csc|log|ln|lim|max|min)\b/g, "$1");
+
+  // Replace common LaTeX symbols with Unicode
+  const symbolMap: [RegExp, string][] = [
+    [/\\times/g, "×"],
+    [/\\div/g, "÷"],
+    [/\\circ/g, "°"],
+    [/\\degree/g, "°"],
+    [/\\pi/g, "π"],
+    [/\\theta/g, "θ"],
+    [/\\alpha/g, "α"],
+    [/\\beta/g, "β"],
+    [/\\gamma/g, "γ"],
+    [/\\delta/g, "δ"],
+    [/\\lambda/g, "λ"],
+    [/\\mu/g, "μ"],
+    [/\\sigma/g, "σ"],
+    [/\\omega/g, "ω"],
+    [/\\infty/g, "∞"],
+    [/\\leq/g, "≤"],
+    [/\\geq/g, "≥"],
+    [/\\neq/g, "≠"],
+    [/\\pm/g, "±"],
+    [/\\mp/g, "∓"],
+    [/\\approx/g, "≈"],
+    [/\\rightarrow/g, "→"],
+    [/\\leftarrow/g, "←"],
+    [/\\Rightarrow/g, "⇒"],
+    [/\\Leftarrow/g, "⇐"],
+    [/\\subset/g, "⊂"],
+    [/\\supset/g, "⊃"],
+    [/\\cup/g, "∪"],
+    [/\\cap/g, "∩"],
+    [/\\in /g, "∈ "],
+    [/\\notin/g, "∉"],
+    [/\\forall/g, "∀"],
+    [/\\exists/g, "∃"],
+    [/\\sum/g, "Σ"],
+    [/\\prod/g, "Π"],
+    [/\\int/g, "∫"],
+    [/\\partial/g, "∂"],
+    [/\\nabla/g, "∇"],
+    [/\\cdot/g, "·"],
+    [/\\ldots/g, "…"],
+    [/\\dots/g, "…"],
+  ];
+  for (const [pattern, replacement] of symbolMap) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+
+  // Remove \left and \right (sizing commands)
+  cleaned = cleaned.replace(/\\left/g, "");
+  cleaned = cleaned.replace(/\\right/g, "");
+
+  // Remove redundant ^ before degree symbol (from ^\circ -> ^°)
+  cleaned = cleaned.replace(/\^°/g, "°");
+
+  // Replace ^{...} with plain text (superscript content)
+  cleaned = cleaned.replace(/\^\{([^}]*)\}/g, "^$1");
+  // Replace _{...} with plain text (subscript content)
+  cleaned = cleaned.replace(/_\{([^}]*)\}/g, "_$1");
+
+  // Remove any remaining backslash commands (e.g., \quad, \space, \;, \,)
+  cleaned = cleaned.replace(/\\[a-zA-Z]+/g, " ");
+  cleaned = cleaned.replace(/\\[;,!: ]/g, " ");
+
+  // Clean up extra whitespace
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  return cleaned;
+}
+
 function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion | null {
   // Basic validation
   if (!q.text || typeof q.text !== "string" || q.text.trim() === "") {
@@ -276,9 +400,9 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
     return null;
   }
 
-  const options = q.options.filter(
-    (o: unknown) => typeof o === "string" && o.trim() !== ""
-  );
+  const options = q.options
+    .filter((o: unknown) => typeof o === "string" && o.trim() !== "")
+    .map((o: string) => cleanLatexArtifacts(o));
   if (options.length < 2) {
     return null;
   }
@@ -338,10 +462,10 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
   }
 
   return {
-    text: q.text.trim(),
+    text: cleanLatexArtifacts(q.text.trim()),
     options,
     correctOptions,
-    explanation: typeof q.explanation === "string" ? q.explanation : undefined,
+    explanation: typeof q.explanation === "string" ? cleanLatexArtifacts(q.explanation) : undefined,
     subject,
     topic,
     difficulty,
