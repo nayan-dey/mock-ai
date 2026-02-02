@@ -26,8 +26,8 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { SUBJECTS } from "@repo/types";
 import type { Id } from "@repo/database/dataModel";
+import { SubjectSelector } from "@/components/subject-selector";
 
 type QuestionId = Id<"questions">;
 
@@ -200,18 +200,7 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Subject *</Label>
-                <Select value={subject} onValueChange={setSubject}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUBJECTS.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SubjectSelector value={subject} onValueChange={setSubject} />
               </div>
 
               <div className="space-y-2">

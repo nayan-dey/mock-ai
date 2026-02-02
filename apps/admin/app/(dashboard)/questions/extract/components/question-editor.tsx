@@ -19,7 +19,8 @@ import {
   CardTitle,
 } from "@repo/ui";
 import { X, Check } from "lucide-react";
-import { SUBJECTS, type ExtractedQuestion } from "@repo/types";
+import { type ExtractedQuestion } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface QuestionEditorProps {
   question: ExtractedQuestion;
@@ -112,18 +113,7 @@ export function QuestionEditor({ question, onSave, onCancel }: QuestionEditorPro
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Subject</Label>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SubjectSelector value={subject} onValueChange={setSubject} />
           </div>
 
           <div className="space-y-2">

@@ -1,13 +1,13 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import {
-  SUBJECTS,
   type ExtractedQuestion,
   ADMIN_EXTRACTION_MODEL,
   EXTRACTION_MODEL_CONFIG,
 } from "@repo/types";
 
-const EXTRACTION_PROMPT_IMAGE = `You are an expert at extracting multiple-choice questions from educational documents.
+function getExtractionPromptImage(subjectsList: string) {
+  return `You are an expert at extracting multiple-choice questions from educational documents.
 
 Analyze the provided image and extract ALL multiple-choice questions you can find.
 
@@ -18,7 +18,7 @@ For each question, provide:
    - Explicit marking in the document (checkmarks, circles, highlighting)
    - Answer keys if visible
    - If no answer is marked, make your best educated guess based on the subject matter
-4. Subject classification (must be one of: ${SUBJECTS.join(", ")})
+4. Subject classification (must be one of: ${subjectsList})
 5. Difficulty level (easy, medium, or hard) based on complexity
 6. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
 
@@ -37,7 +37,7 @@ IMPORTANT RULES:
 - Preserve Bengali/Bangla text exactly as written using Unicode characters
 - IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
-Available subjects: ${SUBJECTS.join(", ")}
+Available subjects: ${subjectsList}
 
 Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exact format:
 {
@@ -61,8 +61,10 @@ Notes:
 - confidence should be 0.0 to 1.0 indicating how confident you are in the extraction
 - Set needsReview to true if: unclear text, uncertain answer, poor image quality, or missing information
 - reviewReason should explain why review is needed (or null if not needed)`;
+}
 
-const EXTRACTION_PROMPT_TEXT = `You are an expert at extracting multiple-choice questions from educational documents.
+function getExtractionPromptText(subjectsList: string) {
+  return `You are an expert at extracting multiple-choice questions from educational documents.
 
 Analyze the following text extracted from a document and extract ALL multiple-choice questions you can find.
 
@@ -73,7 +75,7 @@ For each question, provide:
    - Explicit marking in the document (checkmarks, circles, highlighting)
    - Answer keys if visible
    - If no answer is marked, make your best educated guess based on the subject matter
-4. Subject classification (must be one of: ${SUBJECTS.join(", ")})
+4. Subject classification (must be one of: ${subjectsList})
 5. Difficulty level (easy, medium, or hard) based on complexity
 6. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
 
@@ -91,7 +93,7 @@ IMPORTANT RULES:
 - Preserve Bengali/Bangla text exactly as written using Unicode characters
 - IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
-Available subjects: ${SUBJECTS.join(", ")}
+Available subjects: ${subjectsList}
 
 Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exact format:
 {
@@ -118,6 +120,7 @@ Notes:
 
 --- DOCUMENT TEXT ---
 `;
+}
 
 export interface GeminiExtractionResult {
   questions: ExtractedQuestion[];
@@ -126,7 +129,8 @@ export interface GeminiExtractionResult {
 
 export async function extractQuestionsFromText(
   text: string,
-  model?: string
+  model?: string,
+  subjects?: string[]
 ): Promise<GeminiExtractionResult> {
   try {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -145,7 +149,7 @@ export async function extractQuestionsFromText(
 
     const result = await generateText({
       model: google(selectedModel),
-      prompt: EXTRACTION_PROMPT_TEXT + text,
+      prompt: getExtractionPromptText(subjects?.join(", ") || "General Knowledge, Mathematics, Reasoning, Bengali, English, General Science, Indian History, Geography") + text,
       temperature: EXTRACTION_MODEL_CONFIG.temperature,
       topP: EXTRACTION_MODEL_CONFIG.topP,
       topK: EXTRACTION_MODEL_CONFIG.topK,
@@ -164,7 +168,8 @@ export async function extractQuestionsFromText(
 export async function extractQuestionsFromFile(
   fileBase64: string,
   mimeType: string,
-  model?: string
+  model?: string,
+  subjects?: string[]
 ): Promise<GeminiExtractionResult> {
   try {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -193,7 +198,7 @@ export async function extractQuestionsFromFile(
             },
             {
               type: "text",
-              text: EXTRACTION_PROMPT_IMAGE,
+              text: getExtractionPromptImage(subjects?.join(", ") || "General Knowledge, Mathematics, Reasoning, Bengali, English, General Science, Indian History, Geography"),
             },
           ],
         },
@@ -457,10 +462,7 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
   }
 
   // Validate subject
-  let subject = String(q.subject || "");
-  if (!SUBJECTS.includes(subject as (typeof SUBJECTS)[number])) {
-    subject = "Mathematics"; // Default subject
-  }
+  const subject = String(q.subject || "General Knowledge");
 
   // Validate difficulty
   let difficulty: "easy" | "medium" | "hard" = "medium";

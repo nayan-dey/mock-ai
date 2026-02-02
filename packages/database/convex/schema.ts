@@ -251,6 +251,12 @@ export default defineSchema({
     .index("by_org_created", ["organizationId", "createdAt"])
     .index("by_org_type", ["organizationId", "type"]),
 
+  // Dynamic subjects per organization
+  subjects: defineTable({
+    name: v.string(),
+    organizationId: v.id("organizations"),
+  }).index("by_org", ["organizationId"]),
+
   // Fee records for students
   fees: defineTable({
     studentId: v.id("users"),

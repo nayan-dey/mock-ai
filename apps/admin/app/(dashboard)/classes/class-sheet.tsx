@@ -8,15 +8,10 @@ import {
   Textarea,
   Label,
   useToast,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Badge,
 } from "@repo/ui";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface ClassSheetProps {
   open: boolean;
@@ -153,16 +148,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
 
         <div className="space-y-2">
           <Label htmlFor="class-subject">Subject *</Label>
-          <Select value={subject} onValueChange={setSubject}>
-            <SelectTrigger id="class-subject">
-              <SelectValue placeholder="Select subject" />
-            </SelectTrigger>
-            <SelectContent>
-              {SUBJECTS.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SubjectSelector value={subject} onValueChange={setSubject} id="class-subject" />
         </div>
 
         <div className="space-y-2">

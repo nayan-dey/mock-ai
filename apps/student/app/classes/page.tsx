@@ -32,7 +32,6 @@ import {
 import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import dynamic from "next/dynamic";
-import { SUBJECTS } from "@repo/types";
 
 const VideoPlayer = dynamic(() => import("@repo/ui").then(m => ({ default: m.VideoPlayer })), { ssr: false });
 
@@ -49,6 +48,7 @@ export default function ClassesPage() {
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
+  const subjects = useQuery(api.subjects.list, {});
   const classes = useQuery(api.classes.listForBatch, {
     batchId: dbUser?.batchId,
     subject: selectedSubject || undefined,
@@ -148,9 +148,9 @@ export default function ClassesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subjects</SelectItem>
-            {SUBJECTS.map((subject) => (
-              <SelectItem key={subject} value={subject}>
-                {subject}
+            {(subjects ?? []).map((s) => (
+              <SelectItem key={s._id} value={s.name}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>

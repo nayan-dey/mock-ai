@@ -22,6 +22,7 @@ import type * as orgJoinRequests from "../orgJoinRequests.js";
 import type * as organizations from "../organizations.js";
 import type * as questions from "../questions.js";
 import type * as seed from "../seed.js";
+import type * as subjects from "../subjects.js";
 import type * as tests from "../tests.js";
 import type * as userSettings from "../userSettings.js";
 import type * as users from "../users.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   organizations: typeof organizations;
   questions: typeof questions;
   seed: typeof seed;
+  subjects: typeof subjects;
   tests: typeof tests;
   userSettings: typeof userSettings;
   users: typeof users;

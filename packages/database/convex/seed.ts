@@ -25,6 +25,7 @@ export const clearAllData = mutation({
       "chatMessages",
       "orgAdmins",
       "orgJoinRequests",
+      "subjects",
     ] as const;
 
     const deleted: Record<string, number> = {};
@@ -83,6 +84,21 @@ export const seedDatabase = mutation({
       await ctx.db.patch(admin._id, { organizationId: orgId });
     } else {
       orgId = existingOrg._id;
+    }
+
+    // ==================== SUBJECTS ====================
+    const defaultSubjects = [
+      "General Knowledge", "Mathematics", "Reasoning", "Bengali",
+      "English", "General Science", "Indian History", "Geography",
+    ];
+    const existingSubjects = await ctx.db
+      .query("subjects")
+      .withIndex("by_org", (q) => q.eq("organizationId", orgId))
+      .collect();
+    if (existingSubjects.length === 0) {
+      for (const name of defaultSubjects) {
+        await ctx.db.insert("subjects", { name, organizationId: orgId });
+      }
     }
 
     // ==================== BATCHES ====================

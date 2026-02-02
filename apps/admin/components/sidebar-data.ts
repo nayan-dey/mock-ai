@@ -13,6 +13,7 @@ import {
   Database,
   BotMessageSquare,
   Settings,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,6 +57,7 @@ export const sidebarData: NavGroup[] = [
       { title: "Tests", url: "/tests", icon: FileText },
       { title: "Notes", url: "/notes", icon: BookOpen },
       { title: "Classes", url: "/classes", icon: Video },
+      { title: "Subjects", url: "/subjects", icon: Layers },
     ],
   },
   {

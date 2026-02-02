@@ -8,16 +8,11 @@ import {
   Textarea,
   Label,
   useToast,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Badge,
 } from "@repo/ui";
 import { Upload, X, FileText } from "lucide-react";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface NoteSheetProps {
   open: boolean;
@@ -192,16 +187,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
 
         <div className="space-y-2">
           <Label htmlFor="note-subject">Subject *</Label>
-          <Select value={subject} onValueChange={setSubject}>
-            <SelectTrigger id="note-subject">
-              <SelectValue placeholder="Select subject" />
-            </SelectTrigger>
-            <SelectContent>
-              {SUBJECTS.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SubjectSelector value={subject} onValueChange={setSubject} id="note-subject" />
         </div>
 
         {/* PDF Upload */}

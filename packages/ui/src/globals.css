@@ -2,37 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Satoshi Font */
-@font-face {
-  font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/FVKW7Z3C6CVFMAVNQYLEMHT5NVMQ3D6T/HQR7G7QUOQ6CJAGHUIZKTNXS67PQDWHS/TDCO3S3VCZ7XPBIO7V4HHO2HDJTAWFCE.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/FVKW7Z3C6CVFMAVNQYLEMHT5NVMQ3D6T/HQR7G7QUOQ6CJAGHUIZKTNXS67PQDWHS/QQETUKXHWQW6QFQ7PLXRNZCQ3JX3EZUI.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Satoshi';
-  src: url('https://cdn.fontshare.com/wf/FVKW7Z3C6CVFMAVNQYLEMHT5NVMQ3D6T/HQR7G7QUOQ6CJAGHUIZKTNXS67PQDWHS/KXIJ7RM6TNBF4CXPQ7WDXWFQBEVLMDIF.woff2') format('woff2');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Instrument Serif Font */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
-
 @layer base {
   :root {
-    --font-sans: 'Satoshi', system-ui, -apple-system, sans-serif;
+    --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
     --font-serif: 'Instrument Serif', Georgia, serif;
     --background: 0 0% 99%;
     --foreground: 240 10% 10%;

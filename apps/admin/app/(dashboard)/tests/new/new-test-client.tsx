@@ -27,7 +27,6 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { SUBJECTS } from "@repo/types";
 import type { Id } from "@repo/database/dataModel";
 
 type QuestionId = Id<"questions">;
@@ -65,6 +64,7 @@ export function NewTestClient() {
 
   const questions = useQuery(api.questions.list, {});
   const batches = useQuery(api.batches.list, { activeOnly: true });
+  const subjects = useQuery(api.subjects.list, {});
 
   const handleBatchToggle = useCallback((batchId: string) => {
     setSelectedBatches((prev) =>
@@ -130,11 +130,11 @@ export function NewTestClient() {
     }
   };
 
-  const facetedFilters: FacetedFilterConfig[] = [
+  const facetedFilters = useMemo<FacetedFilterConfig[]>(() => [
     {
       columnId: "subject",
       title: "Subject",
-      options: SUBJECTS.map((s) => ({ label: s, value: s })),
+      options: (subjects ?? []).map((s) => ({ label: s.name, value: s.name })),
     },
     {
       columnId: "difficulty",
@@ -145,7 +145,7 @@ export function NewTestClient() {
         { label: "Hard", value: "hard" },
       ],
     },
-  ];
+  ], [subjects]);
 
   const questionsData = (questions as Question[]) ?? [];
 

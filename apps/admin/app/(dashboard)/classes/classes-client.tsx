@@ -11,7 +11,6 @@ import {
   type ColumnDef,
   type FacetedFilterConfig,
 } from "@repo/ui";
-import { SUBJECTS } from "@repo/types";
 import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { ClassSheet } from "./class-sheet";
@@ -31,6 +30,7 @@ interface ClassItem {
 export function ClassesClient() {
   const classes = useQuery(api.classes.list, {});
   const batches = useQuery(api.batches.list, {});
+  const subjects = useQuery(api.subjects.list, {});
   const deleteClass = useMutation(api.classes.remove);
   const { toast } = useToast();
 
@@ -52,14 +52,14 @@ export function ClassesClient() {
     {
       columnId: "subject",
       title: "Subject",
-      options: SUBJECTS.map((s) => ({ label: s, value: s })),
+      options: (subjects ?? []).map((s) => ({ label: s.name, value: s.name })),
     },
     {
       columnId: "batchFilter",
       title: "Batch",
       options: (batches ?? []).map((b) => ({ label: b.name, value: b._id })),
     },
-  ], [batches]);
+  ], [batches, subjects]);
 
   const handleDelete = async (id: string) => {
     try {

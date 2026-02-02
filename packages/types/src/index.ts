@@ -177,8 +177,8 @@ export interface ExtractionResult {
   error?: string;
 }
 
-// Subject constants
-export const SUBJECTS = [
+// Default subjects (used for seeding)
+export const DEFAULT_SUBJECTS = [
   "General Knowledge",
   "Mathematics",
   "Reasoning",
@@ -189,7 +189,7 @@ export const SUBJECTS = [
   "Geography",
 ] as const;
 
-export type Subject = (typeof SUBJECTS)[number];
+export type Subject = string;
 
 // Export AI configuration
 export * from './ai-config';

@@ -17,7 +17,7 @@ import {
   RadioGroupItem,
 } from "@repo/ui";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface QuestionSheetProps {
   open: boolean;
@@ -180,16 +180,7 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="q-subject">Subject *</Label>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger id="q-subject">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SubjectSelector value={subject} onValueChange={setSubject} id="q-subject" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="q-difficulty">Difficulty *</Label>

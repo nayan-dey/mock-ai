@@ -11,27 +11,9 @@ import {
   type FacetedFilterConfig,
 } from "@repo/ui";
 import { FileQuestion, Pencil, Trash2 } from "lucide-react";
-import { SUBJECTS } from "@repo/types";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { QuestionSheet } from "./question-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-
-const facetedFilters: FacetedFilterConfig[] = [
-  {
-    columnId: "subject",
-    title: "Subject",
-    options: SUBJECTS.map((s) => ({ label: s, value: s })),
-  },
-  {
-    columnId: "difficulty",
-    title: "Difficulty",
-    options: [
-      { label: "Easy", value: "easy" },
-      { label: "Medium", value: "medium" },
-      { label: "Hard", value: "hard" },
-    ],
-  },
-];
 
 interface Question {
   _id: string;
@@ -51,7 +33,25 @@ export function QuestionsClient() {
   const [deleteQuestionId, setDeleteQuestionId] = useState<string | null>(null);
 
   const questions = useQuery(api.questions.list, {});
+  const subjects = useQuery(api.subjects.list, {});
   const deleteQuestion = useMutation(api.questions.remove);
+
+  const facetedFilters = useMemo<FacetedFilterConfig[]>(() => [
+    {
+      columnId: "subject",
+      title: "Subject",
+      options: (subjects ?? []).map((s) => ({ label: s.name, value: s.name })),
+    },
+    {
+      columnId: "difficulty",
+      title: "Difficulty",
+      options: [
+        { label: "Easy", value: "easy" },
+        { label: "Medium", value: "medium" },
+        { label: "Hard", value: "hard" },
+      ],
+    },
+  ], [subjects]);
 
   const handleDelete = async (id: string) => {
     try {

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Extractio
     }
 
     const body = await request.json();
-    const { fileBase64, mimeType, fileName, model } = body;
+    const { fileBase64, mimeType, fileName, model, subjects } = body;
 
     // Validate required fields
     if (!fileBase64 || !mimeType) {
@@ -109,10 +109,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<Extractio
       }
 
       // Extract questions from text using text model
-      result = await extractQuestionsFromText(parseResult.text, model);
+      result = await extractQuestionsFromText(parseResult.text, model, subjects);
     } else {
       // Extract questions from image using vision model
-      result = await extractQuestionsFromFile(fileBase64, mimeType, model);
+      result = await extractQuestionsFromFile(fileBase64, mimeType, model, subjects);
     }
 
     if (result.error) {

@@ -53,6 +53,7 @@ export default function ExtractQuestionsPage() {
     user?.id ? { clerkId: user.id } : "skip"
   );
   const bulkCreate = useMutation(api.questions.bulkCreate);
+  const subjectsData = useQuery(api.subjects.list, {});
   const createTest = useMutation(api.tests.create);
   const confettiRef = useRef<ConfettiRef>(null);
 
@@ -102,6 +103,7 @@ export default function ExtractQuestionsPage() {
             mimeType: file.type,
             fileName: file.name,
             model: selectedModel,
+            subjects: subjectsData?.map((s) => s.name),
           }),
           signal: controller.signal,
         });

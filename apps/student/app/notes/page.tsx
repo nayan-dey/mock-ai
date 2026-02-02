@@ -29,7 +29,6 @@ import {
 } from "@repo/ui";
 import { FileText, Download, BookOpen, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight, Calendar } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { SUBJECTS } from "@repo/types";
 
 type SortOption = "default" | "title-asc" | "title-desc" | "date-asc" | "date-desc";
 type ViewMode = "grid" | "list";
@@ -40,6 +39,7 @@ export default function NotesPage() {
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
+  const subjects = useQuery(api.subjects.list, {});
   const notes = useQuery(api.notes.listForBatch, {
     batchId: dbUser?.batchId,
     subject: selectedSubject || undefined,
@@ -163,9 +163,9 @@ export default function NotesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subjects</SelectItem>
-            {SUBJECTS.map((subject) => (
-              <SelectItem key={subject} value={subject}>
-                {subject}
+            {(subjects ?? []).map((s) => (
+              <SelectItem key={s._id} value={s.name}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>
