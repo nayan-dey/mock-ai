@@ -15,6 +15,12 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 
+const USER_BUTTON_APPEARANCE = {
+  elements: {
+    avatarBox: "h-7 w-7",
+  },
+} as const;
+
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tests", label: "Tests", icon: FileText },
@@ -77,11 +83,7 @@ export function Navbar() {
               <div className="hidden md:block">
                 <UserButton
                   afterSignOutUrl="/"
-                  appearance={{
-                    elements: {
-                      avatarBox: "h-7 w-7",
-                    },
-                  }}
+                  appearance={USER_BUTTON_APPEARANCE}
                 />
               </div>
             </SignedIn>

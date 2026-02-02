@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -28,11 +28,7 @@ type SortOption = "default" | "duration-asc" | "duration-desc" | "questions-asc"
 type ViewMode = "grid" | "list";
 
 export default function TestsPage() {
-  const { user } = useUser();
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
+  const { dbUser } = useCurrentUser();
   const tests = useQuery(
     api.tests.listPublishedForBatch,
     dbUser ? { batchId: dbUser.batchId } : "skip"

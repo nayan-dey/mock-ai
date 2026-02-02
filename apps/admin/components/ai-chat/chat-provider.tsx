@@ -3,7 +3,7 @@
 import { useChat, type Message } from "ai/react";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 
 interface ChatContextType {
   messages: ReturnType<typeof useChat>["messages"];
@@ -19,6 +19,7 @@ interface ChatContextType {
   currentConversationId: string | null;
   selectConversation: (conversationId: string | null) => void;
   startNewChat: () => void;
+  submitMessage: (text: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -55,20 +56,8 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
   const isContextLoading = adminContext === undefined;
   const isMessagesLoading = currentConversationId !== null && conversationMessages === undefined;
 
-  // Convert Convex messages to AI SDK format when conversation changes
-  useEffect(() => {
-    if (currentConversationId && conversationMessages !== undefined) {
-      const formattedMessages: Message[] = conversationMessages.map((msg, index) => ({
-        id: msg._id || `msg-${index}`,
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-        createdAt: new Date(msg.createdAt),
-      }));
-      setInitialMessages(formattedMessages);
-    } else if (!currentConversationId) {
-      setInitialMessages([]);
-    }
-  }, [conversationMessages, currentConversationId]);
+  // Memoize body to avoid unstable reference
+  const chatBody = useMemo(() => ({ adminContext }), [adminContext]);
 
   const {
     messages,
@@ -84,16 +73,25 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
   } = useChat({
     api: "/api/chat",
     initialMessages: initialMessages,
-    body: {
-      adminContext,
-    },
+    body: chatBody,
   });
 
+  // Convert Convex messages to AI SDK format and sync into useChat in a single effect
   useEffect(() => {
-    if (!isMessagesLoading) {
-      setMessages(initialMessages);
+    if (currentConversationId && conversationMessages !== undefined) {
+      const formattedMessages: Message[] = conversationMessages.map((msg, index) => ({
+        id: msg._id || `msg-${index}`,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        createdAt: new Date(msg.createdAt),
+      }));
+      setInitialMessages(formattedMessages);
+      setMessages(formattedMessages);
+    } else if (!currentConversationId) {
+      setInitialMessages([]);
+      setMessages([]);
     }
-  }, [initialMessages, setMessages, isMessagesLoading]);
+  }, [conversationMessages, currentConversationId, setMessages]);
 
   const selectConversation = useCallback((conversationId: string | null) => {
     setCurrentConversationId(conversationId);
@@ -107,24 +105,30 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
     setMessages([]);
   }, [setMessages]);
 
+  const submitMessage = useCallback((text: string) => {
+    setInput(text);
+    handleSubmit(new Event("submit") as any);
+  }, [setInput, handleSubmit]);
+
+  const contextValue = useMemo(() => ({
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading: isLoading || isContextLoading,
+    error,
+    reload,
+    stop,
+    setInput,
+    isContextLoading,
+    currentConversationId,
+    selectConversation,
+    startNewChat,
+    submitMessage,
+  }), [messages, input, handleInputChange, handleSubmit, isLoading, isContextLoading, error, reload, stop, setInput, currentConversationId, selectConversation, startNewChat, submitMessage]);
+
   return (
-    <ChatContext.Provider
-      value={{
-        messages,
-        input,
-        handleInputChange,
-        handleSubmit,
-        isLoading: isLoading || isContextLoading,
-        error,
-        reload,
-        stop,
-        setInput,
-        isContextLoading,
-        currentConversationId,
-        selectConversation,
-        startNewChat,
-      }}
-    >
+    <ChatContext.Provider value={contextValue}>
       {children}
     </ChatContext.Provider>
   );

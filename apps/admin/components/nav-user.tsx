@@ -18,6 +18,7 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@repo/ui";
+import { getInitials } from "@/lib/utils";
 
 export function NavUser() {
   const router = useRouter();
@@ -32,15 +33,6 @@ export function NavUser() {
   const displayName = user?.fullName || "Admin";
   const email = user?.primaryEmailAddress?.emailAddress || "";
   const imageUrl = user?.imageUrl;
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   return (
     <SignedIn>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo, useRef } from "react";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Upload,
@@ -52,6 +52,7 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<SelectedFile | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const addMoreInputRef = useRef<HTMLInputElement>(null);
 
   const thumbnailUrls = useMemo(() => {
@@ -63,6 +64,22 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
     });
     return urls;
   }, [selectedFiles]);
+
+  // Cleanup object URLs on change or unmount to prevent memory leaks
+  const prevUrlsRef = useRef<Map<number, string>>(new Map());
+  useEffect(() => {
+    // Revoke old URLs that are no longer in the new map
+    prevUrlsRef.current.forEach((url, key) => {
+      if (!thumbnailUrls.has(key) || thumbnailUrls.get(key) !== url) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    prevUrlsRef.current = new Map(thumbnailUrls);
+
+    return () => {
+      thumbnailUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [thumbnailUrls]);
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -161,6 +178,17 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
       return <FileSpreadsheet className="h-5 w-5 text-emerald-500" />;
     return <ImageIcon className="h-5 w-5 text-blue-500" />;
   };
+
+  // Manage preview URL lifecycle to avoid inline createObjectURL in render
+  useEffect(() => {
+    if (previewFile) {
+      const url = URL.createObjectURL(previewFile.file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [previewFile]);
 
   const isImageFile = (type: string) => IMAGE_TYPES.includes(type);
 
@@ -345,10 +373,10 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
               {previewFile?.file.name}
             </DialogTitle>
           </DialogHeader>
-          {previewFile && (
+          {previewFile && previewUrl && (
             <div className="flex items-center justify-center">
               <img
-                src={URL.createObjectURL(previewFile.file)}
+                src={previewUrl}
                 alt={previewFile.file.name}
                 className="max-h-[70vh] w-auto rounded-lg object-contain"
               />

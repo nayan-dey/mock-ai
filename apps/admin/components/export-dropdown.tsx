@@ -15,15 +15,17 @@ interface ExportDropdownProps {
   onExportExcel: () => void;
   onExportPdf: () => void;
   disabled?: boolean;
+  onOpen?: () => void;
 }
 
 export function ExportDropdown({
   onExportExcel,
   onExportPdf,
   disabled,
+  onOpen,
 }: ExportDropdownProps) {
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => open && onOpen?.()}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
           <Download className="mr-1.5 h-3.5 w-3.5" />

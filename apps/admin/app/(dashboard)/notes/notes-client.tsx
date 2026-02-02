@@ -56,7 +56,7 @@ export function NotesClient() {
     setDeleteNoteId(null);
   };
 
-  const columns: ColumnDef<Note, any>[] = [
+  const columns = useMemo<ColumnDef<Note>[]>(() => [
     {
       accessorKey: "title",
       header: ({ column }) => <SortableHeader column={column} title="Title" />,
@@ -126,7 +126,7 @@ export function NotesClient() {
         separator: true,
       },
     ]),
-  ];
+  ], [batchMap]);
 
   return (
     <>

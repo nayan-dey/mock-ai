@@ -136,37 +136,32 @@ export async function POST(req: Request) {
       );
     }
 
-    // Set up authenticated Convex client
+    // Get messages and client-provided context from request body
+    const { messages, studentContext: clientContext } = await req.json();
+
+    // Try server-side fetch first, fall back to client-provided context
+    let studentContext = clientContext;
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!convexUrl) {
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+    if (convexUrl) {
+      try {
+        const convex = new ConvexHttpClient(convexUrl);
+        const convexToken = await getToken({ template: "convex" });
+        if (convexToken) {
+          convex.setAuth(convexToken);
+        }
+        studentContext = await convex.query(api.chat.getStudentContext, {});
+      } catch (ctxError) {
+        console.error("Failed to fetch student context server-side, using client context:", ctxError);
+        // Fall through to use clientContext
+      }
     }
 
-    const convex = new ConvexHttpClient(convexUrl);
-
-    // Get Clerk token for Convex auth and set it on the client
-    const convexToken = await getToken({ template: "convex" });
-    if (convexToken) {
-      convex.setAuth(convexToken);
-    }
-
-    // Fetch student context server-side (don't trust client)
-    let studentContext;
-    try {
-      studentContext = await convex.query(api.chat.getStudentContext, {});
-    } catch (ctxError) {
-      console.error("Failed to fetch student context:", ctxError);
+    if (!studentContext) {
       return new Response(
         JSON.stringify({ error: "Failed to load student context" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    // Get messages from request body (context no longer trusted from client)
-    const { messages } = await req.json();
 
     // Build system prompt with server-fetched student context
     const systemPrompt = buildSystemPrompt(studentContext);

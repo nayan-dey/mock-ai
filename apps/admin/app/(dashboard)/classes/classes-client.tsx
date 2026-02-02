@@ -56,7 +56,7 @@ export function ClassesClient() {
     setDeleteClassId(null);
   };
 
-  const columns: ColumnDef<ClassItem, any>[] = [
+  const columns: ColumnDef<ClassItem>[] = useMemo(() => [
     {
       accessorKey: "title",
       header: ({ column }) => <SortableHeader column={column} title="Title" />,
@@ -126,7 +126,7 @@ export function ClassesClient() {
         separator: true,
       },
     ]),
-  ];
+  ], [batchMap]);
 
   return (
     <>

@@ -34,6 +34,7 @@ import { ArrowLeft, FileQuestion, Clock, Trophy, Users, Settings, Save, Loader2,
 import Link from "next/link";
 import { toast } from "sonner";
 import type { Id } from "@repo/database/dataModel";
+import { getStatusBadge } from "@/lib/utils";
 
 interface TestDetailClientProps {
   testId: string;
@@ -158,31 +159,6 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
       </div>
     );
   }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "published":
-        return (
-          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
-            Published
-          </Badge>
-        );
-      case "draft":
-        return (
-          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-500">
-            Draft
-          </Badge>
-        );
-      case "archived":
-        return (
-          <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
-            Archived
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   return (
     <div className="space-y-4 p-4 md:p-6">

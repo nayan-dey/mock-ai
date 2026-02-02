@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -13,13 +13,12 @@ import {
   Badge,
   Skeleton,
   formatDate,
-  Progress,
   DataTable,
   SortableHeader,
   BackButton,
   type ColumnDef,
 } from "@repo/ui";
-import { FileText, Eye, ArrowRight, CheckCircle2, XCircle, Trophy, Clock, TrendingUp, ChevronRight } from "lucide-react";
+import { FileText, ArrowRight, CheckCircle2, XCircle, Clock, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -39,11 +38,7 @@ interface AttemptData {
 }
 
 export default function ResultsPage() {
-  const { user } = useUser();
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
+  const { dbUser } = useCurrentUser();
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,

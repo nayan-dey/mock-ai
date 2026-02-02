@@ -28,23 +28,17 @@ import {
   BackButton,
 } from "@repo/ui";
 import { FileText, Download, BookOpen, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight, Calendar } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
-import { useQuery as useConvexQuery } from "convex/react";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { SUBJECTS } from "@repo/types";
 
 type SortOption = "default" | "title-asc" | "title-desc" | "date-asc" | "date-desc";
 type ViewMode = "grid" | "list";
 
 export default function NotesPage() {
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-
-  const dbUser = useConvexQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const notes = useQuery(api.notes.listForBatch, {
     batchId: dbUser?.batchId,

@@ -2,8 +2,8 @@
 
 import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
-import { useUser } from "@clerk/nextjs";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -29,34 +29,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
   type LeaderboardEntry,
-  fireConfetti,
   BackButton,
 } from "@repo/ui";
 import { Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper, Clock } from "lucide-react";
 import Link from "next/link";
-import type { GenericId } from "convex/values";
+import type { Id } from "@repo/database/dataModel";
 import { useState, useMemo, useEffect, useRef } from "react";
 
-type Id<T extends string> = GenericId<T>;
+const loadConfetti = () => import("@repo/ui").then(m => m.fireConfetti);
+
 type AttemptId = Id<"attempts">;
 
 type FilterType = "all" | "correct" | "incorrect" | "skipped";
 
+const FILTER_LABELS: Record<FilterType, string> = {
+  all: "All Questions",
+  correct: "Correct",
+  incorrect: "Incorrect",
+  skipped: "Skipped",
+};
+
 export default function ResultDetailPage() {
   const params = useParams();
   const attemptId = params.id as string;
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const [filter, setFilter] = useState<FilterType>("all");
   const hasTriggeredConfetti = useRef(false);
 
   const attemptWithDetails = useQuery(api.attempts.getWithDetails, {
     id: attemptId as AttemptId,
   });
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const attemptBreakdown = useQuery(
     api.analytics.getAttemptBreakdown,
@@ -74,6 +76,14 @@ export default function ResultDetailPage() {
       ? { testId: attemptWithDetails.testId, userId: dbUser._id }
       : "skip"
   );
+
+  const leaderboardEntries = useMemo(() => {
+    if (!leaderboard) return [];
+    return leaderboard.map((entry) => ({
+      ...entry,
+      isCurrentUser: entry.userId === dbUser?._id,
+    })) as LeaderboardEntry[];
+  }, [leaderboard, dbUser?._id]);
 
   // Filter questions based on selected filter
   const filteredQuestions = useMemo(() => {
@@ -113,7 +123,7 @@ export default function ResultDetailPage() {
         hasTriggeredConfetti.current = true;
         // Slight delay for better UX
         const timer = setTimeout(() => {
-          fireConfetti(pct >= 80 ? "enhanced" : "standard");
+          loadConfetti().then(fn => fn(pct >= 80 ? "enhanced" : "standard"));
         }, 500);
         return () => clearTimeout(timer);
       }
@@ -124,7 +134,7 @@ export default function ResultDetailPage() {
     const pct = attemptWithDetails
       ? (attemptWithDetails.score / attemptWithDetails.test.totalMarks) * 100
       : 0;
-    fireConfetti(pct >= 80 ? "enhanced" : "standard");
+    loadConfetti().then(fn => fn(pct >= 80 ? "enhanced" : "standard"));
   };
 
   if (!attemptWithDetails) {
@@ -178,13 +188,6 @@ export default function ResultDetailPage() {
   const minutes = Math.floor(timeTaken / 60000);
   const seconds = Math.floor((timeTaken % 60000) / 1000);
   const totalQuestions = questions.length;
-
-  const filterLabels: Record<FilterType, string> = {
-    all: "All Questions",
-    correct: "Correct",
-    incorrect: "Incorrect",
-    skipped: "Skipped",
-  };
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
@@ -407,7 +410,7 @@ export default function ResultDetailPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 gap-2">
                   <ListFilter className="h-3.5 w-3.5" />
-                  {filterLabels[filter]}
+                  {FILTER_LABELS[filter]}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
@@ -553,10 +556,7 @@ export default function ResultDetailPage() {
               {leaderboard && leaderboard.length > 0 ? (
                 <div className="overflow-x-auto border-t">
                   <LeaderboardTable
-                    entries={leaderboard.map((entry) => ({
-                      ...entry,
-                      isCurrentUser: entry.userId === dbUser?._id,
-                    })) as LeaderboardEntry[]}
+                    entries={leaderboardEntries}
                     variant="test"
                   />
                 </div>

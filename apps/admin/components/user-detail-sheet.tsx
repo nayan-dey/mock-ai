@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { exportMultiSectionPdf, exportMultiSheetExcel, type ExportColumn } from "@/lib/export-utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Sheet,
   SheetContent,
@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
+import { getInitials } from "@/lib/utils";
 
 interface UserDetailSheetProps {
   userId: string | null;
@@ -85,15 +86,6 @@ interface Fee {
   createdAt: number;
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
 export function UserDetailSheet({
   userId,
   open,
@@ -111,7 +103,7 @@ export function UserDetailSheet({
   const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
   const [markPaidFeeId, setMarkPaidFeeId] = useState<string | null>(null);
   const [markPaidDate, setMarkPaidDate] = useState(
-    new Date().toISOString().split("T")[0]
+    () => new Date().toISOString().split("T")[0]
   );
 
   // Fee form state
@@ -124,14 +116,17 @@ export function UserDetailSheet({
   const [description, setDescription] = useState("");
 
   // Queries
-  const organization = useQuery(api.organizations.getMyOrg);
+  const organization = useQuery(
+    api.organizations.getMyOrg,
+    open ? undefined : "skip"
+  );
   const currentAdmin = useQuery(
     api.users.getByClerkId,
-    clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
+    open && clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
   );
   const userData = useQuery(
     api.users.getById,
-    userId ? { id: userId as Id<"users"> } : "skip"
+    open && userId ? { id: userId as Id<"users"> } : "skip"
   );
   // Cast to any to access all possible fields from the Convex union type
   const user = userData as any;
@@ -442,13 +437,16 @@ export function UserDetailSheet({
     toast({ title: "Excel exported successfully" });
   };
 
-  const totalDue =
-    fees?.filter((f) => f.status === "due").reduce((s, f) => s + f.amount, 0) ??
-    0;
-  const totalPaid =
-    fees
-      ?.filter((f) => f.status === "paid")
-      .reduce((s, f) => s + f.amount, 0) ?? 0;
+  const totalDue = useMemo(
+    () =>
+      fees?.filter((f) => f.status === "due").reduce((s, f) => s + f.amount, 0) ?? 0,
+    [fees]
+  );
+  const totalPaid = useMemo(
+    () =>
+      fees?.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0) ?? 0,
+    [fees]
+  );
 
   return (
     <>
@@ -926,22 +924,24 @@ export function UserDetailSheet({
                           </CardHeader>
                           <CardContent className="px-3 pb-3">
                             <div className="flex items-end gap-1 h-16">
-                              {performanceTrend.map((entry: any, i: number) => {
+                              {(() => {
                                 const maxScore = Math.max(
                                   ...performanceTrend.map((e: any) => e.score)
                                 );
-                                const height = maxScore > 0
-                                  ? (entry.score / maxScore) * 100
-                                  : 0;
-                                return (
-                                  <div
-                                    key={i}
-                                    className="flex-1 rounded-t bg-primary/80 hover:bg-primary transition-colors"
-                                    style={{ height: `${Math.max(height, 4)}%` }}
-                                    title={`${entry.testTitle}: ${entry.score} (${entry.accuracy}%)`}
-                                  />
-                                );
-                              })}
+                                return performanceTrend.map((entry: any, i: number) => {
+                                  const height = maxScore > 0
+                                    ? (entry.score / maxScore) * 100
+                                    : 0;
+                                  return (
+                                    <div
+                                      key={i}
+                                      className="flex-1 rounded-t bg-primary/80 hover:bg-primary transition-colors"
+                                      style={{ height: `${Math.max(height, 4)}%` }}
+                                      title={`${entry.testTitle}: ${entry.score} (${entry.accuracy}%)`}
+                                    />
+                                  );
+                                });
+                              })()}
                             </div>
                             <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
                               <span>{performanceTrend[0]?.date}</span>

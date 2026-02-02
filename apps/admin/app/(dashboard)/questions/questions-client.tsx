@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import {
@@ -15,6 +15,23 @@ import { SUBJECTS } from "@repo/types";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { QuestionSheet } from "./question-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+
+const facetedFilters: FacetedFilterConfig[] = [
+  {
+    columnId: "subject",
+    title: "Subject",
+    options: SUBJECTS.map((s) => ({ label: s, value: s })),
+  },
+  {
+    columnId: "difficulty",
+    title: "Difficulty",
+    options: [
+      { label: "Easy", value: "easy" },
+      { label: "Medium", value: "medium" },
+      { label: "Hard", value: "hard" },
+    ],
+  },
+];
 
 interface Question {
   _id: string;
@@ -55,24 +72,7 @@ export function QuestionsClient() {
     }
   };
 
-  const facetedFilters: FacetedFilterConfig[] = [
-    {
-      columnId: "subject",
-      title: "Subject",
-      options: SUBJECTS.map((s) => ({ label: s, value: s })),
-    },
-    {
-      columnId: "difficulty",
-      title: "Difficulty",
-      options: [
-        { label: "Easy", value: "easy" },
-        { label: "Medium", value: "medium" },
-        { label: "Hard", value: "hard" },
-      ],
-    },
-  ];
-
-  const columns: ColumnDef<Question, any>[] = [
+  const columns: ColumnDef<Question, any>[] = useMemo(() => [
     {
       accessorKey: "text",
       header: ({ column }) => <SortableHeader column={column} title="Question" />,
@@ -115,7 +115,7 @@ export function QuestionsClient() {
         separator: true,
       },
     ]),
-  ];
+  ], [getDifficultyBadge, setEditingQuestionId, setSheetOpen, setDeleteQuestionId]);
 
   return (
     <>

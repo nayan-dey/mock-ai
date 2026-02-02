@@ -1,8 +1,7 @@
 "use client";
 
-import { useUser, SignOutButton } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
-import { api } from "@repo/database";
+import { SignOutButton } from "@clerk/nextjs";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -25,13 +24,8 @@ function SuspendedSkeleton() {
 }
 
 export default function SuspendedPage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { dbUser, isLoading } = useCurrentUser();
   const router = useRouter();
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   // Redirect away if user is not suspended
   useEffect(() => {
@@ -40,7 +34,7 @@ export default function SuspendedPage() {
     }
   }, [dbUser, router]);
 
-  if (!isUserLoaded || (user && dbUser === undefined)) {
+  if (isLoading) {
     return <SuspendedSkeleton />;
   }
 

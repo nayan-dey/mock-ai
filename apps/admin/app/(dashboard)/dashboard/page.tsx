@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -38,12 +38,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useUrlState } from "@/hooks/use-url-state";
+import { getInitials } from "@/lib/utils";
 import { ExportDropdown } from "@/components/export-dropdown";
-import {
-  exportMultiSheetExcel,
-  exportMultiSectionPdf,
-  type ExportColumn,
-} from "@/lib/export-utils";
+import type { ExportColumn } from "@/lib/export-utils";
 
 interface LeaderboardEntry {
   userId: string;
@@ -64,31 +61,28 @@ export default function DashboardPage() {
   const tests = useQuery(api.tests.listPublished);
   const [selectedTestId, setSelectedTestId] = useUrlState("test", "");
 
+  // Auto-select first test when tests are loaded (must be before useQuery calls that depend on it)
+  const effectiveTestId = selectedTestId || (tests && tests.length > 0 ? tests[0]._id : "");
+
   const testAnalytics = useQuery(
     api.analytics.getTestAnalytics,
-    selectedTestId ? { testId: selectedTestId as any } : "skip"
+    effectiveTestId ? { testId: effectiveTestId as any } : "skip"
   );
   const testLeaderboard = useQuery(
     api.analytics.getLeaderboard,
-    selectedTestId ? { testId: selectedTestId as any } : "skip"
+    effectiveTestId ? { testId: effectiveTestId as any } : "skip"
   );
 
-  // Data for full org export
+  // Data for full org export — only fetch when user requests export
+  const [exportRequested, setExportRequested] = useState(false);
   const organization = useQuery(api.organizations.getMyOrg);
-  const allUsers = useQuery(api.users.list, {});
-  const allFees = useQuery(api.fees.getAll);
-  const allBatches = useQuery(api.batches.list, {});
+  const allUsers = useQuery(api.users.list, exportRequested ? {} : "skip");
+  const allFees = useQuery(api.fees.getAll, exportRequested ? undefined : "skip");
+  const allBatches = useQuery(api.batches.list, exportRequested ? {} : "skip");
 
   const seedDatabase = useMutation(api.seed.seedDatabase);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
-
-  // Auto-select first test when tests are loaded
-  useEffect(() => {
-    if (tests && tests.length > 0 && !selectedTestId) {
-      setSelectedTestId(tests[0]._id);
-    }
-  }, [tests, selectedTestId]);
 
   const handleSeedDatabase = async () => {
     if (!user?.id) return;
@@ -106,10 +100,12 @@ export default function DashboardPage() {
   };
 
   // ─── Full Org Export ──────────────────────────────────────────────────────
+  const handleExportOpen = useCallback(() => setExportRequested(true), []);
   const orgExportReady = !!allUsers && !!allFees && !!allBatches && !!tests;
 
-  const handleOrgExportExcel = () => {
+  const handleOrgExportExcel = async () => {
     if (!allUsers || !allFees || !allBatches || !tests) return;
+    const { exportMultiSheetExcel } = await import("@/lib/export-utils");
     exportMultiSheetExcel(
       [
         {
@@ -158,8 +154,9 @@ export default function DashboardPage() {
     );
   };
 
-  const handleOrgExportPdf = () => {
+  const handleOrgExportPdf = async () => {
     if (!allUsers || !allFees || !allBatches || !tests) return;
+    const { exportMultiSectionPdf } = await import("@/lib/export-utils");
     exportMultiSectionPdf(
       [
         {
@@ -209,7 +206,7 @@ export default function DashboardPage() {
     );
   };
 
-  const leaderboardColumns: ColumnDef<LeaderboardEntry>[] = [
+  const leaderboardColumns: ColumnDef<LeaderboardEntry>[] = useMemo(() => [
     {
       accessorKey: "rank",
       header: ({ column }) => (
@@ -275,7 +272,7 @@ export default function DashboardPage() {
         );
       },
     },
-  ];
+  ], []);
 
   // Loading state
   if (stats === undefined || batchCount === undefined) {
@@ -332,15 +329,6 @@ export default function DashboardPage() {
 
   const isEmpty = stats.totalQuestions === 0 && stats.totalTests === 0;
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex items-center justify-between">
@@ -353,7 +341,8 @@ export default function DashboardPage() {
         <ExportDropdown
           onExportExcel={handleOrgExportExcel}
           onExportPdf={handleOrgExportPdf}
-          disabled={!orgExportReady}
+          disabled={exportRequested && !orgExportReady}
+          onOpen={handleExportOpen}
         />
       </div>
 
@@ -512,7 +501,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="mb-6">
-            <Select value={selectedTestId} onValueChange={setSelectedTestId}>
+            <Select value={effectiveTestId} onValueChange={setSelectedTestId}>
               <SelectTrigger className="w-full max-w-md">
                 <SelectValue placeholder="Select a test" />
               </SelectTrigger>
@@ -526,7 +515,7 @@ export default function DashboardPage() {
             </Select>
           </div>
 
-          {selectedTestId && testAnalytics && testAnalytics.totalAttempts > 0 && (
+          {effectiveTestId && testAnalytics && testAnalytics.totalAttempts > 0 && (
             <div className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
                 {/* Performance Summary */}
@@ -602,7 +591,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {selectedTestId &&
+          {effectiveTestId &&
             testAnalytics &&
             testAnalytics.totalAttempts === 0 && (
               <div className="flex flex-col items-center justify-center py-12">

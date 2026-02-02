@@ -1,32 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Smartphone } from "lucide-react";
 
 export function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  const [origin, setOrigin] = useState("");
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
-    const checkMobile = () => {
-      // Check if device is mobile using multiple methods
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const isMobileWidth = window.innerWidth < 768;
-      const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
+    setOrigin(window.location.origin);
 
-      // Consider it mobile if it's touch AND either mobile width OR mobile user agent
+    // Evaluate UA once (it never changes)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+
+    const checkMobile = () => {
+      const isMobileWidth = window.innerWidth < 768;
       setIsMobile(isTouchDevice && (isMobileWidth || isMobileUserAgent) || isMobileWidth);
     };
 
     checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+
+    const handleResize = () => {
+      clearTimeout(resizeTimerRef.current);
+      resizeTimerRef.current = setTimeout(checkMobile, 150);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(resizeTimerRef.current);
+    };
   }, []);
 
-  // Show nothing while checking
+  // Show loading spinner while checking instead of blank screen
   if (isMobile === null) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   // Show error on desktop
@@ -50,7 +66,7 @@ export function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
               Scan the QR code or visit this URL on your mobile device:
             </p>
             <p className="mt-2 font-mono text-sm text-primary">
-              {typeof window !== "undefined" ? window.location.origin : ""}
+              {origin}
             </p>
           </div>
         </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -44,13 +44,8 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
   const { toast } = useToast();
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const userSettings = useQuery(
     api.userSettings.getOrCreateDefault,
@@ -65,7 +60,7 @@ export default function SettingsPage() {
   const [isSeeding, setIsSeeding] = useState(false);
   const [isSeedingFullYear, setIsSeedingFullYear] = useState(false);
 
-  if (!isUserLoaded || (user && (dbUser === undefined || userSettings === undefined))) {
+  if (isUserLoading || (user && userSettings === undefined)) {
     return <SettingsSkeleton />;
   }
 

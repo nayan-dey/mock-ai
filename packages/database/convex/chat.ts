@@ -170,9 +170,9 @@ export const getDailyMessageCount = query({
 
     return {
       count,
-      limit: 3,
-      remaining: Math.max(0, 3 - count),
-      hasReachedLimit: count >= 3,
+      limit: Infinity,
+      remaining: Infinity,
+      hasReachedLimit: false,
     };
   },
 });

@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -30,19 +30,9 @@ import {
   Ban,
 } from "lucide-react";
 import { useMemo } from "react";
-import type { GenericId } from "convex/values";
+import type { Id } from "@repo/database/dataModel";
 import Link from "next/link";
-
-type Id<T extends string> = GenericId<T>;
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { getInitials } from "@/lib/utils";
 
 function ProfileSkeleton() {
   return (
@@ -87,7 +77,7 @@ function getTierGradient(tier: Tier | null): string {
 export default function ProfilePage() {
   const params = useParams();
   const userId = params.userId as string;
-  const { user: currentUser } = useUser();
+  const { dbUser: currentDbUser } = useCurrentUser();
 
   const profile = useQuery(api.users.getPublicProfile, {
     userId: userId as Id<"users">,
@@ -100,11 +90,6 @@ export default function ProfilePage() {
   const achievements = useQuery(api.analytics.getStudentAchievements, {
     userId: userId as Id<"users">,
   });
-
-  const currentDbUser = useQuery(
-    api.users.getByClerkId,
-    currentUser?.id ? { clerkId: currentUser.id } : "skip"
-  );
 
   const isOwnProfile = currentDbUser?._id === userId;
 

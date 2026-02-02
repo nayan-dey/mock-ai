@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -21,17 +21,9 @@ import {
   ImageUpload,
 } from "@repo/ui";
 import { Save } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { getInitials } from "@/lib/utils";
 
 function EditProfileSkeleton() {
   return (
@@ -50,14 +42,9 @@ function EditProfileSkeleton() {
 }
 
 export default function EditProfilePage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const batch = useQuery(
     api.batches.getById,
@@ -73,14 +60,16 @@ export default function EditProfilePage() {
     bio: "",
     age: "",
   });
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (dbUser) {
+    if (!hasInitialized.current && dbUser) {
       setFormData({
         name: dbUser.name || "",
         bio: dbUser.bio || "",
         age: dbUser.age?.toString() || "",
       });
+      hasInitialized.current = true;
     }
   }, [dbUser]);
 
@@ -106,7 +95,7 @@ export default function EditProfilePage() {
     }
   };
 
-  if (!isUserLoaded || (user && dbUser === undefined)) {
+  if (isUserLoading) {
     return <EditProfileSkeleton />;
   }
 

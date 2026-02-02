@@ -3,7 +3,7 @@
 import { useChat, type Message } from "ai/react";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 
 interface ChatContextType {
   messages: ReturnType<typeof useChat>["messages"];
@@ -19,6 +19,7 @@ interface ChatContextType {
   currentConversationId: string | null;
   selectConversation: (conversationId: string | null) => void;
   startNewChat: () => void;
+  submitMessage: (text: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -57,23 +58,8 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
   // Track if messages query is loading
   const isMessagesLoading = currentConversationId !== null && conversationMessages === undefined;
 
-  // Convert Convex messages to AI SDK format when conversation changes
-  useEffect(() => {
-    // Only update when query is complete (not during loading)
-    if (currentConversationId && conversationMessages !== undefined) {
-      const formattedMessages: Message[] = conversationMessages.map((msg, index) => ({
-        id: msg._id || `msg-${index}`,
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-        createdAt: new Date(msg.createdAt),
-      }));
-      setInitialMessages(formattedMessages);
-    } else if (!currentConversationId) {
-      // Only clear messages when explicitly starting a new chat (no conversation selected)
-      setInitialMessages([]);
-    }
-    // Don't do anything while loading - keep existing messages visible
-  }, [conversationMessages, currentConversationId]);
+  // Memoize body to avoid unstable reference
+  const chatBody = useMemo(() => ({ studentContext }), [studentContext]);
 
   const {
     messages,
@@ -86,21 +72,29 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
     stop,
     setInput,
     setMessages,
+    append,
   } = useChat({
     api: "/api/chat",
     initialMessages: initialMessages,
-    body: {
-      studentContext,
-    },
+    body: chatBody,
   });
 
-  // Update messages when initialMessages change (when switching conversations)
+  // Convert Convex messages to AI SDK format and sync into useChat in a single effect
   useEffect(() => {
-    // Only update if we're not in a loading state
-    if (!isMessagesLoading) {
-      setMessages(initialMessages);
+    if (currentConversationId && conversationMessages !== undefined) {
+      const formattedMessages: Message[] = conversationMessages.map((msg, index) => ({
+        id: msg._id || `msg-${index}`,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+        createdAt: new Date(msg.createdAt),
+      }));
+      setInitialMessages(formattedMessages);
+      setMessages(formattedMessages);
+    } else if (!currentConversationId) {
+      setInitialMessages([]);
+      setMessages([]);
     }
-  }, [initialMessages, setMessages, isMessagesLoading]);
+  }, [conversationMessages, currentConversationId, setMessages]);
 
   const selectConversation = useCallback((conversationId: string | null) => {
     setCurrentConversationId(conversationId);
@@ -114,24 +108,29 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
     setMessages([]);
   }, [setMessages]);
 
+  const submitMessage = useCallback((text: string) => {
+    append({ role: "user", content: text });
+  }, [append]);
+
+  const contextValue = useMemo(() => ({
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading: isLoading || isContextLoading,
+    error,
+    reload,
+    stop,
+    setInput,
+    isContextLoading,
+    currentConversationId,
+    selectConversation,
+    startNewChat,
+    submitMessage,
+  }), [messages, input, handleInputChange, handleSubmit, isLoading, isContextLoading, error, reload, stop, setInput, currentConversationId, selectConversation, startNewChat, submitMessage]);
+
   return (
-    <ChatContext.Provider
-      value={{
-        messages,
-        input,
-        handleInputChange,
-        handleSubmit,
-        isLoading: isLoading || isContextLoading,
-        error,
-        reload,
-        stop,
-        setInput,
-        isContextLoading,
-        currentConversationId,
-        selectConversation,
-        startNewChat,
-      }}
-    >
+    <ChatContext.Provider value={contextValue}>
       {children}
     </ChatContext.Provider>
   );

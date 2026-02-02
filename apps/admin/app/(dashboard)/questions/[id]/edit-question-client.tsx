@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -48,9 +48,15 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
   const [subject, setSubject] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasInitialized = useRef(false);
+
+  // Reset when the question ID changes so a fresh load populates the form
+  useEffect(() => {
+    hasInitialized.current = false;
+  }, [questionId]);
 
   useEffect(() => {
-    if (question) {
+    if (!hasInitialized.current && question) {
       setText(question.text);
       setOptions(
         question.options.length === 4
@@ -61,8 +67,9 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
       setExplanation(question.explanation || "");
       setSubject(question.subject);
       setDifficulty(question.difficulty);
+      hasInitialized.current = true;
     }
-  }, [question]);
+  }, [question, questionId]);
 
   const handleOptionChange = useCallback((index: number, value: string) => {
     setOptions(prev => {

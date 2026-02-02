@@ -16,7 +16,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  VideoPlayer,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -31,15 +30,17 @@ import {
   BackButton,
 } from "@repo/ui";
 import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
-import { useQuery as useConvexQuery } from "convex/react";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import dynamic from "next/dynamic";
 import { SUBJECTS } from "@repo/types";
+
+const VideoPlayer = dynamic(() => import("@repo/ui").then(m => ({ default: m.VideoPlayer })), { ssr: false });
 
 type SortOption = "default" | "title-asc" | "title-desc";
 type ViewMode = "grid" | "list";
 
 export default function ClassesPage() {
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<{
     title: string;
@@ -47,11 +48,6 @@ export default function ClassesPage() {
   } | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-
-  const dbUser = useConvexQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const classes = useQuery(api.classes.listForBatch, {
     batchId: dbUser?.batchId,

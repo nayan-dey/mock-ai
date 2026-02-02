@@ -1,10 +1,10 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -29,24 +29,19 @@ import {
   type QuestionStatus,
 } from "@repo/ui";
 import { Clock, ClipboardList, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain, Info } from "lucide-react";
-import type { GenericId } from "convex/values";
-
-type Id<T extends string> = GenericId<T>;
+import type { Id } from "@repo/database/dataModel";
 
 type TestId = Id<"tests">;
 type QuestionId = Id<"questions">;
 type AttemptId = Id<"attempts">;
 
+const EMPTY_OPTIONS: number[] = [];
+
 export default function TestPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const testId = params.id as string;
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
   const testWithQuestions = useQuery(api.tests.getWithQuestions, {
     id: testId as TestId,
   });
@@ -80,7 +75,7 @@ export default function TestPage() {
   const isAnimatingRef = useRef(false);
 
   // Reorder questions based on the attempt's randomized questionOrder
-  const orderedQuestionDetails = (() => {
+  const orderedQuestionDetails = useMemo(() => {
     if (!testWithQuestions) return [];
     if (!questionOrder || !isStarted) return testWithQuestions.questionDetails;
     const detailsMap = new Map(
@@ -91,7 +86,7 @@ export default function TestPage() {
       .filter((q): q is NonNullable<typeof q> => q != null);
     // Fallback: if questionOrder doesn't match (old attempt without it), use original order
     return ordered.length > 0 ? ordered : testWithQuestions.questionDetails;
-  })();
+  }, [testWithQuestions, questionOrder, isStarted]);
 
   const totalQuestions = testWithQuestions?.questionDetails.length ?? 0;
 
@@ -344,7 +339,9 @@ export default function TestPage() {
     });
   };
 
-  const getQuestionStatuses = (): QuestionStatus[] => {
+  const answeredCount = useMemo(() => [...answers.values()].filter((a) => a.length > 0).length, [answers]);
+
+  const questionStatuses = useMemo((): QuestionStatus[] => {
     if (!testWithQuestions) return [];
     return orderedQuestionDetails.map((q, index) => {
       if (!q) return "not-visited";
@@ -359,7 +356,7 @@ export default function TestPage() {
       if (isVisited) return "not-answered";
       return "not-visited";
     });
-  };
+  }, [testWithQuestions, orderedQuestionDetails, currentQuestion, answers, markedForReview, visitedQuestions]);
 
   const handleSubmit = async () => {
     if (!attemptId) return;
@@ -626,8 +623,6 @@ export default function TestPage() {
   const currentQ = orderedQuestionDetails[currentQuestion];
   if (!currentQ) return null;
 
-  const answeredCount = [...answers.values()].filter((a) => a.length > 0).length;
-
   return (
     <div className="-mb-20 bg-muted/30 md:-mb-0">
       {/* Header */}
@@ -681,7 +676,7 @@ export default function TestPage() {
                   questionNumber={currentQuestion + 1}
                   text={currentQ.text}
                   options={currentQ.options}
-                  selectedOptions={answers.get(currentQ._id) || []}
+                  selectedOptions={answers.get(currentQ._id) ?? EMPTY_OPTIONS}
                   isMultipleCorrect={currentQ.correctOptions.length > 1}
                   markedForReview={markedForReview.has(currentQ._id)}
                   onSelect={handleSelectAnswer}
@@ -724,7 +719,7 @@ export default function TestPage() {
                 <TestNavigation
                   totalQuestions={orderedQuestionDetails.length}
                   currentQuestion={currentQuestion}
-                  questionStatuses={getQuestionStatuses()}
+                  questionStatuses={questionStatuses}
                   onQuestionSelect={setCurrentQuestion}
                 />
               </CardContent>
@@ -837,7 +832,7 @@ export default function TestPage() {
             <TestNavigation
               totalQuestions={orderedQuestionDetails.length}
               currentQuestion={currentQuestion}
-              questionStatuses={getQuestionStatuses()}
+              questionStatuses={questionStatuses}
               onQuestionSelect={(q) => {
                 setCurrentQuestion(q);
                 setShowNavDrawer(false);
@@ -892,7 +887,7 @@ export default function TestPage() {
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-xl font-bold text-success sm:text-2xl">
-                  {[...answers.values()].filter((a) => a.length > 0).length}
+                  {answeredCount}
                 </p>
                 <p className="text-xs text-muted-foreground sm:text-sm">Answered</p>
               </div>
@@ -904,8 +899,7 @@ export default function TestPage() {
               </div>
               <div>
                 <p className="text-xl font-bold sm:text-2xl">
-                  {orderedQuestionDetails.length -
-                    [...answers.values()].filter((a) => a.length > 0).length}
+                  {orderedQuestionDetails.length - answeredCount}
                 </p>
                 <p className="text-xs text-muted-foreground sm:text-sm">Unanswered</p>
               </div>

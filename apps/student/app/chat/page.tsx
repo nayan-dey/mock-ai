@@ -1,39 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button, cn } from "@repo/ui";
-import { useQuery } from "convex/react";
-import { api } from "@repo/database";
-import { useUser } from "@clerk/nextjs";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { ChatProvider, ChatThread } from "@/components/ai-chat";
 import Link from "next/link";
+import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 
 export default function ChatPage() {
-  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-
-  // Detect keyboard using visualViewport API
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const handleResize = () => {
-      const keyboardOpen = viewport.height < window.innerHeight * 0.75;
-      setIsKeyboardOpen(keyboardOpen);
-    };
-
-    viewport.addEventListener("resize", handleResize);
-    return () => viewport.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Get Convex user
-  const convexUser = useQuery(
-    api.users.getByClerkId,
-    clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
-  );
-
-  const isLoading = !isClerkLoaded || (clerkUser && convexUser === undefined);
+  const { dbUser: convexUser, isLoading } = useCurrentUser();
+  const isKeyboardOpen = useKeyboardOpen();
 
   if (isLoading) {
     return (

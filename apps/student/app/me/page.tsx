@@ -1,8 +1,9 @@
 "use client";
 
-import { useUser, UserButton, SignOutButton } from "@clerk/nextjs";
+import { SignOutButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -35,15 +36,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { getInitials } from "@/lib/utils";
 
 function ProfileSkeleton() {
   return (
@@ -72,13 +65,8 @@ const menuItems = [
 ];
 
 export default function ProfilePage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,
@@ -95,7 +83,7 @@ export default function ProfilePage() {
     dbUser?.batchId ? { id: dbUser.batchId } : "skip"
   );
 
-  if (!isUserLoaded || (user && dbUser === undefined)) {
+  if (isUserLoading) {
     return <ProfileSkeleton />;
   }
 

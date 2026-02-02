@@ -27,6 +27,27 @@ import {
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
 import { useUrlState } from "@/hooks/use-url-state";
 
+const userExportColumns: ExportColumn[] = [
+  { header: "Name", key: "name" },
+  { header: "Email", key: "email" },
+  { header: "Role", key: "role", format: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
+  { header: "Batch", key: "batchName", format: (v) => v || "—" },
+  { header: "Fees Paid", key: "feesPaid", format: (v) => String(v) },
+  { header: "Fees Due", key: "feesDue", format: (v) => String(v) },
+  { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+];
+
+const facetedFilters: FacetedFilterConfig[] = [
+  {
+    columnId: "role",
+    title: "Role",
+    options: [
+      { label: "Student", value: "student" },
+      { label: "Teacher", value: "teacher" },
+    ],
+  },
+];
+
 interface UserData {
   _id: string;
   name: string;
@@ -130,17 +151,7 @@ export function UsersClient() {
     return result;
   }, [enrichedUsers, batchFilter, joinedFilter, feeFilter]);
 
-  // Export columns & handlers
-  const userExportColumns: ExportColumn[] = [
-    { header: "Name", key: "name" },
-    { header: "Email", key: "email" },
-    { header: "Role", key: "role", format: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
-    { header: "Batch", key: "batchName", format: (v) => v || "—" },
-    { header: "Fees Paid", key: "feesPaid", format: (v) => String(v) },
-    { header: "Fees Due", key: "feesDue", format: (v) => String(v) },
-    { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
-  ];
-
+  // Export handlers
   const handleExportExcel = () => {
     exportToExcel(filteredUsers, userExportColumns, "Users", "Users");
   };
@@ -149,18 +160,7 @@ export function UsersClient() {
     exportToPdf(filteredUsers, userExportColumns, "Users", "Users", organization?.name, organization?.resolvedLogoUrl);
   };
 
-  const facetedFilters: FacetedFilterConfig[] = [
-    {
-      columnId: "role",
-      title: "Role",
-      options: [
-        { label: "Student", value: "student" },
-        { label: "Teacher", value: "teacher" },
-      ],
-    },
-  ];
-
-  const columns: ColumnDef<UserData, any>[] = [
+  const columns: ColumnDef<UserData, any>[] = useMemo(() => [
     {
       accessorKey: "name",
       header: ({ column }) => <SortableHeader column={column} title="Name" />,
@@ -240,7 +240,7 @@ export function UsersClient() {
         onClick: () => setSelectedUserId(user._id),
       },
     ]),
-  ];
+  ], [setSelectedUserId]);
 
   // Compact stats
   const studentCount = enrichedUsers.filter((u) => u.role === "student").length;
