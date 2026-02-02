@@ -1,8 +1,27 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { Upload, X, Image, FileText, FileSpreadsheet } from "lucide-react";
-import { Button, Card, cn } from "@repo/ui";
+import { useCallback, useState, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Upload,
+  X,
+  Image as ImageIcon,
+  FileText,
+  FileSpreadsheet,
+  Camera,
+  Table2,
+  Eye,
+  Plus,
+} from "lucide-react";
+import {
+  Card,
+  cn,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Badge,
+} from "@repo/ui";
 
 export interface SelectedFile {
   file: File;
@@ -20,24 +39,37 @@ const ALLOWED_TYPES = [
   "image/webp",
   "image/gif",
   "application/pdf",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // xlsx
-  "application/vnd.ms-excel", // xls
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
   "text/csv",
 ];
 
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
 export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<SelectedFile | null>(null);
+  const addMoreInputRef = useRef<HTMLInputElement>(null);
+
+  const thumbnailUrls = useMemo(() => {
+    const urls = new Map<number, string>();
+    selectedFiles.forEach((sf, i) => {
+      if (IMAGE_TYPES.includes(sf.file.type)) {
+        urls.set(i, URL.createObjectURL(sf.file));
+      }
+    });
+    return urls;
+  }, [selectedFiles]);
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return `"${file.name}": Invalid file type. Please upload an image (PNG, JPEG, WebP, GIF), PDF, or Excel file.`;
+      return `"${file.name}": Unsupported file type. Use images, PDF, or Excel.`;
     }
     if (file.size > MAX_SIZE) {
-      return `"${file.name}": File too large. Maximum size is 20MB. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`;
+      return `"${file.name}": Too large (${Math.round(file.size / (1024 * 1024))}MB). Max 20MB.`;
     }
     return null;
   };
@@ -72,12 +104,7 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
       });
 
       Promise.all(readPromises).then(() => {
-        if (errors.length > 0) {
-          setError(errors.join(" "));
-        } else {
-          setError(null);
-        }
-
+        setError(errors.length > 0 ? errors.join(" ") : null);
         if (newFiles.length > 0) {
           const updated = [...selectedFiles, ...newFiles];
           setSelectedFiles(updated);
@@ -103,13 +130,9 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
       e.preventDefault();
       e.stopPropagation();
       setDragActive(false);
-
       if (disabled) return;
-
       const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        processFiles(files);
-      }
+      if (files && files.length > 0) processFiles(files);
     },
     [disabled, processFiles]
   );
@@ -117,110 +140,222 @@ export function FileUploader({ onFilesSelect, disabled }: FileUploaderProps) {
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (files && files.length > 0) {
-        processFiles(files);
-      }
-      // Reset input so selecting the same files again works
+      if (files && files.length > 0) processFiles(files);
       e.target.value = "";
     },
     [processFiles]
   );
 
   const removeFile = (index: number) => {
+    const url = thumbnailUrls.get(index);
+    if (url) URL.revokeObjectURL(url);
     const updated = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(updated);
     onFilesSelect(updated);
-    if (updated.length === 0) {
-      setError(null);
-    }
+    if (updated.length === 0) setError(null);
   };
 
   const getFileIcon = (type: string) => {
-    if (type === "application/pdf") {
-      return <FileText className="h-6 w-6 text-red-500" />;
-    }
-    if (type.includes("spreadsheet") || type.includes("excel") || type === "text/csv") {
-      return <FileSpreadsheet className="h-6 w-6 text-green-500" />;
-    }
-    return <Image className="h-6 w-6 text-blue-500" />;
+    if (type === "application/pdf") return <FileText className="h-5 w-5 text-red-500" />;
+    if (type.includes("spreadsheet") || type.includes("excel") || type === "text/csv")
+      return <FileSpreadsheet className="h-5 w-5 text-emerald-500" />;
+    return <ImageIcon className="h-5 w-5 text-blue-500" />;
   };
 
+  const isImageFile = (type: string) => IMAGE_TYPES.includes(type);
+
+  const hasFiles = selectedFiles.length > 0;
+
   return (
-    <div className="space-y-4">
-      <div
-        className={cn(
-          "relative rounded-lg border-2 border-dashed p-8 transition-colors",
-          dragActive && !disabled
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25",
-          disabled && "cursor-not-allowed opacity-50"
+    <div className="space-y-3">
+      {/* File thumbnails — shown above the drop zone */}
+      <AnimatePresence>
+        {hasFiles && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-wrap gap-2 items-end"
+          >
+            {selectedFiles.map((sf, index) => (
+              <motion.div
+                key={`${sf.file.name}-${index}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                className="relative group"
+              >
+                {isImageFile(sf.file.type) && thumbnailUrls.has(index) ? (
+                  /* Image thumbnail */
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFile(sf)}
+                    className="relative block overflow-hidden rounded-xl"
+                  >
+                    <img
+                      src={thumbnailUrls.get(index)}
+                      alt={sf.file.name}
+                      className="h-24 w-24 rounded-xl object-cover"
+                    />
+                    {/* Hover overlay with eye */}
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                      <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
+                ) : (
+                  /* Non-image file chip */
+                  <div className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 h-24">
+                    {getFileIcon(sf.file.type)}
+                    <div className="min-w-0 max-w-[120px]">
+                      <p className="text-xs font-medium truncate">{sf.file.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {(sf.file.size / (1024 * 1024)).toFixed(1)} MB
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* X button */}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="absolute -top-1.5 -right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-foreground/80"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </motion.div>
+            ))}
+
+            {/* Add more button */}
+            <div>
+              <input
+                ref={addMoreInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.xlsx,.xls,.csv"
+                multiple
+                onChange={handleFileInput}
+                disabled={disabled}
+                className="hidden"
+              />
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => addMoreInputRef.current?.click()}
+                className="flex h-24 w-24 items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/25 text-muted-foreground/50 hover:border-muted-foreground/40 hover:text-muted-foreground/70 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
+          </motion.div>
         )}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.xlsx,.xls,.csv"
-          multiple
-          onChange={handleFileInput}
-          disabled={disabled}
-          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-        />
-        <div className="flex flex-col items-center justify-center gap-4 text-center">
-          <div className="rounded-full bg-muted p-4">
-            <Upload className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-lg font-medium">
-              Drop your files here or click to browse
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Supported: Images, PDF, Excel, CSV (max 20MB each). Select multiple files.
-            </p>
-          </div>
-        </div>
-      </div>
+      </AnimatePresence>
 
-      {error && (
-        <Card className="border-destructive bg-destructive/10 p-4">
-          <p className="text-sm text-destructive">{error}</p>
-        </Card>
-      )}
-
-      {selectedFiles.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">
-            {selectedFiles.length} file{selectedFiles.length !== 1 ? "s" : ""} selected
-          </p>
-          {selectedFiles.map((sf, index) => (
-            <Card key={`${sf.file.name}-${index}`} className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  {getFileIcon(sf.file.type)}
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{sf.file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(sf.file.size / (1024 * 1024)).toFixed(2)} MB
+      {/* Drop zone — always visible but smaller when files exist */}
+      <AnimatePresence mode="wait">
+        {!hasFiles && (
+          <motion.div
+            key="dropzone-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <motion.div
+              animate={dragActive && !disabled ? { scale: 1.01 } : { scale: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            >
+              <div
+                className={cn(
+                  "relative rounded-xl border-2 border-dashed p-8 transition-all duration-200",
+                  dragActive && !disabled
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-muted-foreground/20 hover:border-muted-foreground/40",
+                  disabled && "cursor-not-allowed opacity-50"
+                )}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.xlsx,.xls,.csv"
+                  multiple
+                  onChange={handleFileInput}
+                  disabled={disabled}
+                  className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                />
+                <div className="flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="rounded-full bg-muted/80 p-3">
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium">
+                      Drop files here or click to browse
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <Badge variant="secondary" className="gap-1 text-[10px] font-normal px-2 py-0.5">
+                        <Camera className="h-2.5 w-2.5" />
+                        Images
+                      </Badge>
+                      <Badge variant="secondary" className="gap-1 text-[10px] font-normal px-2 py-0.5">
+                        <FileText className="h-2.5 w-2.5" />
+                        PDF
+                      </Badge>
+                      <Badge variant="secondary" className="gap-1 text-[10px] font-normal px-2 py-0.5">
+                        <Table2 className="h-2.5 w-2.5" />
+                        Excel / CSV
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Max 20MB per file
                     </p>
                   </div>
                 </div>
-                {!disabled && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFile(index)}
-                    className="h-8 w-8 shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="border-destructive/50 bg-destructive/5 p-3">
+              <p className="text-xs text-destructive">{error}</p>
             </Card>
-          ))}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-medium truncate">
+              {previewFile?.file.name}
+            </DialogTitle>
+          </DialogHeader>
+          {previewFile && (
+            <div className="flex items-center justify-center">
+              <img
+                src={URL.createObjectURL(previewFile.file)}
+                alt={previewFile.file.name}
+                className="max-h-[70vh] w-auto rounded-lg object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
