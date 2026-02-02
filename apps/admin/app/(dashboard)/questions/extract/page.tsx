@@ -295,35 +295,6 @@ export default function ExtractQuestionsPage() {
       {/* Confetti overlay */}
       <Confetti ref={confettiRef} manualstart />
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-              Extract Questions
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Upload files and let AI extract questions automatically
-            </p>
-          </div>
-        </div>
-
-        {/* Compact model selector */}
-        {state === "upload" && (
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-44 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {EXTRACTION_MODEL_OPTIONS.map((model) => (
-                <SelectItem key={model.id} value={model.id} className="text-xs">
-                  {model.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
 
       {/* Main content area */}
       <div className={cn(
@@ -363,7 +334,21 @@ export default function ExtractQuestionsPage() {
               </AnimatePresence>
 
               {/* Extract button */}
-              <div className="flex justify-end">
+              <div className="flex justify-between">
+                   {state === "upload" && (
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className="w-44 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EXTRACTION_MODEL_OPTIONS.map((model) => (
+                <SelectItem key={model.id} value={model.id} className="text-xs">
+                  {model.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
                 <Button
                   onClick={handleExtract}
                   disabled={selectedFiles.length === 0}

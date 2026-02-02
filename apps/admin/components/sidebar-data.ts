@@ -4,7 +4,7 @@ import {
   Users,
   IndianRupee,
   FileQuestion,
-  Sparkles,
+
   FileText,
   BookOpen,
   Video,
@@ -45,15 +45,7 @@ export const sidebarData: NavGroup[] = [
   {
     title: "Content",
     items: [
-      {
-        title: "Questions",
-        url: "/questions",
-        icon: FileQuestion,
-        items: [
-          { title: "Question Bank", url: "/questions", icon: FileQuestion },
-          { title: "AI Extract", url: "/questions/extract", icon: Sparkles },
-        ],
-      },
+      { title: "Questions", url: "/questions", icon: FileQuestion },
       { title: "Tests", url: "/tests", icon: FileText },
       { title: "Notes", url: "/notes", icon: BookOpen },
       { title: "Classes", url: "/classes", icon: Video },
