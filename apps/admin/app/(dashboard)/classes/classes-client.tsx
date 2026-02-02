@@ -9,7 +9,9 @@ import {
   Badge,
   formatDate,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
+import { SUBJECTS } from "@repo/types";
 import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { ClassSheet } from "./class-sheet";
@@ -45,6 +47,19 @@ export function ClassesClient() {
     }
     return map;
   }, [batches]);
+
+  const facetedFilters = useMemo<FacetedFilterConfig[]>(() => [
+    {
+      columnId: "subject",
+      title: "Subject",
+      options: SUBJECTS.map((s) => ({ label: s, value: s })),
+    },
+    {
+      columnId: "batchFilter",
+      title: "Batch",
+      options: (batches ?? []).map((b) => ({ label: b.name, value: b._id })),
+    },
+  ], [batches]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -104,6 +119,18 @@ export function ClassesClient() {
         </span>
       ),
     },
+    {
+      id: "batchFilter",
+      accessorFn: (row) => row.batchIds ?? [],
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue: string[]) => {
+        const batchIds = row.getValue<string[]>(columnId);
+        if (!batchIds || batchIds.length === 0) return true; // "All Batches" matches any filter
+        return filterValue.some((val) => batchIds.includes(val));
+      },
+      enableHiding: true,
+    },
     createActionsColumn<ClassItem>((classItem) => [
       {
         label: "View Video",
@@ -138,6 +165,7 @@ export function ClassesClient() {
         searchPlaceholder="Search classes..."
         title="Recorded Classes"
         description="Manage video lectures"
+        facetedFilters={facetedFilters}
         primaryAction={{
           label: "Add Class",
           onClick: () => {

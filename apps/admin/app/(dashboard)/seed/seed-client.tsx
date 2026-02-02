@@ -31,16 +31,10 @@ export function SeedClient() {
   const [studentCount, setStudentCount] = useState(5);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
-
   const batches = useQuery(api.batches.list, { activeOnly: false });
 
   const seedDatabase = useMutation(api.seed.seedDatabase);
   const seedMockStudents = useMutation(api.seed.seedMockStudents);
-  const seedMockAttempts = useMutation(api.seed.seedMockAttempts);
   const clearAllData = useMutation(api.seed.clearAllData);
 
   if (process.env.NODE_ENV === "production") {
@@ -79,24 +73,6 @@ export function SeedClient() {
     } catch (error) {
       setResults((prev) => ({ ...prev, students: { error: error instanceof Error ? error.message : "Unknown error" } }));
       toast.error("Failed to create mock students");
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleSeedMyAttempts = async () => {
-    if (!dbUser?._id) return;
-    setLoading("myAttempts");
-    try {
-      const result = await seedMockAttempts({
-        userId: dbUser._id,
-        count: 15,
-      });
-      setResults((prev) => ({ ...prev, myAttempts: result }));
-      toast.success("Created 15 mock attempts");
-    } catch (error) {
-      setResults((prev) => ({ ...prev, myAttempts: { error: error instanceof Error ? error.message : "Unknown error" } }));
-      toast.error("Failed to create mock attempts");
     } finally {
       setLoading(null);
     }
@@ -143,7 +119,7 @@ export function SeedClient() {
               <div>
                 <CardTitle className="text-lg">Seed Database</CardTitle>
                 <CardDescription>
-                  Create initial data (questions, tests, notes, classes, batches)
+                  Create initial data (batches, questions, tests, notes, classes)
                 </CardDescription>
               </div>
             </div>
@@ -194,7 +170,7 @@ export function SeedClient() {
           </CardContent>
         </Card>
 
-        {/* Seed Mock Students */}
+        {/* Create Mock Students */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -204,7 +180,7 @@ export function SeedClient() {
               <div>
                 <CardTitle className="text-lg">Create Mock Students</CardTitle>
                 <CardDescription>
-                  Add mock students with test attempts for leaderboard testing
+                  Add mock students with fees, test attempts, and leaderboard rank
                 </CardDescription>
               </div>
             </div>
@@ -287,70 +263,6 @@ export function SeedClient() {
           </CardContent>
         </Card>
 
-        {/* Seed My Attempts */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
-                <Play className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Seed My Attempts</CardTitle>
-                <CardDescription>
-                  Add mock test attempts for your account to test dashboard/heatmap
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              This will create 15 mock test attempts spread across the last 60 days
-              for your account ({dbUser?.name || "loading..."}).
-            </p>
-            <Button
-              onClick={handleSeedMyAttempts}
-              disabled={loading !== null || !dbUser}
-              className="w-full gap-2"
-            >
-              {loading === "myAttempts" ? (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              Create My Attempts
-            </Button>
-            {results.myAttempts && (
-              <div className="rounded-lg border p-3 text-sm">
-                {results.myAttempts.error ? (
-                  <div className="flex items-center gap-2 text-destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    {results.myAttempts.error}
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-green-600">
-                      <CheckCircle className="h-4 w-4" />
-                      {results.myAttempts.message}
-                    </div>
-                    {results.myAttempts.attempts && (
-                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                        {results.myAttempts.attempts.slice(0, 3).map((a: { testTitle: string; score: number; correct: number; incorrect: number; unanswered: number }, i: number) => (
-                          <div key={i}>
-                            {a.testTitle}: {a.score} pts ({a.correct}/{a.correct + a.incorrect + a.unanswered})
-                          </div>
-                        ))}
-                        {results.myAttempts.attempts.length > 3 && (
-                          <div>...and {results.myAttempts.attempts.length - 3} more attempts</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Clear All Data */}
         <Card className="border-destructive/50">
           <CardHeader>
@@ -361,7 +273,7 @@ export function SeedClient() {
               <div>
                 <CardTitle className="text-lg">Clear All Data</CardTitle>
                 <CardDescription>
-                  Delete all users, questions, tests, attempts, and other data
+                  Delete all data from dev including your admin account
                 </CardDescription>
               </div>
             </div>
@@ -369,8 +281,8 @@ export function SeedClient() {
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
               <strong className="text-destructive">Warning:</strong> This will permanently delete all data
-              from the database including users, questions, tests, attempts, batches, classes, and notes.
-              This action cannot be undone!
+              from the database including users, questions, tests, attempts, batches, classes, notes, fees,
+              notifications, chat data, organization, and your admin account. You will need to re-onboard after this.
             </p>
             <Button
               onClick={() => setShowClearConfirm(true)}
@@ -400,18 +312,13 @@ export function SeedClient() {
                     </div>
                     {results.clear.deleted && (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant="secondary">
-                          {results.clear.deleted.users} users
-                        </Badge>
-                        <Badge variant="secondary">
-                          {results.clear.deleted.questions} questions
-                        </Badge>
-                        <Badge variant="secondary">
-                          {results.clear.deleted.tests} tests
-                        </Badge>
-                        <Badge variant="secondary">
-                          {results.clear.deleted.attempts} attempts
-                        </Badge>
+                        {Object.entries(results.clear.deleted)
+                          .filter(([, count]) => (count as number) > 0)
+                          .map(([table, count]) => (
+                            <Badge key={table} variant="secondary">
+                              {count as number} {table}
+                            </Badge>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -431,8 +338,8 @@ export function SeedClient() {
           <div>
             <strong className="text-foreground">1. Seed Database</strong>
             <p>
-              Run this first to create the initial data including questions, tests, notes,
-              classes, and batches. This only works once - if data already exists, it will
+              Run this first to create the initial data including batches, questions, tests, notes,
+              and classes. This only works once - if data already exists, it will
               show a message that the database is already seeded.
             </p>
           </div>
@@ -440,14 +347,15 @@ export function SeedClient() {
             <strong className="text-foreground">2. Create Mock Students</strong>
             <p>
               After seeding the database, select a batch and create mock students.
-              Each student will have 5-15 random test attempts to populate the leaderboard.
+              Each student will have paid and due fee records, 5-15 random test attempts,
+              and will appear on the leaderboard.
             </p>
           </div>
           <div>
-            <strong className="text-foreground">3. Seed My Attempts</strong>
+            <strong className="text-foreground">3. Clear All Data</strong>
             <p>
-              Create test attempts for your own account to test the dashboard, activity
-              heatmap, and results pages. The attempts are spread across the last 60 days.
+              Deletes everything from the database including your admin account and organization.
+              You will need to re-onboard after using this. Use with caution.
             </p>
           </div>
         </CardContent>
@@ -457,7 +365,7 @@ export function SeedClient() {
         open={showClearConfirm}
         onOpenChange={setShowClearConfirm}
         title="Clear All Data"
-        description="Are you sure you want to delete ALL data? This will permanently remove all users, questions, tests, attempts, batches, classes, and notes. This action cannot be undone!"
+        description="Are you sure you want to delete ALL data? This will permanently remove everything including your admin account and organization. You will need to re-onboard after this. This action cannot be undone!"
         confirmLabel="Clear All Data"
         onConfirm={handleClearAllData}
         isLoading={loading === "clear"}

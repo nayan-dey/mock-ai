@@ -21,7 +21,7 @@ import {
   useToast,
   sonnerToast,
 } from "@repo/ui";
-import { FlaskConical, Loader2, CalendarDays } from "lucide-react";
+import { FlaskConical, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 function SettingsSkeleton() {
@@ -54,11 +54,9 @@ export default function SettingsPage() {
 
   const upsertSettings = useMutation(api.userSettings.upsert);
   const seedMockAttempts = useMutation(api.seed.seedMockAttempts);
-  const seedFullYearAttempts = useMutation(api.seed.seedFullYearAttempts);
 
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
-  const [isSeedingFullYear, setIsSeedingFullYear] = useState(false);
 
   if (isUserLoading || (user && userSettings === undefined)) {
     return <SettingsSkeleton />;
@@ -147,19 +145,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSeedFullYear = async () => {
-    if (!dbUser?._id) return;
-    setIsSeedingFullYear(true);
-    try {
-      const result = await seedFullYearAttempts({});
-      sonnerToast.success(`Created ${result.totalAttempts} attempts across ${result.activeDays} days`);
-    } catch (error: any) {
-      sonnerToast.error(error.message || "Failed to seed full year attempts");
-    } finally {
-      setIsSeedingFullYear(false);
-    }
-  };
-
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div className="mb-6 flex items-center gap-3">
@@ -231,7 +216,7 @@ export default function SettingsPage() {
               </p>
               <Button
                 onClick={handleSeedAttempts}
-                disabled={isSeeding || isSeedingFullYear}
+                disabled={isSeeding}
                 variant="outline"
                 className="gap-2"
               >
@@ -244,30 +229,6 @@ export default function SettingsPage() {
                   <>
                     <FlaskConical className="h-4 w-4" />
                     Seed My Attempts
-                  </>
-                )}
-              </Button>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-3">
-                Create ~250-300 test attempts spread across the full year (~220 active days).
-                Makes your activity heatmap look fuller across all months.
-              </p>
-              <Button
-                onClick={handleSeedFullYear}
-                disabled={isSeeding || isSeedingFullYear}
-                variant="outline"
-                className="gap-2"
-              >
-                {isSeedingFullYear ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Seeding full year...
-                  </>
-                ) : (
-                  <>
-                    <CalendarDays className="h-4 w-4" />
-                    Seed Full Year Heatmap
                   </>
                 )}
               </Button>

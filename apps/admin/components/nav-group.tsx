@@ -71,13 +71,13 @@ function SimpleNavItem({
           <span>{item.title}</span>
         </Link>
       </SidebarMenuButton>
-      {pendingCount && pendingCount > 0 ? (
+      {/* {pendingCount && pendingCount > 0 ? (
         <SidebarMenuBadge>
           <Badge variant="destructive" className="h-5 min-w-5 rounded-full px-1.5 text-[10px]">
             {pendingCount}
           </Badge>
         </SidebarMenuBadge>
-      ) : null}
+      ) : null} */}
     </SidebarMenuItem>
   );
 }

@@ -3,65 +3,43 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
-// Clear all data from the database
+// Clear ALL data from the database (including admin and organization)
 export const clearAllData = mutation({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
 
-    // Get counts before deletion
-    const users = await ctx.db.query("users").collect();
-    const questions = await ctx.db.query("questions").collect();
-    const tests = await ctx.db.query("tests").collect();
-    const attempts = await ctx.db.query("attempts").collect();
-    const batches = await ctx.db.query("batches").collect();
-    const classes = await ctx.db.query("classes").collect();
-    const notes = await ctx.db.query("notes").collect();
-    const userSettings = await ctx.db.query("userSettings").collect();
-    const organizations = await ctx.db.query("organizations").collect();
+    const tables = [
+      "users",
+      "questions",
+      "tests",
+      "attempts",
+      "batches",
+      "classes",
+      "notes",
+      "userSettings",
+      "organizations",
+      "fees",
+      "notifications",
+      "chatConversations",
+      "chatMessages",
+      "orgAdmins",
+      "orgJoinRequests",
+    ] as const;
 
-    // Delete all records from each table
-    for (const user of users) {
-      await ctx.db.delete(user._id);
-    }
-    for (const question of questions) {
-      await ctx.db.delete(question._id);
-    }
-    for (const test of tests) {
-      await ctx.db.delete(test._id);
-    }
-    for (const attempt of attempts) {
-      await ctx.db.delete(attempt._id);
-    }
-    for (const batch of batches) {
-      await ctx.db.delete(batch._id);
-    }
-    for (const classItem of classes) {
-      await ctx.db.delete(classItem._id);
-    }
-    for (const note of notes) {
-      await ctx.db.delete(note._id);
-    }
-    for (const setting of userSettings) {
-      await ctx.db.delete(setting._id);
-    }
-    for (const org of organizations) {
-      await ctx.db.delete(org._id);
+    const deleted: Record<string, number> = {};
+
+    for (const table of tables) {
+      const records = await ctx.db.query(table).collect();
+      for (const record of records) {
+        await ctx.db.delete(record._id);
+      }
+      deleted[table] = records.length;
     }
 
     return {
-      message: "All data cleared successfully!",
-      deleted: {
-        users: users.length,
-        questions: questions.length,
-        tests: tests.length,
-        attempts: attempts.length,
-        batches: batches.length,
-        classes: classes.length,
-        notes: notes.length,
-        userSettings: userSettings.length,
-        organizations: organizations.length,
-      },
+      message: "All data cleared successfully! You will need to re-onboard.",
+      deleted,
     };
   },
 });
@@ -330,6 +308,153 @@ export const seedDatabase = mutation({
   },
 });
 
+export const seedMockStudents = mutation({
+  args: {
+    batchId: v.id("batches"),
+    count: v.optional(v.number()),
+  },
+  handler: async (ctx, { batchId, count = 5 }) => {
+    const admin = await requireAdmin(ctx);
+    const adminOrgId = getOrgId(admin);
+
+    const batch = await ctx.db.get(batchId);
+    if (!batch) throw new Error("Batch not found");
+    if (batch.organizationId !== adminOrgId) throw new Error("Access denied");
+
+    const mockNames = [
+      "Sourav Ghosh", "Arpita Das", "Debojit Mondal", "Shreya Banerjee", "Aniket Roy",
+      "Moumita Sen", "Subhajit Saha", "Poulami Chatterjee", "Rishav Mukherjee", "Tanushree Sarkar",
+      "Dipayan Dutta", "Ankita Bose", "Rajdeep Biswas", "Priyanka Pal", "Soumalya Nandi",
+    ];
+
+    const createdStudents = [];
+    const now = Date.now();
+
+    for (let i = 0; i < Math.min(count, mockNames.length); i++) {
+      const name = mockNames[i];
+      const clerkId = `mock_${Date.now()}_${i}`;
+      const email = `${name.toLowerCase().replace(" ", ".")}@example.com`;
+
+      const userId = await ctx.db.insert("users", {
+        clerkId, email, name, role: "student", batchId, organizationId: adminOrgId, createdAt: now,
+      });
+
+      await ctx.db.insert("userSettings", {
+        userId,
+        preferredChartType: Math.random() > 0.5 ? "heatmap" : "chart",
+        showHeatmap: true, showStats: true, showOnLeaderboard: true, updatedAt: now,
+      });
+
+      // ==================== FEES ====================
+      const feeAmounts = [500, 800, 1000, 1200, 1500, 2000];
+      const feeDescriptions = ["Monthly Tuition Fee", "Study Material Fee", "Exam Fee", "Registration Fee"];
+
+      // 1-2 paid fees
+      const paidCount = 1 + Math.floor(Math.random() * 2);
+      for (let f = 0; f < paidCount; f++) {
+        const amount = feeAmounts[Math.floor(Math.random() * feeAmounts.length)];
+        const daysAgo = 30 + Math.floor(Math.random() * 60); // 30-90 days ago
+        const dueDate = now - daysAgo * 24 * 60 * 60 * 1000;
+        const paidDate = dueDate + Math.floor(Math.random() * 7) * 24 * 60 * 60 * 1000; // paid within a week of due
+
+        await ctx.db.insert("fees", {
+          studentId: userId,
+          amount,
+          status: "paid",
+          dueDate,
+          paidDate,
+          description: feeDescriptions[Math.floor(Math.random() * feeDescriptions.length)],
+          organizationId: adminOrgId,
+          createdBy: admin._id,
+          createdAt: dueDate - 7 * 24 * 60 * 60 * 1000,
+        });
+      }
+
+      // 1-2 due fees
+      const dueCount = 1 + Math.floor(Math.random() * 2);
+      for (let f = 0; f < dueCount; f++) {
+        const amount = feeAmounts[Math.floor(Math.random() * feeAmounts.length)];
+        // Some overdue (past), some upcoming (future)
+        const isOverdue = Math.random() > 0.5;
+        const dueDate = isOverdue
+          ? now - Math.floor(Math.random() * 45) * 24 * 60 * 60 * 1000 // 0-45 days overdue
+          : now + Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000; // due in 0-30 days
+
+        await ctx.db.insert("fees", {
+          studentId: userId,
+          amount,
+          status: "due",
+          dueDate,
+          description: feeDescriptions[Math.floor(Math.random() * feeDescriptions.length)],
+          organizationId: adminOrgId,
+          createdBy: admin._id,
+          createdAt: dueDate - 14 * 24 * 60 * 60 * 1000,
+        });
+      }
+
+      createdStudents.push({ userId, name, email });
+    }
+
+    // ==================== TEST ATTEMPTS ====================
+    const tests = await ctx.db.query("tests")
+      .withIndex("by_organization", (q) => q.eq("organizationId", adminOrgId))
+      .collect()
+      .then((all) => all.filter((t) => t.status === "published"));
+
+    if (tests.length === 0) {
+      return {
+        message: `Created ${createdStudents.length} mock students with fees (no published tests found, skipped attempts)`,
+        students: createdStudents,
+      };
+    }
+
+    for (const student of createdStudents) {
+      const attemptCount = 5 + Math.floor(Math.random() * 11);
+      for (let i = 0; i < attemptCount; i++) {
+        const test = tests[Math.floor(Math.random() * tests.length)];
+        const questions = test.questions;
+
+        const answers = await Promise.all(
+          questions.map(async (qId) => {
+            const question = await ctx.db.get(qId);
+            const shouldAnswer = Math.random() > 0.1;
+            if (!shouldAnswer) return { questionId: qId, selected: [] };
+            const isCorrect = Math.random() > 0.4;
+            const selectedOption = isCorrect ? question?.correctOptions[0] ?? 0 : Math.floor(Math.random() * 4);
+            return { questionId: qId, selected: [selectedOption] };
+          })
+        );
+
+        let correct = 0, incorrect = 0, unanswered = 0;
+        for (let j = 0; j < answers.length; j++) {
+          const question = await ctx.db.get(questions[j]);
+          if (!question) continue;
+          if (answers[j].selected.length === 0) unanswered++;
+          else if (question.correctOptions.includes(answers[j].selected[0])) correct++;
+          else incorrect++;
+        }
+
+        const marksPerQuestion = test.totalMarks / test.questions.length;
+        const score = Math.max(0, correct * marksPerQuestion - incorrect * test.negativeMarking);
+        const daysAgo = Math.floor(Math.random() * 30);
+        const submittedAt = now - daysAgo * 24 * 60 * 60 * 1000;
+
+        await ctx.db.insert("attempts", {
+          testId: test._id, userId: student.userId, answers, score, totalQuestions: questions.length,
+          correct, incorrect, unanswered, startedAt: submittedAt - test.duration * 1000 * 0.8,
+          submittedAt, status: "submitted",
+        });
+      }
+    }
+
+    return {
+      message: `Created ${count} mock students with fees and test attempts in batch "${batch.name}"`,
+      students: createdStudents,
+    };
+  },
+});
+
+// Used by student app to seed test attempts for their own account
 export const seedMockAttempts = mutation({
   args: {
     userId: v.id("users"),
@@ -398,183 +523,5 @@ export const seedMockAttempts = mutation({
     }
 
     return { message: `Created ${count} mock attempts for user ${user.name}`, attempts: createdAttempts };
-  },
-});
-
-export const seedMockStudents = mutation({
-  args: {
-    batchId: v.id("batches"),
-    count: v.optional(v.number()),
-  },
-  handler: async (ctx, { batchId, count = 5 }) => {
-    const admin = await requireAdmin(ctx);
-    const adminOrgId = getOrgId(admin);
-
-    const batch = await ctx.db.get(batchId);
-    if (!batch) throw new Error("Batch not found");
-    if (batch.organizationId !== adminOrgId) throw new Error("Access denied");
-
-    const mockNames = [
-      "Sourav Ghosh", "Arpita Das", "Debojit Mondal", "Shreya Banerjee", "Aniket Roy",
-      "Moumita Sen", "Subhajit Saha", "Poulami Chatterjee", "Rishav Mukherjee", "Tanushree Sarkar",
-      "Dipayan Dutta", "Ankita Bose", "Rajdeep Biswas", "Priyanka Pal", "Soumalya Nandi",
-    ];
-
-    const createdStudents = [];
-
-    for (let i = 0; i < Math.min(count, mockNames.length); i++) {
-      const name = mockNames[i];
-      const clerkId = `mock_${Date.now()}_${i}`;
-      const email = `${name.toLowerCase().replace(" ", ".")}@example.com`;
-
-      const userId = await ctx.db.insert("users", {
-        clerkId, email, name, role: "student", batchId, organizationId: adminOrgId, createdAt: Date.now(),
-      });
-
-      await ctx.db.insert("userSettings", {
-        userId,
-        preferredChartType: Math.random() > 0.5 ? "heatmap" : "chart",
-        showHeatmap: true, showStats: true, showOnLeaderboard: true, updatedAt: Date.now(),
-      });
-
-      createdStudents.push({ userId, name, email });
-    }
-
-    const tests = await ctx.db.query("tests")
-      .withIndex("by_organization", (q) => q.eq("organizationId", adminOrgId))
-      .collect()
-      .then((all) => all.filter((t) => t.status === "published"));
-    const now = Date.now();
-
-    if (tests.length === 0) {
-      return {
-        message: `Created ${createdStudents.length} mock students (no published tests found, skipped attempts)`,
-        students: createdStudents,
-      };
-    }
-
-    for (const student of createdStudents) {
-      const attemptCount = 5 + Math.floor(Math.random() * 11);
-      for (let i = 0; i < attemptCount; i++) {
-        const test = tests[Math.floor(Math.random() * tests.length)];
-        const questions = test.questions;
-
-        const answers = await Promise.all(
-          questions.map(async (qId) => {
-            const question = await ctx.db.get(qId);
-            const shouldAnswer = Math.random() > 0.1;
-            if (!shouldAnswer) return { questionId: qId, selected: [] };
-            const isCorrect = Math.random() > 0.4;
-            const selectedOption = isCorrect ? question?.correctOptions[0] ?? 0 : Math.floor(Math.random() * 4);
-            return { questionId: qId, selected: [selectedOption] };
-          })
-        );
-
-        let correct = 0, incorrect = 0, unanswered = 0;
-        for (let j = 0; j < answers.length; j++) {
-          const question = await ctx.db.get(questions[j]);
-          if (!question) continue;
-          if (answers[j].selected.length === 0) unanswered++;
-          else if (question.correctOptions.includes(answers[j].selected[0])) correct++;
-          else incorrect++;
-        }
-
-        const marksPerQuestion = test.totalMarks / test.questions.length;
-        const score = Math.max(0, correct * marksPerQuestion - incorrect * test.negativeMarking);
-        const daysAgo = Math.floor(Math.random() * 30);
-        const submittedAt = now - daysAgo * 24 * 60 * 60 * 1000;
-
-        await ctx.db.insert("attempts", {
-          testId: test._id, userId: student.userId, answers, score, totalQuestions: questions.length,
-          correct, incorrect, unanswered, startedAt: submittedAt - test.duration * 1000 * 0.8,
-          submittedAt, status: "submitted",
-        });
-      }
-    }
-
-    return { message: `Created ${count} mock students with attempts in batch "${batch.name}"`, students: createdStudents };
-  },
-});
-
-export const seedFullYearAttempts = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const caller = await requireAuth(ctx);
-
-    const tests = await ctx.db
-      .query("tests")
-      .filter((q) => q.eq(q.field("status"), "published"))
-      .collect();
-
-    if (tests.length === 0) {
-      throw new Error("No published tests found. Run seedDatabase first.");
-    }
-
-    const now = Date.now();
-    const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
-    let totalAttempts = 0;
-    const activeDaysSet = new Set<string>();
-
-    // Spread attempts across the past year (roughly 2-4 per week)
-    const totalDays = 365;
-    for (let day = 0; day < totalDays; day++) {
-      // ~50% chance of activity on any given day
-      if (Math.random() > 0.5) continue;
-
-      const attemptsToday = 1 + Math.floor(Math.random() * 2); // 1-2 attempts per active day
-      const dayTimestamp = oneYearAgo + day * 24 * 60 * 60 * 1000;
-      const dateKey = new Date(dayTimestamp).toISOString().slice(0, 10);
-      activeDaysSet.add(dateKey);
-
-      for (let a = 0; a < attemptsToday; a++) {
-        const test = tests[Math.floor(Math.random() * tests.length)];
-        const questions = test.questions;
-
-        const answers = await Promise.all(
-          questions.map(async (qId) => {
-            const question = await ctx.db.get(qId);
-            const shouldAnswer = Math.random() > 0.1;
-            if (!shouldAnswer) return { questionId: qId, selected: [] as number[] };
-            const isCorrect = Math.random() > 0.35;
-            const selectedOption = isCorrect
-              ? question?.correctOptions[0] ?? 0
-              : Math.floor(Math.random() * 4);
-            return { questionId: qId, selected: [selectedOption] };
-          })
-        );
-
-        let correct = 0, incorrect = 0, unanswered = 0;
-        for (let j = 0; j < answers.length; j++) {
-          const question = await ctx.db.get(questions[j]);
-          if (!question) continue;
-          if (answers[j].selected.length === 0) unanswered++;
-          else if (question.correctOptions.includes(answers[j].selected[0])) correct++;
-          else incorrect++;
-        }
-
-        const marksPerQuestion = test.totalMarks / test.questions.length;
-        const score = Math.max(0, correct * marksPerQuestion - incorrect * test.negativeMarking);
-        const hoursOffset = Math.floor(Math.random() * 12) * 60 * 60 * 1000;
-        const submittedAt = dayTimestamp + hoursOffset;
-
-        await ctx.db.insert("attempts", {
-          testId: test._id,
-          userId: caller._id,
-          answers,
-          score,
-          totalQuestions: questions.length,
-          correct,
-          incorrect,
-          unanswered,
-          startedAt: submittedAt - test.duration * 1000 * Math.random(),
-          submittedAt,
-          status: "submitted",
-        });
-
-        totalAttempts++;
-      }
-    }
-
-    return { totalAttempts, activeDays: activeDaysSet.size };
   },
 });
