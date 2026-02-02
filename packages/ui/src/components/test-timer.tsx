@@ -53,7 +53,7 @@ export function TestTimer({
       className={cn(
         "flex items-center gap-2 rounded-lg border px-4 py-2 font-mono text-lg font-semibold",
         isCritical
-          ? "animate-pulse border-destructive bg-destructive/10 text-destructive"
+          ? "animate-timer-blink bg-destructive/10 text-destructive border-destructive"
           : isLowTime
             ? "border-warning bg-warning/10 text-warning"
             : "border-border bg-background",

@@ -103,6 +103,22 @@
   }
 }
 
+@layer utilities {
+  @keyframes timer-blink {
+    0%, 100% {
+      color: hsl(var(--destructive));
+      border-color: hsl(var(--destructive));
+    }
+    50% {
+      color: hsl(var(--destructive) / 0.4);
+      border-color: hsl(var(--destructive) / 0.4);
+    }
+  }
+  .animate-timer-blink {
+    animation: timer-blink 1s ease-in-out infinite;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
