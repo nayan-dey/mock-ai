@@ -38,6 +38,7 @@ IMPORTANT RULES:
   - Write exponents as x^2 or x² (not $x^{2}$)
   - Examples: Write "tan 45° = 1" NOT "$\\tan 45^\\circ = 1$", Write "2x + 5 = 13" NOT "$2x + 5 = 13$"
 - Preserve Bengali/Bangla text exactly as written using Unicode characters
+- IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
 Available subjects and their topics:
 ${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
@@ -94,6 +95,7 @@ IMPORTANT RULES:
   - Write exponents as x^2 or x² (not $x^{2}$)
   - Examples: Write "tan 45° = 1" NOT "$\\tan 45^\\circ = 1$", Write "2x + 5 = 13" NOT "$2x + 5 = 13$"
 - Preserve Bengali/Bangla text exactly as written using Unicode characters
+- IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
 Available subjects and their topics:
 ${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
@@ -390,6 +392,46 @@ function cleanLatexArtifacts(text: string): string {
   return cleaned;
 }
 
+function stripQuestionNumbering(text: string): string {
+  let cleaned = text;
+
+  // "Question 1.", "Ques. 2)", "Ques 3:" etc.
+  cleaned = cleaned.replace(/^(?:Question|Ques\.?)\s*\d+[\.\)\:\-\>]?\s*/i, "");
+
+  // "Q1.", "Q2:", "Q 3)", "q1." etc.
+  cleaned = cleaned.replace(/^Q\s*\d+[\.\)\:\-\>]?\s*/i, "");
+
+  // Bengali question prefix: "প্রশ্ন ১.", "প্র ২)" etc.
+  cleaned = cleaned.replace(/^(?:প্রশ্ন|প্র)\s*[০-৯\d]+[\.\)\>\-\:]?\s*/, "");
+
+  // "No.1", "No. 2", "no.3" etc.
+  cleaned = cleaned.replace(/^No\.?\s*\d+[\.\)\:\-\>]?\s*/i, "");
+
+  // "#1", "#2" etc.
+  cleaned = cleaned.replace(/^#\s*\d+[\.\)\:\-\>]?\s*/, "");
+
+  // "(1)", "(২)", "(iv)" etc. (parenthesized numbers or roman numerals)
+  cleaned = cleaned.replace(/^\([০-৯\d]+\)\s*/, "");
+  cleaned = cleaned.replace(/^\([ivxlcdmIVXLCDM]+\)\s*/, "");
+
+  // Roman numerals: "i.", "ii)", "III.", "IV>", "ix:" etc.
+  cleaned = cleaned.replace(/^(?:x{0,3})(ix|iv|v?i{0,3})[\.\)\>\-\:]\s*/i, "");
+
+  // "1.", "2)", "3>", "4-", "5:" etc. (digit followed by punctuation)
+  cleaned = cleaned.replace(/^\d+[\.\)\>\-\:]\s*/, "");
+
+  // Bengali numerals: "১.", "২)", "৩>" etc.
+  cleaned = cleaned.replace(/^[০-৯]+[\.\)\>\-\:]\s*/, "");
+
+  // Devanagari numerals: "१.", "२)" etc. (sometimes appear in regional docs)
+  cleaned = cleaned.replace(/^[०-९]+[\.\)\>\-\:]\s*/, "");
+
+  // Single letter prefix: "a.", "A)", "b." etc. (only single letter to avoid stripping words)
+  cleaned = cleaned.replace(/^[a-zA-Z][\.\)]\s*/, "");
+
+  return cleaned;
+}
+
 function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion | null {
   // Basic validation
   if (!q.text || typeof q.text !== "string" || q.text.trim() === "") {
@@ -462,7 +504,7 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
   }
 
   return {
-    text: cleanLatexArtifacts(q.text.trim()),
+    text: stripQuestionNumbering(cleanLatexArtifacts(q.text.trim())),
     options,
     correctOptions,
     explanation: typeof q.explanation === "string" ? cleanLatexArtifacts(q.explanation) : undefined,
