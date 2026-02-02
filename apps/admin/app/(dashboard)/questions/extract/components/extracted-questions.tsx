@@ -210,7 +210,6 @@ export function ExtractedQuestions({
                       {/* Tags */}
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{question.subject}</Badge>
-                        <Badge variant="outline">{question.topic}</Badge>
                         {getDifficultyBadge(question.difficulty)}
                       </div>
 

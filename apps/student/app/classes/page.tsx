@@ -34,7 +34,7 @@ import {
 import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, Clock, ChevronRight } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery as useConvexQuery } from "convex/react";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SUBJECTS } from "@repo/types";
 
 type SortOption = "default" | "duration-asc" | "duration-desc" | "title-asc" | "title-desc";
 type ViewMode = "grid" | "list";
@@ -42,7 +42,6 @@ type ViewMode = "grid" | "list";
 export default function ClassesPage() {
   const { user } = useUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [selectedTopic, setSelectedTopic] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<{
     title: string;
     videoUrl: string;
@@ -58,7 +57,6 @@ export default function ClassesPage() {
   const classes = useQuery(api.classes.listForBatch, {
     batchId: dbUser?.batchId,
     subject: selectedSubject || undefined,
-    topic: selectedTopic || undefined,
   });
 
   const sortedClasses = useMemo(() => {
@@ -78,11 +76,6 @@ export default function ClassesPage() {
         return sorted;
     }
   }, [classes, sortBy]);
-
-  const availableTopics =
-    selectedSubject && selectedSubject in TOPICS
-      ? TOPICS[selectedSubject as keyof typeof TOPICS]
-      : [];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -166,7 +159,6 @@ export default function ClassesPage() {
           value={selectedSubject || "all"}
           onValueChange={(value) => {
             setSelectedSubject(value === "all" ? "" : value);
-            setSelectedTopic("");
           }}
         >
           <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -182,26 +174,6 @@ export default function ClassesPage() {
           </SelectContent>
         </Select>
 
-        {selectedSubject && availableTopics.length > 0 && (
-          <Select
-            value={selectedTopic || "all"}
-            onValueChange={(value) =>
-              setSelectedTopic(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue placeholder="All Topics" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Topics</SelectItem>
-              {availableTopics.map((topic) => (
-                <SelectItem key={topic} value={topic}>
-                  {topic}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
       {/* Classes List */}
@@ -225,7 +197,7 @@ export default function ClassesPage() {
             </div>
             <h3 className="mt-4 text-sm font-medium">No classes found</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedSubject || selectedTopic
+              {selectedSubject
                 ? "No classes match your filters."
                 : "No recorded classes available yet."}
             </p>
@@ -276,7 +248,6 @@ export default function ClassesPage() {
                 </CardTitle>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-[10px]">{classItem.subject}</Badge>
-                  <Badge variant="secondary" className="text-[10px]">{classItem.topic}</Badge>
                 </div>
                 {classItem.description && (
                   <CardDescription className="line-clamp-2 text-xs">

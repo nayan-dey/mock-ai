@@ -209,7 +209,6 @@ export default function ExtractQuestionsPage() {
           correctOptions: q.correctOptions,
           explanation: q.explanation,
           subject: q.subject,
-          topic: q.topic,
           difficulty: q.difficulty,
         }));
 
@@ -240,7 +239,6 @@ export default function ExtractQuestionsPage() {
           correctOptions: q.correctOptions,
           explanation: q.explanation,
           subject: q.subject,
-          topic: q.topic,
           difficulty: q.difficulty,
         }));
 
@@ -300,7 +298,6 @@ export default function ExtractQuestionsPage() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
               Extract Questions
             </h1>
             <p className="text-xs text-muted-foreground">

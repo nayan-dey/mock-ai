@@ -5,7 +5,6 @@ import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 export const list = query({
   args: {
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
     difficulty: v.optional(
       v.union(v.literal("easy"), v.literal("medium"), v.literal("hard"))
     ),
@@ -19,14 +18,8 @@ export const list = query({
       .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
       .collect();
 
-    if (args.subject && args.topic) {
-      questions = questions.filter(
-        (q) => q.subject === args.subject && q.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       questions = questions.filter((q) => q.subject === args.subject);
-    } else if (args.topic) {
-      questions = questions.filter((q) => q.topic === args.topic);
     }
 
     if (args.difficulty) {
@@ -61,7 +54,6 @@ export const create = mutation({
     correctOptions: v.array(v.number()),
     explanation: v.optional(v.string()),
     subject: v.string(),
-    topic: v.string(),
     difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
   },
   handler: async (ctx, args) => {
@@ -100,7 +92,6 @@ export const update = mutation({
     correctOptions: v.optional(v.array(v.number())),
     explanation: v.optional(v.string()),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
     difficulty: v.optional(
       v.union(v.literal("easy"), v.literal("medium"), v.literal("hard"))
     ),
@@ -162,7 +153,6 @@ export const bulkCreate = mutation({
         correctOptions: v.array(v.number()),
         explanation: v.optional(v.string()),
         subject: v.string(),
-        topic: v.string(),
         difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
       })
     ),

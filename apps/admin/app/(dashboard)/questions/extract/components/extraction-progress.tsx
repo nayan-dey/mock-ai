@@ -14,7 +14,7 @@ const TIPS = [
   "Nindo AI is reading your document...",
   "Identifying questions and answer options...",
   "Detecting correct answers from markings...",
-  "Classifying subjects and topics...",
+  "Classifying subjects...",
   "Cleaning up formatting and text...",
   "Almost there, finalizing extraction...",
 ];

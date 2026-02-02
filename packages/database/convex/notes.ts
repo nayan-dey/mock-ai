@@ -5,7 +5,6 @@ import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 export const list = query({
   args: {
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
@@ -17,14 +16,8 @@ export const list = query({
       .order("desc")
       .collect();
 
-    if (args.subject && args.topic) {
-      notes = notes.filter(
-        (n) => n.subject === args.subject && n.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       notes = notes.filter((n) => n.subject === args.subject);
-    } else if (args.topic) {
-      notes = notes.filter((n) => n.topic === args.topic);
     }
 
     const notesWithUrls = await Promise.all(
@@ -44,7 +37,6 @@ export const listForBatch = query({
   args: {
     batchId: v.optional(v.id("batches")),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
@@ -57,14 +49,8 @@ export const listForBatch = query({
       .order("desc")
       .collect();
 
-    if (args.subject && args.topic) {
-      notes = notes.filter(
-        (n) => n.subject === args.subject && n.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       notes = notes.filter((n) => n.subject === args.subject);
-    } else if (args.topic) {
-      notes = notes.filter((n) => n.topic === args.topic);
     }
 
     let filtered;
@@ -119,7 +105,6 @@ export const create = mutation({
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
     storageId: v.id("_storage"),
     batchIds: v.optional(v.array(v.id("batches"))),
   },
@@ -141,7 +126,6 @@ export const update = mutation({
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))),
   },

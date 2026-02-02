@@ -20,7 +20,6 @@ interface Question {
   _id: string;
   text: string;
   subject: string;
-  topic: string;
   difficulty: "easy" | "medium" | "hard";
   options: string[];
   correctOptions: number[];
@@ -90,13 +89,6 @@ export function QuestionsClient() {
       filterFn: (row, id, value) => {
         return value.includes(row.getValue(id));
       },
-    },
-    {
-      accessorKey: "topic",
-      header: ({ column }) => <SortableHeader column={column} title="Topic" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.getValue("topic")}</span>
-      ),
     },
     {
       accessorKey: "difficulty",

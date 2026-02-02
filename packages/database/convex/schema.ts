@@ -100,16 +100,14 @@ export default defineSchema({
     correctOptions: v.array(v.number()),
     explanation: v.optional(v.string()),
     subject: v.string(),
-    topic: v.string(),
+    topic: v.optional(v.string()),
     difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
     organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
-    .index("by_topic", ["topic"])
     .index("by_difficulty", ["difficulty"])
-    .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
   tests: defineTable({
@@ -163,7 +161,7 @@ export default defineSchema({
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
+    topic: v.optional(v.string()),
     fileUrl: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
@@ -172,15 +170,13 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
-    .index("by_topic", ["topic"])
-    .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
   classes: defineTable({
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
+    topic: v.optional(v.string()),
     videoUrl: v.string(),
     duration: v.number(),
     thumbnail: v.optional(v.string()),
@@ -190,8 +186,6 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
-    .index("by_topic", ["topic"])
-    .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
   // Multi-admin support: maps admin clerkIds to organizations

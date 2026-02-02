@@ -16,7 +16,7 @@ import {
   Badge,
 } from "@repo/ui";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SUBJECTS } from "@repo/types";
 
 interface ClassSheetProps {
   open: boolean;
@@ -26,7 +26,6 @@ interface ClassSheetProps {
     title: string;
     description: string;
     subject: string;
-    topic: string;
     videoUrl: string;
     duration: number;
     thumbnail?: string;
@@ -43,7 +42,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [duration, setDuration] = useState("");
   const [thumbnail, setThumbnail] = useState("");
@@ -57,20 +55,12 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
       setTitle(classItem?.title ?? "");
       setDescription(classItem?.description ?? "");
       setSubject(classItem?.subject ?? "");
-      setTopic(classItem?.topic ?? "");
       setVideoUrl(classItem?.videoUrl ?? "");
       setDuration(classItem?.duration?.toString() ?? "");
       setThumbnail(classItem?.thumbnail ?? "");
       setSelectedBatchIds(classItem?.batchIds ?? []);
     }
   }, [open, classItem]);
-
-  const handleSubjectChange = (value: string) => {
-    setSubject(value);
-    setTopic("");
-  };
-
-  const topics = subject ? TOPICS[subject as keyof typeof TOPICS] || [] : [];
 
   const isValidYouTubeUrl = (url: string) =>
     /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/.test(url);
@@ -84,7 +74,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !subject || !topic || !videoUrl.trim() || !duration) {
+    if (!title.trim() || !subject || !videoUrl.trim() || !duration) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
@@ -108,7 +98,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           title: title.trim(),
           description: description.trim(),
           subject,
-          topic,
           videoUrl: videoUrl.trim(),
           duration: durationNum,
           thumbnail: thumbnail.trim() || undefined,
@@ -120,7 +109,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           title: title.trim(),
           description: description.trim(),
           subject,
-          topic,
           videoUrl: videoUrl.trim(),
           duration: durationNum,
           thumbnail: thumbnail.trim() || undefined,
@@ -149,7 +137,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
       onSubmit={handleSubmit}
       submitLabel={isEdit ? "Save Changes" : "Add Class"}
       isSubmitting={isSubmitting}
-      submitDisabled={!title.trim() || !subject || !topic || !videoUrl.trim() || !duration}
+      submitDisabled={!title.trim() || !subject || !videoUrl.trim() || !duration}
       wide
     >
       <div className="space-y-4">
@@ -174,33 +162,18 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="class-subject">Subject *</Label>
-            <Select value={subject} onValueChange={handleSubjectChange}>
-              <SelectTrigger id="class-subject">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="class-topic">Topic *</Label>
-            <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger id="class-topic">
-                <SelectValue placeholder="Select topic" />
-              </SelectTrigger>
-              <SelectContent>
-                {topics.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="class-subject">Subject *</Label>
+          <Select value={subject} onValueChange={setSubject}>
+            <SelectTrigger id="class-subject">
+              <SelectValue placeholder="Select subject" />
+            </SelectTrigger>
+            <SelectContent>
+              {SUBJECTS.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

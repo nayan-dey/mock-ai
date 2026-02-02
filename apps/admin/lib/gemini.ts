@@ -2,9 +2,7 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import {
   SUBJECTS,
-  TOPICS,
   type ExtractedQuestion,
-  type Subject,
   ADMIN_EXTRACTION_MODEL,
   EXTRACTION_MODEL_CONFIG,
 } from "@repo/types";
@@ -21,9 +19,8 @@ For each question, provide:
    - Answer keys if visible
    - If no answer is marked, make your best educated guess based on the subject matter
 4. Subject classification (must be one of: ${SUBJECTS.join(", ")})
-5. Topic classification based on the subject
-6. Difficulty level (easy, medium, or hard) based on complexity
-7. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
+5. Difficulty level (easy, medium, or hard) based on complexity
+6. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
 
 IMPORTANT RULES:
 - Extract EVERY question you can find
@@ -40,8 +37,7 @@ IMPORTANT RULES:
 - Preserve Bengali/Bangla text exactly as written using Unicode characters
 - IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
-Available subjects and their topics:
-${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
+Available subjects: ${SUBJECTS.join(", ")}
 
 Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exact format:
 {
@@ -52,7 +48,6 @@ Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exac
       "correctOptions": [0],
       "explanation": "Explanation of the correct answer",
       "subject": "Mathematics",
-      "topic": "Algebra",
       "difficulty": "medium",
       "confidence": 0.95,
       "needsReview": false,
@@ -79,9 +74,8 @@ For each question, provide:
    - Answer keys if visible
    - If no answer is marked, make your best educated guess based on the subject matter
 4. Subject classification (must be one of: ${SUBJECTS.join(", ")})
-5. Topic classification based on the subject
-6. Difficulty level (easy, medium, or hard) based on complexity
-7. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
+5. Difficulty level (easy, medium, or hard) based on complexity
+6. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
 
 IMPORTANT RULES:
 - Extract EVERY question you can find
@@ -97,8 +91,7 @@ IMPORTANT RULES:
 - Preserve Bengali/Bangla text exactly as written using Unicode characters
 - IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
-Available subjects and their topics:
-${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
+Available subjects: ${SUBJECTS.join(", ")}
 
 Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exact format:
 {
@@ -109,7 +102,6 @@ Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exac
       "correctOptions": [0],
       "explanation": "Explanation of the correct answer",
       "subject": "Mathematics",
-      "topic": "Algebra",
       "difficulty": "medium",
       "confidence": 0.95,
       "needsReview": false,
@@ -470,13 +462,6 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
     subject = "Mathematics"; // Default subject
   }
 
-  // Validate topic
-  const validTopics = TOPICS[subject as Subject];
-  let topic = String(q.topic || "");
-  if (!validTopics.includes(topic)) {
-    topic = validTopics[0]; // Default to first topic
-  }
-
   // Validate difficulty
   let difficulty: "easy" | "medium" | "hard" = "medium";
   if (q.difficulty === "easy" || q.difficulty === "medium" || q.difficulty === "hard") {
@@ -509,7 +494,6 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
     correctOptions,
     explanation: typeof q.explanation === "string" ? cleanLatexArtifacts(q.explanation) : undefined,
     subject,
-    topic,
     difficulty,
     confidence,
     needsReview,

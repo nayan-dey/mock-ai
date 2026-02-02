@@ -154,67 +154,67 @@ export const seedDatabase = mutation({
 
     // ==================== QUESTIONS ====================
     const gkQuestions = [
-      { text: "Who is the current Chief Minister of West Bengal?", options: ["Mamata Banerjee", "Buddhadeb Bhattacharjee", "Jyoti Basu", "Bidhan Chandra Roy"], correctOptions: [0], explanation: "Mamata Banerjee has been serving as the Chief Minister of West Bengal since 2011.", subject: "General Knowledge", topic: "West Bengal GK", difficulty: "easy" as const },
-      { text: "Kolkata is situated on the banks of which river?", options: ["Hooghly", "Ganga", "Damodar", "Teesta"], correctOptions: [0], explanation: "Kolkata is situated on the eastern bank of the Hooghly River.", subject: "General Knowledge", topic: "West Bengal GK", difficulty: "easy" as const },
-      { text: "Which article of the Indian Constitution deals with the Right to Equality?", options: ["Article 14", "Article 19", "Article 21", "Article 32"], correctOptions: [0], explanation: "Article 14 guarantees equality before the law.", subject: "General Knowledge", topic: "Indian Polity", difficulty: "medium" as const },
-      { text: "The Reserve Bank of India was established in which year?", options: ["1935", "1947", "1950", "1929"], correctOptions: [0], explanation: "The RBI was established on April 1, 1935.", subject: "General Knowledge", topic: "Indian Economy", difficulty: "medium" as const },
-      { text: "Which district of West Bengal is famous for Darjeeling tea?", options: ["Darjeeling", "Jalpaiguri", "Cooch Behar", "Alipurduar"], correctOptions: [0], explanation: "Darjeeling district is world-famous for its tea.", subject: "General Knowledge", topic: "West Bengal GK", difficulty: "easy" as const },
+      { text: "Who is the current Chief Minister of West Bengal?", options: ["Mamata Banerjee", "Buddhadeb Bhattacharjee", "Jyoti Basu", "Bidhan Chandra Roy"], correctOptions: [0], explanation: "Mamata Banerjee has been serving as the Chief Minister of West Bengal since 2011.", subject: "General Knowledge", difficulty: "easy" as const },
+      { text: "Kolkata is situated on the banks of which river?", options: ["Hooghly", "Ganga", "Damodar", "Teesta"], correctOptions: [0], explanation: "Kolkata is situated on the eastern bank of the Hooghly River.", subject: "General Knowledge", difficulty: "easy" as const },
+      { text: "Which article of the Indian Constitution deals with the Right to Equality?", options: ["Article 14", "Article 19", "Article 21", "Article 32"], correctOptions: [0], explanation: "Article 14 guarantees equality before the law.", subject: "General Knowledge", difficulty: "medium" as const },
+      { text: "The Reserve Bank of India was established in which year?", options: ["1935", "1947", "1950", "1929"], correctOptions: [0], explanation: "The RBI was established on April 1, 1935.", subject: "General Knowledge", difficulty: "medium" as const },
+      { text: "Which district of West Bengal is famous for Darjeeling tea?", options: ["Darjeeling", "Jalpaiguri", "Cooch Behar", "Alipurduar"], correctOptions: [0], explanation: "Darjeeling district is world-famous for its tea.", subject: "General Knowledge", difficulty: "easy" as const },
     ];
 
     const mathQuestions = [
-      { text: "A shopkeeper sells an article for ₹450, making a profit of 25%. What is the cost price?", options: ["₹360", "₹400", "₹350", "₹375"], correctOptions: [0], explanation: "CP = SP / (1 + Profit%) = 450 / 1.25 = ₹360", subject: "Mathematics", topic: "Profit & Loss", difficulty: "easy" as const },
-      { text: "If A can do a work in 12 days and B can do it in 18 days, how many days will they take working together?", options: ["7.2 days", "8 days", "6 days", "9 days"], correctOptions: [0], explanation: "Combined rate = 1/12 + 1/18 = 5/36. Time = 36/5 = 7.2 days.", subject: "Mathematics", topic: "Time & Work", difficulty: "medium" as const },
-      { text: "What is 35% of 800?", options: ["280", "320", "260", "300"], correctOptions: [0], explanation: "35% of 800 = 280", subject: "Mathematics", topic: "Percentage", difficulty: "easy" as const },
-      { text: "A train 200m long passes a pole in 10 seconds. What is its speed in km/h?", options: ["72 km/h", "60 km/h", "80 km/h", "54 km/h"], correctOptions: [0], explanation: "Speed = 200/10 = 20 m/s = 72 km/h.", subject: "Mathematics", topic: "Time & Distance", difficulty: "medium" as const },
-      { text: "Find the HCF of 36 and 48.", options: ["12", "6", "24", "8"], correctOptions: [0], explanation: "HCF = 12.", subject: "Mathematics", topic: "Number System", difficulty: "easy" as const },
+      { text: "A shopkeeper sells an article for ₹450, making a profit of 25%. What is the cost price?", options: ["₹360", "₹400", "₹350", "₹375"], correctOptions: [0], explanation: "CP = SP / (1 + Profit%) = 450 / 1.25 = ₹360", subject: "Mathematics", difficulty: "easy" as const },
+      { text: "If A can do a work in 12 days and B can do it in 18 days, how many days will they take working together?", options: ["7.2 days", "8 days", "6 days", "9 days"], correctOptions: [0], explanation: "Combined rate = 1/12 + 1/18 = 5/36. Time = 36/5 = 7.2 days.", subject: "Mathematics", difficulty: "medium" as const },
+      { text: "What is 35% of 800?", options: ["280", "320", "260", "300"], correctOptions: [0], explanation: "35% of 800 = 280", subject: "Mathematics", difficulty: "easy" as const },
+      { text: "A train 200m long passes a pole in 10 seconds. What is its speed in km/h?", options: ["72 km/h", "60 km/h", "80 km/h", "54 km/h"], correctOptions: [0], explanation: "Speed = 200/10 = 20 m/s = 72 km/h.", subject: "Mathematics", difficulty: "medium" as const },
+      { text: "Find the HCF of 36 and 48.", options: ["12", "6", "24", "8"], correctOptions: [0], explanation: "HCF = 12.", subject: "Mathematics", difficulty: "easy" as const },
     ];
 
     const reasoningQuestions = [
-      { text: "Complete the series: 2, 6, 12, 20, 30, ?", options: ["42", "40", "36", "44"], correctOptions: [0], explanation: "Differences: 4, 6, 8, 10, 12. Next = 42.", subject: "Reasoning", topic: "Series", difficulty: "medium" as const },
-      { text: "If CLOUD is coded as DMPVE, how is RAIN coded?", options: ["SBJO", "SBJM", "QZHO", "RBJN"], correctOptions: [0], explanation: "Each letter +1: RAIN = SBJO.", subject: "Reasoning", topic: "Coding-Decoding", difficulty: "easy" as const },
-      { text: "Doctor : Hospital :: Teacher : ?", options: ["School", "Student", "Book", "Chalk"], correctOptions: [0], explanation: "A doctor works at a hospital, a teacher works at a school.", subject: "Reasoning", topic: "Analogy", difficulty: "easy" as const },
-      { text: "Pointing to a girl, Ramesh said, 'She is the daughter of my father's only son.' How is the girl related to Ramesh?", options: ["Daughter", "Sister", "Niece", "Mother"], correctOptions: [0], explanation: "Father's only son = Ramesh. So the girl is his daughter.", subject: "Reasoning", topic: "Blood Relations", difficulty: "medium" as const },
-      { text: "All roses are flowers. Some flowers are red. Conclusion: Some roses are red.", options: ["Does not follow", "Follows", "Both follow", "Neither follows"], correctOptions: [0], explanation: "The conclusion does not necessarily follow.", subject: "Reasoning", topic: "Syllogism", difficulty: "hard" as const },
+      { text: "Complete the series: 2, 6, 12, 20, 30, ?", options: ["42", "40", "36", "44"], correctOptions: [0], explanation: "Differences: 4, 6, 8, 10, 12. Next = 42.", subject: "Reasoning", difficulty: "medium" as const },
+      { text: "If CLOUD is coded as DMPVE, how is RAIN coded?", options: ["SBJO", "SBJM", "QZHO", "RBJN"], correctOptions: [0], explanation: "Each letter +1: RAIN = SBJO.", subject: "Reasoning", difficulty: "easy" as const },
+      { text: "Doctor : Hospital :: Teacher : ?", options: ["School", "Student", "Book", "Chalk"], correctOptions: [0], explanation: "A doctor works at a hospital, a teacher works at a school.", subject: "Reasoning", difficulty: "easy" as const },
+      { text: "Pointing to a girl, Ramesh said, 'She is the daughter of my father's only son.' How is the girl related to Ramesh?", options: ["Daughter", "Sister", "Niece", "Mother"], correctOptions: [0], explanation: "Father's only son = Ramesh. So the girl is his daughter.", subject: "Reasoning", difficulty: "medium" as const },
+      { text: "All roses are flowers. Some flowers are red. Conclusion: Some roses are red.", options: ["Does not follow", "Follows", "Both follow", "Neither follows"], correctOptions: [0], explanation: "The conclusion does not necessarily follow.", subject: "Reasoning", difficulty: "hard" as const },
     ];
 
     const bengaliQuestions = [
-      { text: "'পথের পাঁচালী' উপন্যাসটি কার লেখা?", options: ["বিভূতিভূষণ বন্দ্যোপাধ্যায়", "শরৎচন্দ্র চট্টোপাধ্যায়", "বঙ্কিমচন্দ্র চট্টোপাধ্যায়", "রবীন্দ্রনাথ ঠাকুর"], correctOptions: [0], explanation: "পথের পাঁচালী বিভূতিভূষণ বন্দ্যোপাধ্যায়ের রচনা।", subject: "Bengali", topic: "সাহিত্য (Literature)", difficulty: "easy" as const },
-      { text: "'গীতাঞ্জলি' কাব্যগ্রন্থের রচয়িতা কে?", options: ["রবীন্দ্রনাথ ঠাকুর", "কাজী নজরুল ইসলাম", "মাইকেল মধুসূদন দত্ত", "জীবনানন্দ দাশ"], correctOptions: [0], explanation: "গীতাঞ্জলি রবীন্দ্রনাথ ঠাকুরের কাব্যগ্রন্থ।", subject: "Bengali", topic: "সাহিত্য (Literature)", difficulty: "easy" as const },
-      { text: "'সন্ধি' শব্দের অর্থ কী?", options: ["মিলন", "বিচ্ছেদ", "সমাস", "প্রত্যয়"], correctOptions: [0], explanation: "সন্ধি শব্দের অর্থ মিলন।", subject: "Bengali", topic: "ব্যাকরণ (Grammar)", difficulty: "easy" as const },
-      { text: "'অগ্নি' শব্দের সমার্থক শব্দ কোনটি?", options: ["আগুন", "জল", "বায়ু", "মাটি"], correctOptions: [0], explanation: "অগ্নি শব্দের সমার্থক শব্দ আগুন।", subject: "Bengali", topic: "শব্দভাণ্ডার (Vocabulary)", difficulty: "easy" as const },
-      { text: "'বাংলা ভাষায় প্রথম উপন্যাস কোনটি?", options: ["আলালের ঘরের দুলাল", "দুর্গেশনন্দিনী", "কপালকুণ্ডলা", "রাজসিংহ"], correctOptions: [0], explanation: "'আলালের ঘরের দুলাল' (১৮৫৮) বাংলা ভাষায় প্রথম উপন্যাস।", subject: "Bengali", topic: "সাহিত্য (Literature)", difficulty: "medium" as const },
+      { text: "'পথের পাঁচালী' উপন্যাসটি কার লেখা?", options: ["বিভূতিভূষণ বন্দ্যোপাধ্যায়", "শরৎচন্দ্র চট্টোপাধ্যায়", "বঙ্কিমচন্দ্র চট্টোপাধ্যায়", "রবীন্দ্রনাথ ঠাকুর"], correctOptions: [0], explanation: "পথের পাঁচালী বিভূতিভূষণ বন্দ্যোপাধ্যায়ের রচনা।", subject: "Bengali", difficulty: "easy" as const },
+      { text: "'গীতাঞ্জলি' কাব্যগ্রন্থের রচয়িতা কে?", options: ["রবীন্দ্রনাথ ঠাকুর", "কাজী নজরুল ইসলাম", "মাইকেল মধুসূদন দত্ত", "জীবনানন্দ দাশ"], correctOptions: [0], explanation: "গীতাঞ্জলি রবীন্দ্রনাথ ঠাকুরের কাব্যগ্রন্থ।", subject: "Bengali", difficulty: "easy" as const },
+      { text: "'সন্ধি' শব্দের অর্থ কী?", options: ["মিলন", "বিচ্ছেদ", "সমাস", "প্রত্যয়"], correctOptions: [0], explanation: "সন্ধি শব্দের অর্থ মিলন।", subject: "Bengali", difficulty: "easy" as const },
+      { text: "'অগ্নি' শব্দের সমার্থক শব্দ কোনটি?", options: ["আগুন", "জল", "বায়ু", "মাটি"], correctOptions: [0], explanation: "অগ্নি শব্দের সমার্থক শব্দ আগুন।", subject: "Bengali", difficulty: "easy" as const },
+      { text: "'বাংলা ভাষায় প্রথম উপন্যাস কোনটি?", options: ["আলালের ঘরের দুলাল", "দুর্গেশনন্দিনী", "কপালকুণ্ডলা", "রাজসিংহ"], correctOptions: [0], explanation: "'আলালের ঘরের দুলাল' (১৮৫৮) বাংলা ভাষায় প্রথম উপন্যাস।", subject: "Bengali", difficulty: "medium" as const },
     ];
 
     const englishQuestions = [
-      { text: "Choose the correct spelling:", options: ["Accommodation", "Accomodation", "Acomodation", "Accommadation"], correctOptions: [0], explanation: "Correct: 'Accommodation'.", subject: "English", topic: "Vocabulary", difficulty: "easy" as const },
-      { text: "Find the error: 'He go to school every day.'", options: ["'go' should be 'goes'", "'to' should be 'at'", "'every' should be 'each'", "No error"], correctOptions: [0], explanation: "Third-person singular: 'goes'.", subject: "English", topic: "Error Spotting", difficulty: "easy" as const },
-      { text: "The synonym of 'Abundant' is:", options: ["Plentiful", "Scarce", "Rare", "Meagre"], correctOptions: [0], explanation: "'Abundant' = 'Plentiful'.", subject: "English", topic: "Vocabulary", difficulty: "easy" as const },
-      { text: "Choose the correct voice: 'The letter was written by her.'", options: ["Passive Voice", "Active Voice", "Imperative", "Exclamatory"], correctOptions: [0], explanation: "Passive voice.", subject: "English", topic: "Grammar", difficulty: "easy" as const },
-      { text: "Fill in the blank: 'He has been working here ___ 2015.'", options: ["since", "for", "from", "by"], correctOptions: [0], explanation: "'Since' for specific point in time.", subject: "English", topic: "Grammar", difficulty: "easy" as const },
+      { text: "Choose the correct spelling:", options: ["Accommodation", "Accomodation", "Acomodation", "Accommadation"], correctOptions: [0], explanation: "Correct: 'Accommodation'.", subject: "English", difficulty: "easy" as const },
+      { text: "Find the error: 'He go to school every day.'", options: ["'go' should be 'goes'", "'to' should be 'at'", "'every' should be 'each'", "No error"], correctOptions: [0], explanation: "Third-person singular: 'goes'.", subject: "English", difficulty: "easy" as const },
+      { text: "The synonym of 'Abundant' is:", options: ["Plentiful", "Scarce", "Rare", "Meagre"], correctOptions: [0], explanation: "'Abundant' = 'Plentiful'.", subject: "English", difficulty: "easy" as const },
+      { text: "Choose the correct voice: 'The letter was written by her.'", options: ["Passive Voice", "Active Voice", "Imperative", "Exclamatory"], correctOptions: [0], explanation: "Passive voice.", subject: "English", difficulty: "easy" as const },
+      { text: "Fill in the blank: 'He has been working here ___ 2015.'", options: ["since", "for", "from", "by"], correctOptions: [0], explanation: "'Since' for specific point in time.", subject: "English", difficulty: "easy" as const },
     ];
 
     const scienceQuestions = [
-      { text: "Which vitamin is produced when our body is exposed to sunlight?", options: ["Vitamin D", "Vitamin A", "Vitamin C", "Vitamin B12"], correctOptions: [0], explanation: "Vitamin D from UV sunlight.", subject: "General Science", topic: "Biology", difficulty: "easy" as const },
-      { text: "What is the chemical formula of common salt?", options: ["NaCl", "KCl", "CaCl₂", "NaOH"], correctOptions: [0], explanation: "Sodium Chloride = NaCl.", subject: "General Science", topic: "Chemistry", difficulty: "easy" as const },
-      { text: "The SI unit of electric current is:", options: ["Ampere", "Volt", "Ohm", "Watt"], correctOptions: [0], explanation: "Ampere (A).", subject: "General Science", topic: "Physics", difficulty: "easy" as const },
-      { text: "Which gas do plants absorb during photosynthesis?", options: ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"], correctOptions: [0], explanation: "Plants absorb CO₂.", subject: "General Science", topic: "Biology", difficulty: "easy" as const },
-      { text: "Ozone layer depletion is primarily caused by:", options: ["CFCs", "CO₂", "SO₂", "NO₂"], correctOptions: [0], explanation: "CFCs deplete ozone.", subject: "General Science", topic: "Environmental Science", difficulty: "medium" as const },
+      { text: "Which vitamin is produced when our body is exposed to sunlight?", options: ["Vitamin D", "Vitamin A", "Vitamin C", "Vitamin B12"], correctOptions: [0], explanation: "Vitamin D from UV sunlight.", subject: "General Science", difficulty: "easy" as const },
+      { text: "What is the chemical formula of common salt?", options: ["NaCl", "KCl", "CaCl₂", "NaOH"], correctOptions: [0], explanation: "Sodium Chloride = NaCl.", subject: "General Science", difficulty: "easy" as const },
+      { text: "The SI unit of electric current is:", options: ["Ampere", "Volt", "Ohm", "Watt"], correctOptions: [0], explanation: "Ampere (A).", subject: "General Science", difficulty: "easy" as const },
+      { text: "Which gas do plants absorb during photosynthesis?", options: ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"], correctOptions: [0], explanation: "Plants absorb CO₂.", subject: "General Science", difficulty: "easy" as const },
+      { text: "Ozone layer depletion is primarily caused by:", options: ["CFCs", "CO₂", "SO₂", "NO₂"], correctOptions: [0], explanation: "CFCs deplete ozone.", subject: "General Science", difficulty: "medium" as const },
     ];
 
     const historyQuestions = [
-      { text: "Who was the first Governor-General of independent India?", options: ["Lord Mountbatten", "C. Rajagopalachari", "Jawaharlal Nehru", "Dr. Rajendra Prasad"], correctOptions: [0], explanation: "Lord Mountbatten (1947-1948).", subject: "Indian History", topic: "Modern India", difficulty: "medium" as const },
-      { text: "The Battle of Plassey was fought in which year?", options: ["1757", "1764", "1857", "1947"], correctOptions: [0], explanation: "Battle of Plassey: 1757.", subject: "Indian History", topic: "Modern India", difficulty: "easy" as const },
-      { text: "Who founded the Indian National Congress?", options: ["A.O. Hume", "Mahatma Gandhi", "Bal Gangadhar Tilak", "Dadabhai Naoroji"], correctOptions: [0], explanation: "A.O. Hume founded INC in 1885.", subject: "Indian History", topic: "Freedom Movement", difficulty: "easy" as const },
-      { text: "The Harappan civilization belongs to which age?", options: ["Bronze Age", "Iron Age", "Stone Age", "Copper Age"], correctOptions: [0], explanation: "Bronze Age (3300-1300 BCE).", subject: "Indian History", topic: "Ancient India", difficulty: "medium" as const },
-      { text: "Who was the founder of the Mughal Empire in India?", options: ["Babur", "Akbar", "Humayun", "Shah Jahan"], correctOptions: [0], explanation: "Babur in 1526.", subject: "Indian History", topic: "Medieval India", difficulty: "easy" as const },
+      { text: "Who was the first Governor-General of independent India?", options: ["Lord Mountbatten", "C. Rajagopalachari", "Jawaharlal Nehru", "Dr. Rajendra Prasad"], correctOptions: [0], explanation: "Lord Mountbatten (1947-1948).", subject: "Indian History", difficulty: "medium" as const },
+      { text: "The Battle of Plassey was fought in which year?", options: ["1757", "1764", "1857", "1947"], correctOptions: [0], explanation: "Battle of Plassey: 1757.", subject: "Indian History", difficulty: "easy" as const },
+      { text: "Who founded the Indian National Congress?", options: ["A.O. Hume", "Mahatma Gandhi", "Bal Gangadhar Tilak", "Dadabhai Naoroji"], correctOptions: [0], explanation: "A.O. Hume founded INC in 1885.", subject: "Indian History", difficulty: "easy" as const },
+      { text: "The Harappan civilization belongs to which age?", options: ["Bronze Age", "Iron Age", "Stone Age", "Copper Age"], correctOptions: [0], explanation: "Bronze Age (3300-1300 BCE).", subject: "Indian History", difficulty: "medium" as const },
+      { text: "Who was the founder of the Mughal Empire in India?", options: ["Babur", "Akbar", "Humayun", "Shah Jahan"], correctOptions: [0], explanation: "Babur in 1526.", subject: "Indian History", difficulty: "easy" as const },
     ];
 
     const geographyQuestions = [
-      { text: "Sundarbans, the largest mangrove forest in the world, is located in:", options: ["West Bengal & Bangladesh", "Kerala", "Odisha", "Tamil Nadu"], correctOptions: [0], explanation: "Sundarbans spans West Bengal and Bangladesh.", subject: "Geography", topic: "West Bengal Geography", difficulty: "easy" as const },
-      { text: "What is the total number of districts in West Bengal?", options: ["23", "19", "21", "25"], correctOptions: [0], explanation: "West Bengal has 23 districts.", subject: "Geography", topic: "West Bengal Geography", difficulty: "medium" as const },
-      { text: "Which is the longest river of India?", options: ["Ganga", "Godavari", "Brahmaputra", "Yamuna"], correctOptions: [0], explanation: "Ganga: ~2,525 km.", subject: "Geography", topic: "Indian Geography", difficulty: "easy" as const },
-      { text: "The highest peak in West Bengal is:", options: ["Sandakphu", "Phalut", "Tiger Hill", "Tonglu"], correctOptions: [0], explanation: "Sandakphu (3,636m).", subject: "Geography", topic: "West Bengal Geography", difficulty: "medium" as const },
-      { text: "Which line divides India and Pakistan?", options: ["Radcliffe Line", "Durand Line", "McMahon Line", "Line of Control"], correctOptions: [0], explanation: "Radcliffe Line (1947).", subject: "Geography", topic: "Indian Geography", difficulty: "easy" as const },
+      { text: "Sundarbans, the largest mangrove forest in the world, is located in:", options: ["West Bengal & Bangladesh", "Kerala", "Odisha", "Tamil Nadu"], correctOptions: [0], explanation: "Sundarbans spans West Bengal and Bangladesh.", subject: "Geography", difficulty: "easy" as const },
+      { text: "What is the total number of districts in West Bengal?", options: ["23", "19", "21", "25"], correctOptions: [0], explanation: "West Bengal has 23 districts.", subject: "Geography", difficulty: "medium" as const },
+      { text: "Which is the longest river of India?", options: ["Ganga", "Godavari", "Brahmaputra", "Yamuna"], correctOptions: [0], explanation: "Ganga: ~2,525 km.", subject: "Geography", difficulty: "easy" as const },
+      { text: "The highest peak in West Bengal is:", options: ["Sandakphu", "Phalut", "Tiger Hill", "Tonglu"], correctOptions: [0], explanation: "Sandakphu (3,636m).", subject: "Geography", difficulty: "medium" as const },
+      { text: "Which line divides India and Pakistan?", options: ["Radcliffe Line", "Durand Line", "McMahon Line", "Line of Control"], correctOptions: [0], explanation: "Radcliffe Line (1947).", subject: "Geography", difficulty: "easy" as const },
     ];
 
     const allQuestions = [
@@ -284,12 +284,12 @@ export const seedDatabase = mutation({
 
     // ==================== NOTES ====================
     const notes = [
-      { title: "WB Police Syllabus & Strategy", description: "Complete syllabus breakdown.", subject: "General Knowledge", topic: "West Bengal GK", fileUrl: "https://wbpolice.gov.in", batchIds: [batchWBPolice] },
-      { title: "Quantitative Aptitude Formulas", description: "All important formulas.", subject: "Mathematics", topic: "Percentage", fileUrl: "https://www.indiabix.com/aptitude/questions-and-answers/", batchIds: [batchWBPolice, batchNTPC, batchSSC] },
-      { title: "Railway NTPC Previous Year Papers", description: "Previous year question papers.", subject: "General Knowledge", topic: "Current Affairs", fileUrl: "https://www.rrbcdg.gov.in", batchIds: [batchNTPC] },
-      { title: "Bengali Grammar Notes", description: "Comprehensive Bengali grammar notes.", subject: "Bengali", topic: "ব্যাকরণ (Grammar)", fileUrl: "https://www.banglabook.org", batchIds: [batchBengali, batchWBPolice] },
-      { title: "Indian History Timeline", description: "Chronological timeline.", subject: "Indian History", topic: "Modern India", fileUrl: "https://ncert.nic.in", batchIds: [batchWBPolice, batchNTPC, batchSSC] },
-      { title: "West Bengal Geography Quick Notes", description: "Rivers, districts, national parks.", subject: "Geography", topic: "West Bengal Geography", fileUrl: "https://wb.gov.in", batchIds: [batchWBPolice] },
+      { title: "WB Police Syllabus & Strategy", description: "Complete syllabus breakdown.", subject: "General Knowledge", fileUrl: "https://wbpolice.gov.in", batchIds: [batchWBPolice] },
+      { title: "Quantitative Aptitude Formulas", description: "All important formulas.", subject: "Mathematics", fileUrl: "https://www.indiabix.com/aptitude/questions-and-answers/", batchIds: [batchWBPolice, batchNTPC, batchSSC] },
+      { title: "Railway NTPC Previous Year Papers", description: "Previous year question papers.", subject: "General Knowledge", fileUrl: "https://www.rrbcdg.gov.in", batchIds: [batchNTPC] },
+      { title: "Bengali Grammar Notes", description: "Comprehensive Bengali grammar notes.", subject: "Bengali", fileUrl: "https://www.banglabook.org", batchIds: [batchBengali, batchWBPolice] },
+      { title: "Indian History Timeline", description: "Chronological timeline.", subject: "Indian History", fileUrl: "https://ncert.nic.in", batchIds: [batchWBPolice, batchNTPC, batchSSC] },
+      { title: "West Bengal Geography Quick Notes", description: "Rivers, districts, national parks.", subject: "Geography", fileUrl: "https://wb.gov.in", batchIds: [batchWBPolice] },
     ];
 
     for (const note of notes) {
@@ -304,12 +304,12 @@ export const seedDatabase = mutation({
 
     // ==================== CLASSES ====================
     const classes = [
-      { title: "WB Police GK Masterclass", description: "Complete GK revision.", subject: "General Knowledge", topic: "West Bengal GK", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3600, batchIds: [batchWBPolice] },
-      { title: "Quantitative Aptitude — Percentage & Profit Loss", description: "Master percentage calculations.", subject: "Mathematics", topic: "Profit & Loss", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2700, batchIds: [batchWBPolice, batchNTPC, batchSSC] },
-      { title: "Reasoning — Series & Coding-Decoding", description: "Solve series and coding problems.", subject: "Reasoning", topic: "Series", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2400, batchIds: [batchNTPC, batchSSC] },
-      { title: "Bengali সাহিত্য — রবীন্দ্রনাথ থেকে জীবনানন্দ", description: "বাংলা সাহিত্যের ইতিহাস।", subject: "Bengali", topic: "সাহিত্য (Literature)", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3000, batchIds: [batchBengali, batchWBPolice] },
-      { title: "Indian History — Freedom Movement", description: "Revolt of 1857 to Independence.", subject: "Indian History", topic: "Freedom Movement", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3600, batchIds: [batchWBPolice, batchNTPC, batchSSC] },
-      { title: "General Science for Railway NTPC", description: "Physics, Chemistry, Biology basics.", subject: "General Science", topic: "Physics", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2700, batchIds: [batchNTPC] },
+      { title: "WB Police GK Masterclass", description: "Complete GK revision.", subject: "General Knowledge", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3600, batchIds: [batchWBPolice] },
+      { title: "Quantitative Aptitude — Percentage & Profit Loss", description: "Master percentage calculations.", subject: "Mathematics", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2700, batchIds: [batchWBPolice, batchNTPC, batchSSC] },
+      { title: "Reasoning — Series & Coding-Decoding", description: "Solve series and coding problems.", subject: "Reasoning", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2400, batchIds: [batchNTPC, batchSSC] },
+      { title: "Bengali সাহিত্য — রবীন্দ্রনাথ থেকে জীবনানন্দ", description: "বাংলা সাহিত্যের ইতিহাস।", subject: "Bengali", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3000, batchIds: [batchBengali, batchWBPolice] },
+      { title: "Indian History — Freedom Movement", description: "Revolt of 1857 to Independence.", subject: "Indian History", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3600, batchIds: [batchWBPolice, batchNTPC, batchSSC] },
+      { title: "General Science for Railway NTPC", description: "Physics, Chemistry, Biology basics.", subject: "General Science", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2700, batchIds: [batchNTPC] },
     ];
 
     for (const classItem of classes) {

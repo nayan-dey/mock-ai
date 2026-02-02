@@ -30,7 +30,7 @@ import {
 import { FileText, Download, BookOpen, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight, Calendar } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery as useConvexQuery } from "convex/react";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SUBJECTS } from "@repo/types";
 
 type SortOption = "default" | "title-asc" | "title-desc" | "date-asc" | "date-desc";
 type ViewMode = "grid" | "list";
@@ -38,7 +38,6 @@ type ViewMode = "grid" | "list";
 export default function NotesPage() {
   const { user } = useUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [selectedTopic, setSelectedTopic] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
@@ -50,7 +49,6 @@ export default function NotesPage() {
   const notes = useQuery(api.notes.listForBatch, {
     batchId: dbUser?.batchId,
     subject: selectedSubject || undefined,
-    topic: selectedTopic || undefined,
   });
 
   const sortedNotes = useMemo(() => {
@@ -70,11 +68,6 @@ export default function NotesPage() {
         return sorted;
     }
   }, [notes, sortBy]);
-
-  const availableTopics =
-    selectedSubject && selectedSubject in TOPICS
-      ? TOPICS[selectedSubject as keyof typeof TOPICS]
-      : [];
 
   const handleDownload = (fileUrl: string | null, title: string) => {
     if (!fileUrl) return;
@@ -169,7 +162,6 @@ export default function NotesPage() {
           value={selectedSubject || "all"}
           onValueChange={(value) => {
             setSelectedSubject(value === "all" ? "" : value);
-            setSelectedTopic("");
           }}
         >
           <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -185,26 +177,6 @@ export default function NotesPage() {
           </SelectContent>
         </Select>
 
-        {selectedSubject && availableTopics.length > 0 && (
-          <Select
-            value={selectedTopic || "all"}
-            onValueChange={(value) =>
-              setSelectedTopic(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue placeholder="All Topics" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Topics</SelectItem>
-              {availableTopics.map((topic) => (
-                <SelectItem key={topic} value={topic}>
-                  {topic}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
       {/* Notes List */}
@@ -230,7 +202,7 @@ export default function NotesPage() {
             </div>
             <h3 className="mt-4 text-sm font-medium">No notes found</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedSubject || selectedTopic
+              {selectedSubject
                 ? "No notes match your filters."
                 : "No study notes available yet."}
             </p>
@@ -251,7 +223,6 @@ export default function NotesPage() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-xs">{note.subject}</Badge>
-                  <Badge variant="secondary" className="text-xs">{note.topic}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="flex-1">

@@ -21,7 +21,6 @@ interface ClassItem {
   title: string;
   description: string;
   subject: string;
-  topic: string;
   videoUrl: string;
   duration: number;
   thumbnail?: string;
@@ -72,13 +71,6 @@ export function ClassesClient() {
       header: ({ column }) => <SortableHeader column={column} title="Subject" />,
       cell: ({ row }) => (
         <Badge variant="outline">{row.getValue("subject")}</Badge>
-      ),
-    },
-    {
-      accessorKey: "topic",
-      header: ({ column }) => <SortableHeader column={column} title="Topic" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.getValue("topic")}</span>
       ),
     },
     {

@@ -19,13 +19,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox,
+  RadioGroup,
+  RadioGroupItem,
   Skeleton,
 } from "@repo/ui";
 import { toast } from "sonner";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SUBJECTS } from "@repo/types";
 import type { Id } from "@repo/database/dataModel";
 
 type QuestionId = Id<"questions">;
@@ -41,28 +42,27 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
   const updateQuestion = useMutation(api.questions.update);
 
   const [text, setText] = useState("");
-  const [options, setOptions] = useState<string[]>([]);
-  const [correctOptions, setCorrectOptions] = useState<number[]>([]);
+  const [options, setOptions] = useState<string[]>(["", "", "", ""]);
+  const [correctOption, setCorrectOption] = useState<number | null>(null);
   const [explanation, setExplanation] = useState("");
   const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (question) {
       setText(question.text);
-      setOptions(question.options);
-      setCorrectOptions(question.correctOptions);
+      setOptions(
+        question.options.length === 4
+          ? question.options
+          : [...question.options, ...Array(4 - question.options.length).fill("")].slice(0, 4)
+      );
+      setCorrectOption(question.correctOptions[0] ?? null);
       setExplanation(question.explanation || "");
       setSubject(question.subject);
-      setTopic(question.topic);
       setDifficulty(question.difficulty);
     }
   }, [question]);
-
-  const availableTopics =
-    subject && subject in TOPICS ? TOPICS[subject as keyof typeof TOPICS] : [];
 
   const handleOptionChange = useCallback((index: number, value: string) => {
     setOptions(prev => {
@@ -72,26 +72,19 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
     });
   }, []);
 
-  const handleCorrectToggle = useCallback((index: number) => {
-    setCorrectOptions(prev =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index)
-        : [...prev, index]
-    );
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (correctOption === null) return;
+
     setIsSubmitting(true);
     try {
       await updateQuestion({
         id: questionId as QuestionId,
         text,
-        options: options.filter((o) => o.trim() !== ""),
-        correctOptions,
+        options,
+        correctOptions: [correctOption],
         explanation: explanation || undefined,
         subject,
-        topic,
         difficulty,
       });
       toast.success("Question updated successfully");
@@ -138,10 +131,9 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
 
   const isValid =
     text.trim() &&
-    options.filter((o) => o.trim()).length >= 2 &&
-    correctOptions.length > 0 &&
-    subject &&
-    topic;
+    options.every((o) => o.trim()) &&
+    correctOption !== null &&
+    subject;
 
   return (
     <div className="p-8">
@@ -171,51 +163,37 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
             </div>
 
             <div className="space-y-4">
-              <Label>Options * (Mark correct answers)</Label>
-              {options.map((option, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Checkbox
-                    id={`correct-option-${index}`}
-                    checked={correctOptions.includes(index)}
-                    onCheckedChange={() => handleCorrectToggle(index)}
-                    aria-label={`Mark option ${String.fromCharCode(65 + index)} as correct`}
-                  />
-                  <label htmlFor={`correct-option-${index}`} className="w-8 font-medium cursor-pointer">
-                    {String.fromCharCode(65 + index)}.
-                  </label>
-                  <Input
-                    name={`option-${index}`}
-                    value={option}
-                    onChange={(e) => handleOptionChange(index, e.target.value)}
-                    className="flex-1"
-                    aria-label={`Option ${String.fromCharCode(65 + index)} text`}
-                  />
-                </div>
-              ))}
-              {options.length < 6 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOptions([...options, ""])}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Option
-                </Button>
-              )}
+              <Label>Options * (select the correct answer)</Label>
+              <RadioGroup
+                value={correctOption !== null ? String(correctOption) : ""}
+                onValueChange={(val) => setCorrectOption(Number(val))}
+              >
+                {options.map((option, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <RadioGroupItem
+                      value={String(index)}
+                      id={`correct-option-${index}`}
+                      aria-label={`Mark option ${String.fromCharCode(65 + index)} as correct`}
+                    />
+                    <label htmlFor={`correct-option-${index}`} className="w-8 font-medium cursor-pointer">
+                      {String.fromCharCode(65 + index)}.
+                    </label>
+                    <Input
+                      name={`option-${index}`}
+                      value={option}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      className="flex-1"
+                      aria-label={`Option ${String.fromCharCode(65 + index)} text`}
+                    />
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Subject *</Label>
-                <Select
-                  value={subject}
-                  onValueChange={(value) => {
-                    setSubject(value);
-                    setTopic("");
-                  }}
-                >
+                <Select value={subject} onValueChange={setSubject}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -230,39 +208,23 @@ export function EditQuestionClient({ questionId }: EditQuestionClientProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Topic *</Label>
-                <Select value={topic} onValueChange={setTopic} disabled={!subject}>
+                <Label>Difficulty *</Label>
+                <Select
+                  value={difficulty}
+                  onValueChange={(value: "easy" | "medium" | "hard") =>
+                    setDifficulty(value)
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableTopics.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="easy">Easy</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="hard">Hard</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Difficulty *</Label>
-              <Select
-                value={difficulty}
-                onValueChange={(value: "easy" | "medium" | "hard") =>
-                  setDifficulty(value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">
