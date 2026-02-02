@@ -178,7 +178,7 @@ export default defineSchema({
     subject: v.string(),
     topic: v.optional(v.string()),
     videoUrl: v.string(),
-    duration: v.number(),
+    duration: v.optional(v.number()),
     thumbnail: v.optional(v.string()),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
     organizationId: v.id("organizations"),

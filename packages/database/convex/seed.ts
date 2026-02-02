@@ -304,12 +304,12 @@ export const seedDatabase = mutation({
 
     // ==================== CLASSES ====================
     const classes = [
-      { title: "WB Police GK Masterclass", description: "Complete GK revision.", subject: "General Knowledge", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3600, batchIds: [batchWBPolice] },
-      { title: "Quantitative Aptitude — Percentage & Profit Loss", description: "Master percentage calculations.", subject: "Mathematics", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2700, batchIds: [batchWBPolice, batchNTPC, batchSSC] },
-      { title: "Reasoning — Series & Coding-Decoding", description: "Solve series and coding problems.", subject: "Reasoning", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2400, batchIds: [batchNTPC, batchSSC] },
-      { title: "Bengali সাহিত্য — রবীন্দ্রনাথ থেকে জীবনানন্দ", description: "বাংলা সাহিত্যের ইতিহাস।", subject: "Bengali", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3000, batchIds: [batchBengali, batchWBPolice] },
-      { title: "Indian History — Freedom Movement", description: "Revolt of 1857 to Independence.", subject: "Indian History", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 3600, batchIds: [batchWBPolice, batchNTPC, batchSSC] },
-      { title: "General Science for Railway NTPC", description: "Physics, Chemistry, Biology basics.", subject: "General Science", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", duration: 2700, batchIds: [batchNTPC] },
+      { title: "WB Police GK Masterclass", description: "Complete GK revision.", subject: "General Knowledge", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", batchIds: [batchWBPolice] },
+      { title: "Quantitative Aptitude — Percentage & Profit Loss", description: "Master percentage calculations.", subject: "Mathematics", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", batchIds: [batchWBPolice, batchNTPC, batchSSC] },
+      { title: "Reasoning — Series & Coding-Decoding", description: "Solve series and coding problems.", subject: "Reasoning", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", batchIds: [batchNTPC, batchSSC] },
+      { title: "Bengali সাহিত্য — রবীন্দ্রনাথ থেকে জীবনানন্দ", description: "বাংলা সাহিত্যের ইতিহাস।", subject: "Bengali", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", batchIds: [batchBengali, batchWBPolice] },
+      { title: "Indian History — Freedom Movement", description: "Revolt of 1857 to Independence.", subject: "Indian History", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", batchIds: [batchWBPolice, batchNTPC, batchSSC] },
+      { title: "General Science for Railway NTPC", description: "Physics, Chemistry, Biology basics.", subject: "General Science", videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", batchIds: [batchNTPC] },
     ];
 
     for (const classItem of classes) {

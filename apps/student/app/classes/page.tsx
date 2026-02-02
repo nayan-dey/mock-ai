@@ -21,7 +21,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  formatDuration,
   Button,
   DropdownMenu,
   DropdownMenuTrigger,
@@ -31,12 +30,12 @@ import {
   DropdownMenuSeparator,
   BackButton,
 } from "@repo/ui";
-import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, Clock, ChevronRight } from "lucide-react";
+import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useQuery as useConvexQuery } from "convex/react";
 import { SUBJECTS } from "@repo/types";
 
-type SortOption = "default" | "duration-asc" | "duration-desc" | "title-asc" | "title-desc";
+type SortOption = "default" | "title-asc" | "title-desc";
 type ViewMode = "grid" | "list";
 
 export default function ClassesPage() {
@@ -64,10 +63,6 @@ export default function ClassesPage() {
 
     const sorted = [...classes];
     switch (sortBy) {
-      case "duration-asc":
-        return sorted.sort((a, b) => a.duration - b.duration);
-      case "duration-desc":
-        return sorted.sort((a, b) => b.duration - a.duration);
       case "title-asc":
         return sorted.sort((a, b) => a.title.localeCompare(b.title));
       case "title-desc":
@@ -136,15 +131,6 @@ export default function ClassesPage() {
                   <DropdownMenuItem onClick={() => setSortBy("title-desc")}>
                     <SortDesc className="mr-2 h-3.5 w-3.5" />
                     Title (Z to A)
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setSortBy("duration-asc")}>
-                    <SortAsc className="mr-2 h-3.5 w-3.5" />
-                    Duration (Short to Long)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("duration-desc")}>
-                    <SortDesc className="mr-2 h-3.5 w-3.5" />
-                    Duration (Long to Short)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -236,10 +222,6 @@ export default function ClassesPage() {
                     <Play className="h-6 w-6 text-primary" />
                   </div>
                 </div>
-                {/* Duration badge */}
-                <Badge className="absolute bottom-2 right-2 text-xs">
-                  {formatDuration(classItem.duration)}
-                </Badge>
               </div>
 
               <CardHeader className="pb-4">
@@ -295,10 +277,6 @@ export default function ClassesPage() {
                   <h3 className="font-medium truncate">{classItem.title}</h3>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline" className="text-[10px]">{classItem.subject}</Badge>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(classItem.duration)}
-                    </span>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />

@@ -110,7 +110,6 @@ export interface RecordedClass {
   description: string;
   subject: string;
   videoUrl: string;
-  duration: number;
   thumbnail?: string;
   createdBy: string;
   createdAt: number;
@@ -121,7 +120,6 @@ export interface RecordedClassFormData {
   description: string;
   subject: string;
   videoUrl: string;
-  duration: number;
   thumbnail?: string;
 }
 

@@ -27,7 +27,6 @@ interface ClassSheetProps {
     description: string;
     subject: string;
     videoUrl: string;
-    duration: number;
     thumbnail?: string;
     batchIds?: string[];
   } | null;
@@ -43,7 +42,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [duration, setDuration] = useState("");
   const [thumbnail, setThumbnail] = useState("");
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +54,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
       setDescription(classItem?.description ?? "");
       setSubject(classItem?.subject ?? "");
       setVideoUrl(classItem?.videoUrl ?? "");
-      setDuration(classItem?.duration?.toString() ?? "");
       setThumbnail(classItem?.thumbnail ?? "");
       setSelectedBatchIds(classItem?.batchIds ?? []);
     }
@@ -74,19 +71,13 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !subject || !videoUrl.trim() || !duration) {
+    if (!title.trim() || !subject || !videoUrl.trim()) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
     if (!isValidYouTubeUrl(videoUrl)) {
       toast({ title: "Please enter a valid YouTube URL", variant: "destructive" });
-      return;
-    }
-
-    const durationNum = parseInt(duration, 10);
-    if (isNaN(durationNum) || durationNum <= 0) {
-      toast({ title: "Please enter a valid duration", variant: "destructive" });
       return;
     }
 
@@ -99,7 +90,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           description: description.trim(),
           subject,
           videoUrl: videoUrl.trim(),
-          duration: durationNum,
           thumbnail: thumbnail.trim() || undefined,
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
@@ -110,7 +100,6 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           description: description.trim(),
           subject,
           videoUrl: videoUrl.trim(),
-          duration: durationNum,
           thumbnail: thumbnail.trim() || undefined,
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
@@ -137,7 +126,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
       onSubmit={handleSubmit}
       submitLabel={isEdit ? "Save Changes" : "Add Class"}
       isSubmitting={isSubmitting}
-      submitDisabled={!title.trim() || !subject || !videoUrl.trim() || !duration}
+      submitDisabled={!title.trim() || !subject || !videoUrl.trim()}
       wide
     >
       <div className="space-y-4">
@@ -189,27 +178,14 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="class-duration">Duration (minutes) *</Label>
-            <Input
-              id="class-duration"
-              type="number"
-              min={1}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="e.g. 45"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="class-thumb">Thumbnail URL</Label>
-            <Input
-              id="class-thumb"
-              value={thumbnail}
-              onChange={(e) => setThumbnail(e.target.value)}
-              placeholder="Optional thumbnail URL"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="class-thumb">Thumbnail URL</Label>
+          <Input
+            id="class-thumb"
+            value={thumbnail}
+            onChange={(e) => setThumbnail(e.target.value)}
+            placeholder="Optional thumbnail URL"
+          />
         </div>
 
         {/* Batch Selection */}

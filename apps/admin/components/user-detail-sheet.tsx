@@ -3,6 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
+import { exportMultiSectionPdf, exportMultiSheetExcel, type ExportColumn } from "@/lib/export-utils";
 import { useState } from "react";
 import {
   Sheet,
@@ -35,6 +36,10 @@ import {
   SelectValue,
   formatDate,
   useToast,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "@repo/ui";
 import {
   Mail,
@@ -57,6 +62,7 @@ import {
   RefreshCcw,
   Flame,
   Star,
+  Download,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -118,6 +124,7 @@ export function UserDetailSheet({
   const [description, setDescription] = useState("");
 
   // Queries
+  const organization = useQuery(api.organizations.getMyOrg);
   const currentAdmin = useQuery(
     api.users.getByClerkId,
     clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
@@ -303,6 +310,138 @@ export function UserDetailSheet({
     setDeleteFeeId(null);
   };
 
+  // --- Export helpers ---
+  const buildExportData = () => {
+    if (!user) return { sections: [], sheets: [] };
+
+    const profileColumns: ExportColumn[] = [
+      { header: "Field", key: "field" },
+      { header: "Value", key: "value" },
+    ];
+    const profileData = [
+      { field: "Name", value: user.name },
+      { field: "Email", value: user.email },
+      { field: "Role", value: user.role },
+      { field: "Batch", value: batch?.name ?? "—" },
+      { field: "Age", value: user.age ? `${user.age} years` : "—" },
+      { field: "Joined", value: new Date(user.createdAt).toLocaleDateString("en-IN") },
+      { field: "Status", value: user.isSuspended ? "Suspended" : "Active" },
+    ];
+
+    const sections: { title: string; data: Record<string, any>[]; columns: ExportColumn[] }[] = [
+      { title: "Profile", data: profileData, columns: profileColumns },
+    ];
+    const sheets: { name: string; data: Record<string, any>[]; columns: ExportColumn[] }[] = [
+      { name: "Profile", data: profileData, columns: profileColumns },
+    ];
+
+    if (isStudent && studentAnalytics) {
+      const userRankEntry = globalLeaderboard?.find((e) => e.userId === userId);
+
+      const analyticsColumns: ExportColumn[] = [
+        { header: "Metric", key: "metric" },
+        { header: "Value", key: "value" },
+      ];
+      const analyticsData = [
+        { metric: "Tests Taken", value: String(studentAnalytics.totalTestsTaken) },
+        { metric: "Average Score", value: studentAnalytics.averageScore.toFixed(1) },
+        { metric: "Global Rank", value: userRankEntry?.rank ? `#${userRankEntry.rank}` : "—" },
+        { metric: "Total Score", value: userRankEntry?.totalScore?.toFixed(1) ?? "—" },
+      ];
+      sections.push({ title: "Analytics", data: analyticsData, columns: analyticsColumns });
+      sheets.push({ name: "Analytics", data: analyticsData, columns: analyticsColumns });
+
+      // Subject Performance
+      const subjectPerf = studentAnalytics.subjectWisePerformance ?? {};
+      const subjectEntries = Object.entries(subjectPerf);
+      if (subjectEntries.length > 0) {
+        const subjectColumns: ExportColumn[] = [
+          { header: "Subject", key: "subject" },
+          { header: "Correct", key: "correct" },
+          { header: "Total", key: "total" },
+          { header: "Accuracy", key: "accuracy" },
+        ];
+        const subjectData = subjectEntries.map(([subject, data]: [string, any]) => ({
+          subject,
+          correct: String(data.correct),
+          total: String(data.total),
+          accuracy: data.total > 0 ? `${Math.round((data.correct / data.total) * 100)}%` : "0%",
+        }));
+        sections.push({ title: "Subject Performance", data: subjectData, columns: subjectColumns });
+        sheets.push({ name: "Subject Performance", data: subjectData, columns: subjectColumns });
+      }
+
+      // Recent Tests
+      if (studentAnalytics.recentAttempts.length > 0) {
+        const testColumns: ExportColumn[] = [
+          { header: "Test", key: "testTitle" },
+          { header: "Score", key: "score" },
+          { header: "Correct", key: "correct" },
+          { header: "Wrong", key: "incorrect" },
+          { header: "Skipped", key: "unanswered" },
+          { header: "Date", key: "date" },
+        ];
+        const testData = studentAnalytics.recentAttempts.map((a: any) => ({
+          testTitle: a.testTitle,
+          score: a.score.toFixed(1),
+          correct: String(a.correct),
+          incorrect: String(a.incorrect),
+          unanswered: String(a.unanswered),
+          date: a.submittedAt ? new Date(a.submittedAt).toLocaleDateString("en-IN") : "—",
+        }));
+        sections.push({ title: "Recent Tests", data: testData, columns: testColumns });
+        sheets.push({ name: "Recent Tests", data: testData, columns: testColumns });
+      }
+    }
+
+    // Fees
+    if (fees && fees.length > 0) {
+      const feeColumns: ExportColumn[] = [
+        { header: "Description", key: "description" },
+        { header: "Amount", key: "amount" },
+        { header: "Status", key: "status" },
+        { header: "Due Date", key: "dueDate" },
+        { header: "Paid Date", key: "paidDate" },
+      ];
+      const feeData = fees.map((f) => ({
+        description: f.description || "Fee Payment",
+        amount: `₹${f.amount.toLocaleString("en-IN")}`,
+        status: f.status,
+        dueDate: new Date(f.dueDate).toLocaleDateString("en-IN"),
+        paidDate: f.status === "paid" && f.paidDate ? new Date(f.paidDate).toLocaleDateString("en-IN") : "—",
+      }));
+      sections.push({ title: "Fee Records", data: feeData, columns: feeColumns });
+      sheets.push({ name: "Fees", data: feeData, columns: feeColumns });
+    }
+
+    return { sections, sheets };
+  };
+
+  const handleExportPDF = async () => {
+    if (!user) return;
+    const { sections } = buildExportData();
+    if (sections.length === 0) return;
+    await exportMultiSectionPdf(
+      sections,
+      `${user.name.replace(/\s+/g, "_")}_report`,
+      `Student Report: ${user.name}`,
+      organization?.name,
+      organization?.resolvedLogoUrl
+    );
+    toast({ title: "PDF exported successfully" });
+  };
+
+  const handleExportExcel = async () => {
+    if (!user) return;
+    const { sheets } = buildExportData();
+    if (sheets.length === 0) return;
+    await exportMultiSheetExcel(
+      sheets,
+      `${user.name.replace(/\s+/g, "_")}_report`
+    );
+    toast({ title: "Excel exported successfully" });
+  };
+
   const totalDue =
     fees?.filter((f) => f.status === "due").reduce((s, f) => s + f.amount, 0) ??
     0;
@@ -357,6 +496,24 @@ export function UserDetailSheet({
                       <Badge variant="destructive">Suspended</Badge>
                     )}
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="mt-3 gap-1.5">
+                        <Download className="h-3.5 w-3.5" />
+                        Export Data
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center">
+                      <DropdownMenuItem onClick={handleExportPDF}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export as PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportExcel}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export as Excel
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* ── Info ── */}

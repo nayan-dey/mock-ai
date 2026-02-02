@@ -8,7 +8,6 @@ import {
   SortableHeader,
   Badge,
   formatDate,
-  formatDuration,
   type ColumnDef,
 } from "@repo/ui";
 import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
@@ -22,7 +21,6 @@ interface ClassItem {
   description: string;
   subject: string;
   videoUrl: string;
-  duration: number;
   thumbnail?: string;
   batchIds?: string[];
   createdAt: number;
@@ -71,15 +69,6 @@ export function ClassesClient() {
       header: ({ column }) => <SortableHeader column={column} title="Subject" />,
       cell: ({ row }) => (
         <Badge variant="outline">{row.getValue("subject")}</Badge>
-      ),
-    },
-    {
-      accessorKey: "duration",
-      header: ({ column }) => <SortableHeader column={column} title="Duration" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {formatDuration(row.getValue("duration") as number)}
-        </span>
       ),
     },
     {
