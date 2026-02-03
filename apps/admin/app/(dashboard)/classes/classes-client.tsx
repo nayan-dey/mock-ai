@@ -13,8 +13,22 @@ import {
 } from "@repo/ui";
 import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 import { ClassSheet } from "./class-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+
+const classExportColumns: ExportColumn[] = [
+  { header: "Title", key: "title" },
+  { header: "Subject", key: "subject" },
+  { header: "Description", key: "description" },
+  { header: "Video URL", key: "videoUrl" },
+  { header: "Created", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+];
 
 interface ClassItem {
   _id: string;
@@ -69,6 +83,15 @@ export function ClassesClient() {
       toast({ title: "Error", description: "Failed to delete class.", variant: "destructive" });
     }
     setDeleteClassId(null);
+  };
+
+  // Export handlers
+  const handleExportExcel = () => {
+    exportToExcel(classes || [], classExportColumns, "Classes", "Classes");
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(classes || [], classExportColumns, "Classes", "Classes");
   };
 
   const columns: ColumnDef<ClassItem>[] = useMemo(() => [
@@ -166,6 +189,7 @@ export function ClassesClient() {
         title="Recorded Classes"
         description="Manage video lectures"
         facetedFilters={facetedFilters}
+        showColumnVisibility={true}
         primaryAction={{
           label: "Add Class",
           onClick: () => {
@@ -183,6 +207,13 @@ export function ClassesClient() {
             setSheetOpen(true);
           },
         }}
+        toolbarExtra={
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={!classes || classes.length === 0}
+          />
+        }
       />
 
       <ClassSheet

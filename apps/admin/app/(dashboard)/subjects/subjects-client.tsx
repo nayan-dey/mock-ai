@@ -19,7 +19,18 @@ import {
 } from "@repo/ui";
 import { Layers, Pencil, Trash2, Plus, Loader2 } from "lucide-react";
 import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 import type { Id } from "@repo/database/dataModel";
+
+const subjectExportColumns: ExportColumn[] = [
+  { header: "Name", key: "name" },
+  { header: "Created", key: "_creationTime", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+];
 
 interface Subject {
   _id: string;
@@ -136,6 +147,15 @@ export function SubjectsClient() {
     ? associations.questions + associations.notes + associations.classes
     : 0;
 
+  // Export handlers
+  const handleExportExcel = () => {
+    exportToExcel(subjects || [], subjectExportColumns, "Subjects", "Subjects");
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(subjects || [], subjectExportColumns, "Subjects", "Subjects");
+  };
+
   return (
     <>
       <AdminTable<Subject>
@@ -163,6 +183,14 @@ export function SubjectsClient() {
             setAddDialogOpen(true);
           },
         }}
+        showColumnVisibility={true}
+        toolbarExtra={
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={!subjects || subjects.length === 0}
+          />
+        }
       />
 
       {/* Add Subject Dialog */}

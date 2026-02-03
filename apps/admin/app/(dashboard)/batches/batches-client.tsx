@@ -8,17 +8,32 @@ import {
   SortableHeader,
   Badge,
   type ColumnDef,
+  type FacetedFilterConfig,
   formatDate,
 } from "@repo/ui";
 import { Users, Pencil, Trash2, ToggleRight, Copy, Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 
 function copyToClipboard(text: string): Promise<void> {
   return navigator.clipboard.writeText(text);
 }
 import { BatchEditSheet } from "./batch-edit-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+
+const batchExportColumns: ExportColumn[] = [
+  { header: "Name", key: "name" },
+  { header: "Description", key: "description", format: (v) => v || "—" },
+  { header: "Status", key: "isActive", format: (v) => v ? "Active" : "Inactive" },
+  { header: "Referral Code", key: "referralCode" },
+  { header: "Created", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+];
 
 interface Batch {
   _id: string;
@@ -68,6 +83,15 @@ export function BatchesClient() {
     setDeleteBatchId(null);
   };
 
+  // Export handlers
+  const handleExportExcel = () => {
+    exportToExcel(batches || [], batchExportColumns, "Batches", "Batches");
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(batches || [], batchExportColumns, "Batches", "Batches", organization?.name, organization?.resolvedLogoUrl);
+  };
+
   const columns = useMemo<ColumnDef<Batch>[]>(() => [
     {
       accessorKey: "name",
@@ -84,6 +108,21 @@ export function BatchesClient() {
           {row.getValue("description") || "—"}
         </span>
       ),
+    },
+    {
+      accessorKey: "isActive",
+      header: "Status",
+      cell: ({ row }) => {
+        const isActive = row.getValue("isActive") as boolean;
+        return (
+          <Badge variant={isActive ? "default" : "secondary"}>
+            {isActive ? "Active" : "Inactive"}
+          </Badge>
+        );
+      },
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id) ? "active" : "inactive");
+      },
     },
     {
       accessorKey: "referralCode",
@@ -156,6 +195,17 @@ export function BatchesClient() {
     }),
   ], [organization, handleActivate, toast, activatingId]);
 
+  const facetedFilters: FacetedFilterConfig[] = useMemo(() => [
+    {
+      columnId: "isActive",
+      title: "Status",
+      options: [
+        { label: "Active", value: "active" },
+        { label: "Inactive", value: "inactive" },
+      ],
+    },
+  ], []);
+
   return (
     <>
       <AdminTable<Batch>
@@ -183,6 +233,15 @@ export function BatchesClient() {
             setSheetOpen(true);
           },
         }}
+        facetedFilters={facetedFilters}
+        showColumnVisibility={true}
+        toolbarExtra={
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={!batches || batches.length === 0}
+          />
+        }
       />
 
       <BatchEditSheet

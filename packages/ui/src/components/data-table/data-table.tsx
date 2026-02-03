@@ -42,6 +42,8 @@ interface DataTableProps<TData, TValue> {
   toolbarExtra?: React.ReactNode;
   className?: string;
   renderSubRow?: (row: TData) => React.ReactNode | null;
+  onClearAll?: () => void;
+  hasExternalFilters?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -59,6 +61,8 @@ export function DataTable<TData, TValue>({
   toolbarExtra,
   className,
   renderSubRow,
+  onClearAll,
+  hasExternalFilters = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -101,6 +105,8 @@ export function DataTable<TData, TValue>({
         facetedFilters={facetedFilters}
         showColumnVisibility={showColumnVisibility}
         toolbarExtra={toolbarExtra}
+        onClearAll={onClearAll}
+        hasExternalFilters={hasExternalFilters}
       />
 
       {/* Table */}

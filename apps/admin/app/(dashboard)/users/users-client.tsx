@@ -8,11 +8,6 @@ import {
   Badge,
   formatDate,
   SortableHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   type ColumnDef,
   type FacetedFilterConfig,
 } from "@repo/ui";
@@ -25,7 +20,6 @@ import {
   type ExportColumn,
 } from "@/lib/export-utils";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
-import { useUrlState } from "@/hooks/use-url-state";
 
 const userExportColumns: ExportColumn[] = [
   { header: "Name", key: "name" },
@@ -37,16 +31,6 @@ const userExportColumns: ExportColumn[] = [
   { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
 ];
 
-const facetedFilters: FacetedFilterConfig[] = [
-  {
-    columnId: "role",
-    title: "Role",
-    options: [
-      { label: "Student", value: "student" },
-      { label: "Teacher", value: "teacher" },
-    ],
-  },
-];
 
 interface UserData {
   _id: string;
@@ -65,9 +49,6 @@ interface UserData {
 export function UsersClient() {
   const { user: clerkUser } = useUser();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
-  const [joinedFilter, setJoinedFilter] = useUrlState("joined", "all");
-  const [feeFilter, setFeeFilter] = useUrlState("fees", "all");
 
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});
@@ -121,35 +102,6 @@ export function UsersClient() {
       });
   }, [users, batchMap, feeCountMap]);
 
-  // Apply filters
-  const filteredUsers = useMemo(() => {
-    let result = enrichedUsers;
-
-    if (batchFilter !== "all") {
-      if (batchFilter === "none") {
-        result = result.filter((u) => !u.batchId);
-      } else {
-        result = result.filter((u) => u.batchId === batchFilter);
-      }
-    }
-
-    if (joinedFilter !== "all") {
-      const now = Date.now();
-      const days = parseInt(joinedFilter, 10);
-      const cutoff = now - days * 24 * 60 * 60 * 1000;
-      result = result.filter((u) => u.createdAt >= cutoff);
-    }
-
-    if (feeFilter !== "all") {
-      if (feeFilter === "due") {
-        result = result.filter((u) => u.feesDue > 0);
-      } else if (feeFilter === "paid") {
-        result = result.filter((u) => u.feesDue === 0 && u.feesPaid > 0);
-      }
-    }
-
-    return result;
-  }, [enrichedUsers, batchFilter, joinedFilter, feeFilter]);
 
   // Export handlers
   const handleExportExcel = () => {
@@ -174,6 +126,52 @@ export function UsersClient() {
           )}
         </div>
       ),
+    },
+    // Hidden column for batch filtering
+    {
+      id: "batchFilter",
+      accessorFn: (row) => row.batchId || "none",
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue) => {
+        const batchId = row.getValue(columnId) as string;
+        return filterValue.includes(batchId);
+      },
+      enableHiding: true,
+    },
+    // Hidden column for joined date filtering
+    {
+      id: "joinedFilter",
+      accessorFn: (row) => {
+        const now = Date.now();
+        const age = now - row.createdAt;
+        const days = Math.floor(age / (24 * 60 * 60 * 1000));
+        if (days <= 7) return "7";
+        if (days <= 30) return "30";
+        if (days <= 90) return "90";
+        return "all";
+      },
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue) => {
+        const category = row.getValue(columnId) as string;
+        return filterValue.includes(category);
+      },
+      enableHiding: true,
+    },
+    // Hidden column for fee status filtering
+    {
+      id: "feeStatusFilter",
+      accessorFn: (row) => row.feeStatus,
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue) => {
+        const status = row.getValue(columnId) as string;
+        if (filterValue.includes("due")) return status === "has_due";
+        if (filterValue.includes("paid")) return status === "all_paid";
+        return false;
+      },
+      enableHiding: true,
     },
     {
       accessorKey: "email",
@@ -242,6 +240,35 @@ export function UsersClient() {
     ]),
   ], [setSelectedUserId]);
 
+  // Faceted filters configuration
+  const facetedFilters: FacetedFilterConfig[] = useMemo(() => [
+    {
+      columnId: "batchFilter",
+      title: "Batch",
+      options: [
+        { label: "No Batch", value: "none" },
+        ...(batches?.map((b) => ({ label: b.name, value: b._id })) || []),
+      ],
+    },
+    {
+      columnId: "joinedFilter",
+      title: "Joined",
+      options: [
+        { label: "Last 7 days", value: "7" },
+        { label: "Last 30 days", value: "30" },
+        { label: "Last 90 days", value: "90" },
+      ],
+    },
+    {
+      columnId: "feeStatusFilter",
+      title: "Fees",
+      options: [
+        { label: "Has Due", value: "due" },
+        { label: "All Paid", value: "paid" },
+      ],
+    },
+  ], [batches]);
+
   // Compact stats
   const studentCount = enrichedUsers.filter((u) => u.role === "student").length;
   const suspendedCount = enrichedUsers.filter((u) => u.isSuspended).length;
@@ -250,7 +277,7 @@ export function UsersClient() {
     <>
       <AdminTable<UserData>
         columns={columns}
-        data={filteredUsers}
+        data={enrichedUsers}
         isLoading={users === undefined || batches === undefined || allFees === undefined}
         searchKey="name"
         searchPlaceholder="Search users..."
@@ -260,7 +287,8 @@ export function UsersClient() {
         emptyIcon={<Users className="h-6 w-6 text-muted-foreground" />}
         emptyTitle="No users yet"
         emptyDescription="Users will appear here when they sign up"
-        // facetedFilters={facetedFilters}
+        facetedFilters={facetedFilters}
+        showColumnVisibility={true}
         headerExtra={
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <span><strong className="text-foreground">{enrichedUsers.length}</strong> total</span>
@@ -273,46 +301,11 @@ export function UsersClient() {
           </div>
         }
         toolbarExtra={
-          <>
-            <Select value={batchFilter} onValueChange={setBatchFilter}>
-              <SelectTrigger className="h-8 w-[160px] shrink-0">
-                <SelectValue placeholder="All Batches" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Batches</SelectItem>
-                <SelectItem value="none">No Batch</SelectItem>
-                {batches?.map((b) => (
-                  <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-              <SelectTrigger className="h-8 w-[140px] shrink-0">
-                <SelectValue placeholder="All Time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={feeFilter} onValueChange={setFeeFilter}>
-              <SelectTrigger className="h-8 w-[140px] shrink-0">
-                <SelectValue placeholder="All Fees" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Fees</SelectItem>
-                <SelectItem value="due">Has Due</SelectItem>
-                <SelectItem value="paid">All Paid</SelectItem>
-              </SelectContent>
-            </Select>
-            <ExportDropdown
-              onExportExcel={handleExportExcel}
-              onExportPdf={handleExportPdf}
-              disabled={filteredUsers.length === 0}
-            />
-          </>
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={enrichedUsers.length === 0}
+          />
         }
       />
 

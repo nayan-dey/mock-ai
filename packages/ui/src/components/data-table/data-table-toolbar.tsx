@@ -23,6 +23,8 @@ interface DataTableToolbarProps<TData> {
   facetedFilters?: FacetedFilterConfig[];
   showColumnVisibility?: boolean;
   toolbarExtra?: React.ReactNode;
+  onClearAll?: () => void;
+  hasExternalFilters?: boolean;
 }
 
 export function DataTableToolbar<TData>({
@@ -32,8 +34,10 @@ export function DataTableToolbar<TData>({
   facetedFilters,
   showColumnVisibility = false,
   toolbarExtra,
+  onClearAll,
+  hasExternalFilters = false,
 }: DataTableToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
+  const isFiltered = table.getState().columnFilters.length > 0 || hasExternalFilters;
 
   const hasContent =
     searchKey || (facetedFilters && facetedFilters.length > 0) || showColumnVisibility || toolbarExtra;
@@ -42,7 +46,8 @@ export function DataTableToolbar<TData>({
 
   return (
     <div className="flex items-center justify-between gap-3 border-b p-3">
-      <div className="flex flex-1 items-center gap-2 overflow-x-auto">
+      {/* Left: Search */}
+      <div className="flex flex-1 items-center gap-2">
         {searchKey && (
           <Input
             placeholder={searchPlaceholder}
@@ -55,6 +60,10 @@ export function DataTableToolbar<TData>({
             className="h-8 w-[200px] min-w-[150px] lg:w-[300px]"
           />
         )}
+      </div>
+
+      {/* Right: Filters, Actions, and Column Visibility */}
+      <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
         {facetedFilters?.map((filter) => {
           const column = table.getColumn(filter.columnId);
           if (!column) return null;
@@ -67,23 +76,22 @@ export function DataTableToolbar<TData>({
             />
           );
         })}
-        {toolbarExtra}
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => table.resetColumnFilters()}
+            onClick={() => {
+              table.resetColumnFilters();
+              onClearAll?.();
+            }}
             className="h-8 shrink-0 px-2 lg:px-3"
           >
-            Reset
+            Clear all
             <X className="ml-2 h-4 w-4" />
           </Button>
         )}
+        {toolbarExtra}
+        {showColumnVisibility && <DataTableViewOptions table={table} />}
       </div>
-      {showColumnVisibility && (
-        <div className="shrink-0">
-          <DataTableViewOptions table={table} />
-        </div>
-      )}
     </div>
   );
 }

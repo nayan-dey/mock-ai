@@ -12,8 +12,22 @@ import {
 } from "@repo/ui";
 import { FileQuestion, Pencil, Trash2 } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 import { QuestionSheet } from "./question-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+
+const questionExportColumns: ExportColumn[] = [
+  { header: "Question", key: "text" },
+  { header: "Subject", key: "subject" },
+  { header: "Difficulty", key: "difficulty", format: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
+  { header: "Options Count", key: "options", format: (v) => String((v as string[]).length) },
+  { header: "Correct Answers", key: "correctOptions", format: (v) => String((v as number[]).length) },
+];
 
 interface Question {
   _id: string;
@@ -61,6 +75,15 @@ export function QuestionsClient() {
       toast({ title: "Error", description: "Failed to delete question.", variant: "destructive" });
     }
     setDeleteQuestionId(null);
+  };
+
+  // Export handlers
+  const handleExportExcel = () => {
+    exportToExcel(questions || [], questionExportColumns, "Questions", "Questions");
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(questions || [], questionExportColumns, "Questions", "Questions");
   };
 
   const getDifficultyBadge = (difficulty: string) => {
@@ -145,6 +168,14 @@ export function QuestionsClient() {
           },
         }}
         facetedFilters={facetedFilters}
+        showColumnVisibility={true}
+        toolbarExtra={
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={!questions || questions.length === 0}
+          />
+        }
       />
 
       <QuestionSheet

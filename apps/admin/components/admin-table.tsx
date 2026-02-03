@@ -106,6 +106,8 @@ interface AdminTableProps<TData> {
   showColumnVisibility?: boolean;
   rowClassName?: (row: TData) => string;
   renderSubRow?: (row: TData) => React.ReactNode | null;
+  onClearAllFilters?: () => void;
+  hasExternalFilters?: boolean;
 }
 
 export function AdminTable<TData>({
@@ -129,6 +131,8 @@ export function AdminTable<TData>({
   showColumnVisibility = true,
   rowClassName,
   renderSubRow,
+  onClearAllFilters,
+  hasExternalFilters = false,
 }: AdminTableProps<TData>) {
   // Wrap non-action column cells with click handler when onRowClick is provided
   const columns = React.useMemo(() => {
@@ -254,6 +258,8 @@ export function AdminTable<TData>({
             showColumnVisibility={showColumnVisibility}
             toolbarExtra={toolbarExtra}
             renderSubRow={renderSubRow}
+            onClearAll={onClearAllFilters}
+            hasExternalFilters={hasExternalFilters}
           />
         </CardContent>
       </Card>

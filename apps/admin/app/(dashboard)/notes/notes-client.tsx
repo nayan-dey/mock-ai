@@ -13,8 +13,21 @@ import {
 } from "@repo/ui";
 import { BookOpen, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 import { NoteSheet } from "./note-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+
+const noteExportColumns: ExportColumn[] = [
+  { header: "Title", key: "title" },
+  { header: "Subject", key: "subject" },
+  { header: "Description", key: "description" },
+  { header: "Created", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+];
 
 interface Note {
   _id: string;
@@ -69,6 +82,15 @@ export function NotesClient() {
       toast({ title: "Error", description: "Failed to delete note.", variant: "destructive" });
     }
     setDeleteNoteId(null);
+  };
+
+  // Export handlers
+  const handleExportExcel = () => {
+    exportToExcel(notes || [], noteExportColumns, "Notes", "Notes");
+  };
+
+  const handleExportPdf = () => {
+    exportToPdf(notes || [], noteExportColumns, "Notes", "Notes");
   };
 
   const columns = useMemo<ColumnDef<Note>[]>(() => [
@@ -166,6 +188,7 @@ export function NotesClient() {
         title="Notes"
         description="Manage study materials"
         facetedFilters={facetedFilters}
+        showColumnVisibility={true}
         primaryAction={{
           label: "Add Note",
           onClick: () => {
@@ -183,6 +206,13 @@ export function NotesClient() {
             setSheetOpen(true);
           },
         }}
+        toolbarExtra={
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={!notes || notes.length === 0}
+          />
+        }
       />
 
       <NoteSheet
