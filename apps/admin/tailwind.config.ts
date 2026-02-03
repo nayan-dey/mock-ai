@@ -8,6 +8,18 @@ const config: Config = {
     "../../packages/ui/src/**/*.{js,ts,jsx,tsx}",
   ],
   presets: [sharedConfig as Config],
+  theme: {
+    extend: {
+      boxShadow: {
+        sm: "none",
+        DEFAULT: "none",
+        md: "none",
+        lg: "none",
+        xl: "none",
+        "2xl": "none",
+      },
+    },
+  },
   plugins: [require("tailwindcss-animate")],
 };
 

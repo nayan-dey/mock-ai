@@ -3,8 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo, useCallback, useTransition } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useState, useMemo, useTransition, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -15,13 +14,12 @@ import {
   Skeleton,
   SortableHeader,
   type ColumnDef,
+  type FacetedFilterConfig,
   useToast,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   Dialog,
   DialogContent,
@@ -37,10 +35,6 @@ import {
   Eye,
   CheckCircle,
   Trash2,
-  AlertCircle,
-  CircleCheck,
-  Filter,
-  X,
   ChevronDown,
   ChevronRight,
   Loader2,
@@ -55,6 +49,7 @@ import {
   exportToPdf,
   type ExportColumn,
 } from "@/lib/export-utils";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const feeExportColumns: ExportColumn[] = [
   { header: "Student Name", key: "studentName" },
@@ -131,37 +126,6 @@ export function FeesClient() {
     new Set()
   );
 
-  // URL-synced filters
-  const selectedBatches = useMemo(() => new Set(searchParams.get("batches")?.split(",").filter(Boolean) ?? []), [searchParams]);
-  const selectedMonths = useMemo(() => new Set(searchParams.get("months")?.split(",").filter(Boolean) ?? []), [searchParams]);
-  const selectedStatuses = useMemo(() => new Set(searchParams.get("statuses")?.split(",").filter(Boolean) ?? []), [searchParams]);
-
-  const updateUrlSet = useCallback((key: string, newSet: Set<string>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (newSet.size === 0) {
-      params.delete(key);
-    } else {
-      params.set(key, Array.from(newSet).join(","));
-    }
-    const qs = params.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-  }, [searchParams, router, pathname]);
-
-  const setSelectedBatches = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-    const newSet = typeof v === "function" ? v(selectedBatches) : v;
-    updateUrlSet("batches", newSet);
-  }, [selectedBatches, updateUrlSet]);
-
-  const setSelectedMonths = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-    const newSet = typeof v === "function" ? v(selectedMonths) : v;
-    updateUrlSet("months", newSet);
-  }, [selectedMonths, updateUrlSet]);
-
-  const setSelectedStatuses = useCallback((v: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-    const newSet = typeof v === "function" ? v(selectedStatuses) : v;
-    updateUrlSet("statuses", newSet);
-  }, [selectedStatuses, updateUrlSet]);
-
   const currentAdmin = useQuery(
     api.users.getByClerkId,
     clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
@@ -197,23 +161,10 @@ export function FeesClient() {
     return { batches, months, statuses };
   }, [enrichedFees]);
 
-  // Apply filters
-  const filteredFees = useMemo(() => {
-    return enrichedFees.filter((f) => {
-      if (selectedBatches.size > 0 && !selectedBatches.has(f.batchName))
-        return false;
-      if (selectedMonths.size > 0 && !selectedMonths.has(f.dueMonth))
-        return false;
-      if (selectedStatuses.size > 0 && !selectedStatuses.has(f.status))
-        return false;
-      return true;
-    });
-  }, [enrichedFees, selectedBatches, selectedMonths, selectedStatuses]);
-
   // Group fees by student — one row per student with all their fees attached
   const groupedFees: GroupedFeeRow[] = useMemo(() => {
     const groups = new Map<string, FeeRow[]>();
-    for (const fee of filteredFees) {
+    for (const fee of enrichedFees) {
       const existing = groups.get(fee.studentId);
       if (existing) {
         existing.push(fee);
@@ -230,7 +181,7 @@ export function FeesClient() {
         _feeCount: fees.length,
       };
     });
-  }, [filteredFees]);
+  }, [enrichedFees]);
 
   const toggleStudentExpand = useCallback((studentId: string) => {
     setExpandedStudents((prev) => {
@@ -244,20 +195,9 @@ export function FeesClient() {
     });
   }, []);
 
-  const activeFilterCount =
-    (selectedBatches.size > 0 ? 1 : 0) +
-    (selectedMonths.size > 0 ? 1 : 0) +
-    (selectedStatuses.size > 0 ? 1 : 0);
-
-  const clearAllFilters = () => {
-    setSelectedBatches(new Set());
-    setSelectedMonths(new Set());
-    setSelectedStatuses(new Set());
-  };
-
-  // Stats based on filtered data
+  // Stats based on all data (filtering handled by table)
   const stats = useMemo(() => {
-    const data = filteredFees;
+    const data = enrichedFees;
     const due = data.filter((f) => f.status === "due");
     const paid = data.filter((f) => f.status === "paid");
     return {
@@ -267,7 +207,7 @@ export function FeesClient() {
       dueAmount: due.reduce((s, f) => s + f.amount, 0),
       paidAmount: paid.reduce((s, f) => s + f.amount, 0),
     };
-  }, [filteredFees]);
+  }, [enrichedFees]);
 
   const [isMarkingPaid, startMarkingPaid] = useTransition();
 
@@ -314,28 +254,13 @@ export function FeesClient() {
 
   // Export handlers
   const handleExportExcel = () => {
-    exportToExcel(filteredFees, feeExportColumns, "Fees", "Fees");
+    exportToExcel(enrichedFees, feeExportColumns, "Fees", "Fees");
     toast({ title: "Exported to Excel" });
   };
 
   const handleExportPdf = () => {
-    exportToPdf(filteredFees, feeExportColumns, "Fees", "Fee Records", organization?.name, organization?.resolvedLogoUrl);
+    exportToPdf(enrichedFees, feeExportColumns, "Fees", "Fee Records", organization?.name, organization?.resolvedLogoUrl);
     toast({ title: "Exported to PDF" });
-  };
-
-  // Toggle helpers for multi-select
-  const toggleFilter = (
-    set: Set<string>,
-    setter: React.Dispatch<React.SetStateAction<Set<string>>>,
-    value: string
-  ) => {
-    const next = new Set(set);
-    if (next.has(value)) {
-      next.delete(value);
-    } else {
-      next.add(value);
-    }
-    setter(next);
   };
 
   const columns: ColumnDef<GroupedFeeRow, any>[] = useMemo(() => [
@@ -551,6 +476,40 @@ export function FeesClient() {
         );
       },
     },
+    // Hidden filter columns
+    {
+      id: "batchFilter",
+      accessorFn: (row) => row.batchName,
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue) => {
+        const batchName = row.getValue(columnId) as string;
+        return filterValue.includes(batchName);
+      },
+      enableHiding: true,
+    },
+    {
+      id: "monthFilter",
+      accessorFn: (row) => row.dueMonth,
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue) => {
+        const month = row.getValue(columnId) as string;
+        return filterValue.includes(month);
+      },
+      enableHiding: true,
+    },
+    {
+      id: "statusFilter",
+      accessorFn: (row) => row.status,
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue) => {
+        const status = row.getValue(columnId) as string;
+        return filterValue.includes(status);
+      },
+      enableHiding: true,
+    },
     createActionsColumn<GroupedFeeRow>((fee) => {
       const actions: ActionMenuItem[] = [
         {
@@ -586,6 +545,28 @@ export function FeesClient() {
       return actions;
     }),
   ], [expandedStudents, toggleStudentExpand, setSelectedStudent, setMarkPaidDate, setMarkPaidFeeId, setDeleteFeeId]);
+
+  // Faceted filters configuration
+  const facetedFilters: FacetedFilterConfig[] = useMemo(() => [
+    {
+      columnId: "batchFilter",
+      title: "Batch",
+      options: filterOptions.batches.map(batch => ({ label: batch, value: batch })),
+    },
+    {
+      columnId: "monthFilter",
+      title: "Month",
+      options: filterOptions.months.map(month => ({ label: month, value: month })),
+    },
+    {
+      columnId: "statusFilter",
+      title: "Status",
+      options: filterOptions.statuses.map(status => ({
+        label: status === "paid" ? "Paid" : "Due",
+        value: status
+      })),
+    },
+  ], [filterOptions]);
 
   return (
     <>
@@ -727,190 +708,14 @@ export function FeesClient() {
             </div>
           );
         }}
+        facetedFilters={facetedFilters}
+        showColumnVisibility={true}
         toolbarExtra={
-          <>
-            {/* Batch Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={
-                    selectedBatches.size > 0
-                      ? "border-primary text-primary"
-                      : ""
-                  }
-                >
-                  <Filter className="mr-1.5 h-3.5 w-3.5" />
-                  Batch
-                  {selectedBatches.size > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-1.5 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
-                    >
-                      {selectedBatches.size}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by batch</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {filterOptions.batches.map((batch) => (
-                  <DropdownMenuCheckboxItem
-                    key={batch}
-                    checked={selectedBatches.has(batch)}
-                    onCheckedChange={() =>
-                      toggleFilter(selectedBatches, setSelectedBatches, batch)
-                    }
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    {batch}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                {selectedBatches.size > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="justify-center text-xs"
-                      onClick={() => setSelectedBatches(new Set())}
-                    >
-                      Clear
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Month Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={
-                    selectedMonths.size > 0
-                      ? "border-primary text-primary"
-                      : ""
-                  }
-                >
-                  <Filter className="mr-1.5 h-3.5 w-3.5" />
-                  Month
-                  {selectedMonths.size > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-1.5 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
-                    >
-                      {selectedMonths.size}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Filter by month</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {filterOptions.months.map((month) => (
-                  <DropdownMenuCheckboxItem
-                    key={month}
-                    checked={selectedMonths.has(month)}
-                    onCheckedChange={() =>
-                      toggleFilter(selectedMonths, setSelectedMonths, month)
-                    }
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    {month}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                {selectedMonths.size > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="justify-center text-xs"
-                      onClick={() => setSelectedMonths(new Set())}
-                    >
-                      Clear
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Status Filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={
-                    selectedStatuses.size > 0
-                      ? "border-primary text-primary"
-                      : ""
-                  }
-                >
-                  <Filter className="mr-1.5 h-3.5 w-3.5" />
-                  Status
-                  {selectedStatuses.size > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-1.5 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
-                    >
-                      {selectedStatuses.size}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40">
-                <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {filterOptions.statuses.map((status) => (
-                  <DropdownMenuCheckboxItem
-                    key={status}
-                    checked={selectedStatuses.has(status)}
-                    onCheckedChange={() =>
-                      toggleFilter(
-                        selectedStatuses,
-                        setSelectedStatuses,
-                        status
-                      )
-                    }
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    {status === "paid" ? "Paid" : "Due"}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                {selectedStatuses.size > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="justify-center text-xs"
-                      onClick={() => setSelectedStatuses(new Set())}
-                    >
-                      Clear
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Clear All */}
-            {activeFilterCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1 text-xs text-muted-foreground"
-                onClick={clearAllFilters}
-              >
-                <X className="h-3.5 w-3.5" />
-                Clear all
-              </Button>
-            )}
-
-            <ExportDropdown
-              onExportExcel={handleExportExcel}
-              onExportPdf={handleExportPdf}
-              disabled={filteredFees.length === 0}
-            />
-          </>
+          <ExportDropdown
+            onExportExcel={handleExportExcel}
+            onExportPdf={handleExportPdf}
+            disabled={enrichedFees.length === 0}
+          />
         }
       />
 

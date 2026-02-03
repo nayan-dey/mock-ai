@@ -45,9 +45,9 @@ export function DataTableToolbar<TData>({
   if (!hasContent) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b p-3">
+    <div className="flex items-center justify-between gap-3 border-b p-3 overflow-x-auto">
       {/* Left: Search */}
-      <div className="flex flex-1 items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {searchKey && (
           <Input
             placeholder={searchPlaceholder}
@@ -63,7 +63,7 @@ export function DataTableToolbar<TData>({
       </div>
 
       {/* Right: Filters, Actions, and Column Visibility */}
-      <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-2 shrink-0">
         {facetedFilters?.map((filter) => {
           const column = table.getColumn(filter.columnId);
           if (!column) return null;
