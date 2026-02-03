@@ -55,14 +55,22 @@ export default function AskAIPage() {
           </TabsTrigger>
         </TabsList>
       </div>
-      <TabsContent value="ask" className="flex-1 overflow-hidden mt-0">
+      <TabsContent
+        value="ask"
+        forceMount
+        className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden"
+      >
         <ChatProvider userId={convexUser._id}>
           <div className="h-full">
             <ChatThread />
           </div>
         </ChatProvider>
       </TabsContent>
-      <TabsContent value="extract" className="flex-1 overflow-auto mt-0">
+      <TabsContent
+        value="extract"
+        forceMount
+        className="flex-1 overflow-auto mt-0 data-[state=inactive]:hidden"
+      >
         <ExtractQuestionsPage />
       </TabsContent>
     </Tabs>

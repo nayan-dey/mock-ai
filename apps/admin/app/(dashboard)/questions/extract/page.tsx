@@ -81,10 +81,13 @@ export default function ExtractQuestionsPage() {
 
   const handleExtract = () => {
     if (selectedFiles.length === 0) return;
+
+    // Set these synchronously BEFORE the transition so the UI updates immediately
+    setState("processing");
+    setError(null);
+    setProcessingIndex(0);
+
     startExtracting(async () => {
-      setState("processing");
-      setError(null);
-      setProcessingIndex(0);
 
       const allQuestions: ExtractedQuestion[] = [];
       const errors: string[] = [];
