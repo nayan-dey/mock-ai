@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -105,20 +105,24 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
 
   const isDraft = testWithQuestions?.status === "draft";
 
-  const handleDurationSave = async () => {
+  const [isSavingDuration, startSavingDuration] = useTransition();
+
+  const handleDurationSave = () => {
     const newDuration = Number(durationValue);
     if (!testWithQuestions || isNaN(newDuration) || newDuration < 1) return;
 
-    try {
-      await updateTest({
-        id: testId as Id<"tests">,
-        duration: newDuration,
-      });
-      toast.success("Duration updated");
-    } catch {
-      toast.error("Failed to update duration");
-    }
-    setIsEditingDuration(false);
+    startSavingDuration(async () => {
+      try {
+        await updateTest({
+          id: testId as Id<"tests">,
+          duration: newDuration,
+        });
+        toast.success("Duration updated");
+        setIsEditingDuration(false);
+      } catch {
+        toast.error("Failed to update duration");
+      }
+    });
   };
 
   if (testWithQuestions === undefined) {
@@ -247,13 +251,15 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
                       <div className="ml-auto flex gap-1">
                         <button
                           onClick={handleDurationSave}
-                          className="rounded-md p-1 text-emerald-600 hover:bg-emerald-500/10"
+                          disabled={isSavingDuration}
+                          className="rounded-md p-1 text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-50"
                         >
-                          <Check className="h-4 w-4" />
+                          {isSavingDuration ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                         </button>
                         <button
                           onClick={() => setIsEditingDuration(false)}
-                          className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                          disabled={isSavingDuration}
+                          className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
                         >
                           <X className="h-4 w-4" />
                         </button>

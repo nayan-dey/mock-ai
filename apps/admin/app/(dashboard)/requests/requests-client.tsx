@@ -11,7 +11,7 @@ import {
   Button,
   Skeleton,
 } from "@repo/ui";
-import { UserPlus, Check, X, Inbox } from "lucide-react";
+import { UserPlus, Check, X, Inbox, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -20,9 +20,11 @@ export function RequestsClient() {
   const approveRequest = useMutation(api.orgJoinRequests.approve);
   const rejectRequest = useMutation(api.orgJoinRequests.reject);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingAction, setProcessingAction] = useState<"approve" | "reject" | null>(null);
 
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId);
+    setProcessingAction("approve");
     try {
       await approveRequest({ requestId: requestId as any });
       toast.success("Request approved. The admin has been added to your organization.");
@@ -30,11 +32,13 @@ export function RequestsClient() {
       toast.error(error.message || "Failed to approve request.");
     } finally {
       setProcessingId(null);
+      setProcessingAction(null);
     }
   };
 
   const handleReject = async (requestId: string) => {
     setProcessingId(requestId);
+    setProcessingAction("reject");
     try {
       await rejectRequest({ requestId: requestId as any });
       toast.success("Request rejected.");
@@ -42,6 +46,7 @@ export function RequestsClient() {
       toast.error(error.message || "Failed to reject request.");
     } finally {
       setProcessingId(null);
+      setProcessingAction(null);
     }
   };
 
@@ -111,7 +116,11 @@ export function RequestsClient() {
                     onClick={() => handleReject(request._id)}
                     disabled={processingId === request._id}
                   >
-                    <X className="h-4 w-4" />
+                    {processingId === request._id && processingAction === "reject" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4" />
+                    )}
                     Reject
                   </Button>
                   <Button
@@ -120,7 +129,11 @@ export function RequestsClient() {
                     onClick={() => handleApprove(request._id)}
                     disabled={processingId === request._id}
                   >
-                    <Check className="h-4 w-4" />
+                    {processingId === request._id && processingAction === "approve" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
                     Approve
                   </Button>
                 </div>

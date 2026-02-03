@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo, useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -28,7 +28,7 @@ import {
   BackButton,
   type QuestionStatus,
 } from "@repo/ui";
-import { Clock, ClipboardList, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain, Info } from "lucide-react";
+import { Clock, ClipboardList, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain, Info, Loader2 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 
 type TestId = Id<"tests">;
@@ -358,11 +358,15 @@ export default function TestPage() {
     });
   }, [testWithQuestions, orderedQuestionDetails, currentQuestion, answers, markedForReview, visitedQuestions]);
 
-  const handleSubmit = async () => {
+  const [isSubmitting, startSubmitting] = useTransition();
+
+  const handleSubmit = () => {
     if (!attemptId) return;
-    await submitAttempt({ attemptId });
-    localStorage.removeItem(`test-${testId}-currentQuestion`);
-    router.push(`/results/${attemptId}`);
+    startSubmitting(async () => {
+      await submitAttempt({ attemptId });
+      localStorage.removeItem(`test-${testId}-currentQuestion`);
+      router.push(`/results/${attemptId}`);
+    });
   };
 
   const handleTimeUp = useCallback(() => {
@@ -906,11 +910,18 @@ export default function TestPage() {
             </div>
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => setShowSubmitDialog(false)} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowSubmitDialog(false)} disabled={isSubmitting} className="w-full sm:w-auto">
               Continue Test
             </Button>
-            <Button variant="destructive" onClick={handleSubmit} className="w-full sm:w-auto">
-              Submit Test
+            <Button variant="destructive" onClick={handleSubmit} disabled={isSubmitting} className="w-full sm:w-auto">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                "Submit Test"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

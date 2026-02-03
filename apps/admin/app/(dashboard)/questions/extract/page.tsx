@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
@@ -77,101 +77,104 @@ export default function ExtractQuestionsPage() {
     setError(null);
   };
 
-  const handleExtract = async () => {
+  const [isExtracting, startExtracting] = useTransition();
+
+  const handleExtract = () => {
     if (selectedFiles.length === 0) return;
+    startExtracting(async () => {
+      setState("processing");
+      setError(null);
+      setProcessingIndex(0);
 
-    setState("processing");
-    setError(null);
-    setProcessingIndex(0);
+      const allQuestions: ExtractedQuestion[] = [];
+      const errors: string[] = [];
 
-    const allQuestions: ExtractedQuestion[] = [];
-    const errors: string[] = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        setProcessingIndex(i);
+        const { file, base64 } = selectedFiles[i];
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-      setProcessingIndex(i);
-      const { file, base64 } = selectedFiles[i];
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 360000);
 
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 360000);
+          const response = await fetch("/api/extract-questions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileBase64: base64,
+              mimeType: file.type,
+              fileName: file.name,
+              model: selectedModel,
+              subjects: subjectsData?.map((s) => s.name),
+            }),
+            signal: controller.signal,
+          });
 
-        const response = await fetch("/api/extract-questions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileBase64: base64,
-            mimeType: file.type,
-            fileName: file.name,
-            model: selectedModel,
-            subjects: subjectsData?.map((s) => s.name),
-          }),
-          signal: controller.signal,
-        });
+          clearTimeout(timeoutId);
 
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          let errorMsg = `Server error (${response.status})`;
-          try {
-            const errorResult = await response.json();
-            if (errorResult.error) errorMsg = errorResult.error;
-          } catch {
-            // Response wasn't JSON
+          if (!response.ok) {
+            let errorMsg = `Server error (${response.status})`;
+            try {
+              const errorResult = await response.json();
+              if (errorResult.error) errorMsg = errorResult.error;
+            } catch {
+              // Response wasn't JSON
+            }
+            errors.push(`${file.name}: ${errorMsg}`);
+            continue;
           }
-          errors.push(`${file.name}: ${errorMsg}`);
-          continue;
-        }
 
-        const result: ExtractionResult = await response.json();
+          const result: ExtractionResult = await response.json();
 
-        if (!result.success) {
-          errors.push(`${file.name}: ${result.error || "Failed to extract"}`);
-          continue;
-        }
+          if (!result.success) {
+            errors.push(`${file.name}: ${result.error || "Failed to extract"}`);
+            continue;
+          }
 
-        if (result.questions.length > 0) {
-          allQuestions.push(...result.questions);
-        }
-      } catch (err) {
-        console.error(`Extraction error for ${file.name}:`, err);
-        if (err instanceof DOMException && err.name === "AbortError") {
-          errors.push(
-            `${file.name}: Request timed out. The file may be too complex or the AI service is slow. Please try with different model or a smaller file.`
-          );
-        } else {
-          errors.push(`${file.name}: Failed to connect to extraction service`);
+          if (result.questions.length > 0) {
+            allQuestions.push(...result.questions);
+          }
+        } catch (err) {
+          console.error(`Extraction error for ${file.name}:`, err);
+          if (err instanceof DOMException && err.name === "AbortError") {
+            errors.push(
+              `${file.name}: Request timed out. The file may be too complex or the AI service is slow. Please try with different model or a smaller file.`
+            );
+          } else {
+            errors.push(`${file.name}: Failed to connect to extraction service`);
+          }
         }
       }
-    }
 
-    if (allQuestions.length === 0) {
-      setError(
-        errors.length > 0
-          ? errors.join(". ")
-          : "No questions found in any of the documents. Please try different files."
-      );
-      setState("upload");
-      return;
-    }
-
-    const questions = allQuestions;
-
-    setExtractedQuestions(questions);
-    setSelectedIds(new Set(questions.map((_, i) => i)));
-    setState("review");
-
-    const needsReview = questions.filter((q) => q.needsReview).length;
-    toast.success(
-      `Extracted ${questions.length} questions from ${selectedFiles.length} file${selectedFiles.length !== 1 ? "s" : ""}`,
-      {
-        description:
+      if (allQuestions.length === 0) {
+        setError(
           errors.length > 0
-            ? `${errors.length} file(s) had errors. ${needsReview > 0 ? `${needsReview} questions need review.` : ""}`
-            : needsReview > 0
-              ? `${needsReview} questions need review`
-              : "All questions are ready to save",
+            ? errors.join(". ")
+            : "No questions found in any of the documents. Please try different files."
+        );
+        setState("upload");
+        return;
       }
-    );
+
+      const questions = allQuestions;
+
+      setExtractedQuestions(questions);
+      setSelectedIds(new Set(questions.map((_, i) => i)));
+      setState("review");
+
+      const needsReview = questions.filter((q) => q.needsReview).length;
+      toast.success(
+        `Extracted ${questions.length} questions from ${selectedFiles.length} file${selectedFiles.length !== 1 ? "s" : ""}`,
+        {
+          description:
+            errors.length > 0
+              ? `${errors.length} file(s) had errors. ${needsReview > 0 ? `${needsReview} questions need review.` : ""}`
+              : needsReview > 0
+                ? `${needsReview} questions need review`
+                : "All questions are ready to save",
+        }
+      );
+    });
   };
 
   const handleQuestionUpdate = (index: number, question: ExtractedQuestion) => {
@@ -197,34 +200,37 @@ export default function ExtractQuestionsPage() {
     confettiRef.current?.fire({});
   };
 
-  const handleSaveSelected = async () => {
+  const [isSaving, startSaving] = useTransition();
+
+  const handleSaveSelected = () => {
     if (!dbUser || selectedIds.size === 0) return;
+    startSaving(async () => {
+      setState("saving");
 
-    setState("saving");
+      try {
+        const questionsToSave = extractedQuestions
+          .filter((_, i) => selectedIds.has(i))
+          .map((q) => ({
+            text: q.text,
+            options: q.options,
+            correctOptions: q.correctOptions,
+            explanation: q.explanation,
+            subject: q.subject,
+            difficulty: q.difficulty,
+          }));
 
-    try {
-      const questionsToSave = extractedQuestions
-        .filter((_, i) => selectedIds.has(i))
-        .map((q) => ({
-          text: q.text,
-          options: q.options,
-          correctOptions: q.correctOptions,
-          explanation: q.explanation,
-          subject: q.subject,
-          difficulty: q.difficulty,
-        }));
+        await bulkCreate({ questions: questionsToSave });
 
-      await bulkCreate({ questions: questionsToSave });
-
-      triggerComplete();
-      toast.success(
-        `Successfully saved ${questionsToSave.length} questions to the question bank`
-      );
-    } catch (err) {
-      console.error("Save error:", err);
-      toast.error("Failed to save questions. Please try again.");
-      setState("review");
-    }
+        triggerComplete();
+        toast.success(
+          `Successfully saved ${questionsToSave.length} questions to the question bank`
+        );
+      } catch (err) {
+        console.error("Save error:", err);
+        toast.error("Failed to save questions. Please try again.");
+        setState("review");
+      }
+    });
   };
 
   const handleCreateTest = async (testData: TestFormData) => {
@@ -351,7 +357,7 @@ export default function ExtractQuestionsPage() {
         )}
                 <Button
                   onClick={handleExtract}
-                  disabled={selectedFiles.length === 0}
+                  disabled={selectedFiles.length === 0 || isExtracting}
                   size="sm"
                   className="gap-2"
                 >

@@ -25,6 +25,7 @@ export interface ActionMenuItem {
   onClick: () => void;
   variant?: "default" | "destructive";
   separator?: boolean;
+  disabled?: boolean;
 }
 
 export function createActionsColumn<TData>(
@@ -52,8 +53,9 @@ export function createActionsColumn<TData>(
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      action.onClick();
+                      if (!action.disabled) action.onClick();
                     }}
+                    disabled={action.disabled}
                     className={
                       action.variant === "destructive"
                         ? "text-destructive focus:text-destructive"

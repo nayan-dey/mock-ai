@@ -24,6 +24,7 @@ import {
   ArchiveRestore,
   BookOpen,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
@@ -62,6 +63,7 @@ export function TestsClient() {
   const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
   const [durationFilter, setDurationFilter] = useUrlState("duration", "all");
   const [deleteTestId, setDeleteTestId] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const tests = useQuery(api.tests.list, {});
   const batches = useQuery(api.batches.list, {});
@@ -207,61 +209,83 @@ export function TestsClient() {
         },
       ];
 
+      const isActionLoading = loadingAction !== null;
+
       if (test.status === "draft") {
+        const key = `publish-${test._id}`;
         actions.push({
-          label: "Publish",
-          icon: <Globe className="h-4 w-4" />,
+          label: loadingAction === key ? "Publishing…" : "Publish",
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await publishTest({ id: test._id as any });
               toast({ title: "Test published" });
             } catch {
               toast({ title: "Error", description: "Failed to publish.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
       }
 
       if (test.status === "published") {
+        const key = `archive-${test._id}`;
         actions.push({
-          label: "Archive",
-          icon: <Archive className="h-4 w-4" />,
+          label: loadingAction === key ? "Archiving…" : "Archive",
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await archiveTest({ id: test._id as any });
               toast({ title: "Test archived" });
             } catch {
               toast({ title: "Error", description: "Failed to archive.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
       }
 
       if (test.status === "archived") {
+        const key = `unarchive-${test._id}`;
         actions.push({
-          label: "Unarchive",
-          icon: <ArchiveRestore className="h-4 w-4" />,
+          label: loadingAction === key ? "Unarchiving…" : "Unarchive",
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArchiveRestore className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await unarchiveTest({ id: test._id as any });
               toast({ title: "Test unarchived" });
             } catch {
               toast({ title: "Error", description: "Failed to unarchive.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
       }
 
       if (test.status !== "draft") {
+        const key = `toggleKey-${test._id}`;
         actions.push({
-          label: test.answerKeyPublished ? "Hide Answer Key" : "Publish Answer Key",
-          icon: <BookOpen className="h-4 w-4" />,
+          label: loadingAction === key ? "Updating…" : (test.answerKeyPublished ? "Hide Answer Key" : "Publish Answer Key"),
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await toggleAnswerKey({ id: test._id as any });
               toast({ title: test.answerKeyPublished ? "Answer key hidden" : "Answer key published" });
             } catch {
               toast({ title: "Error", description: "Failed to toggle answer key.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
@@ -277,7 +301,7 @@ export function TestsClient() {
 
       return actions;
     }),
-  ], [batchMap, router, toast, publishTest, archiveTest, unarchiveTest, toggleAnswerKey, setDeleteTestId]);
+  ], [batchMap, router, toast, publishTest, archiveTest, unarchiveTest, toggleAnswerKey, setDeleteTestId, loadingAction]);
 
   return (
     <>

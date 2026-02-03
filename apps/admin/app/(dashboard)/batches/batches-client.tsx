@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   formatDate,
 } from "@repo/ui";
-import { Users, Pencil, Trash2, ToggleRight, Copy } from "lucide-react";
+import { Users, Pencil, Trash2, ToggleRight, Copy, Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
 
@@ -43,13 +43,18 @@ export function BatchesClient() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
   const [deleteBatchId, setDeleteBatchId] = useState<string | null>(null);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
 
   const handleActivate = async (id: string) => {
+    if (activatingId) return;
+    setActivatingId(id);
     try {
       await updateBatch({ id: id as any, isActive: true });
       toast({ title: "Batch activated" });
     } catch {
       toast({ title: "Error", description: "Failed to activate batch.", variant: "destructive" });
+    } finally {
+      setActivatingId(null);
     }
   };
 
@@ -132,8 +137,9 @@ export function BatchesClient() {
 
       if (!batch.isActive) {
         actions.push({
-          label: "Activate",
-          icon: <ToggleRight className="h-4 w-4" />,
+          label: activatingId === batch._id ? "Activating…" : "Activate",
+          icon: activatingId === batch._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ToggleRight className="h-4 w-4" />,
+          disabled: activatingId !== null,
           onClick: () => handleActivate(batch._id),
         });
       }
@@ -148,7 +154,7 @@ export function BatchesClient() {
 
       return actions;
     }),
-  ], [organization, handleActivate, toast]);
+  ], [organization, handleActivate, toast, activatingId]);
 
   return (
     <>

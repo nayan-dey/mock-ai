@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { exportMultiSectionPdf, exportMultiSheetExcel, type ExportColumn } from "@/lib/export-utils";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import {
   Sheet,
   SheetContent,
@@ -63,6 +63,7 @@ import {
   Flame,
   Star,
   Download,
+  Loader2,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -174,24 +175,32 @@ export function UserDetailSheet({
   const isAdmin = user?.role === "admin";
 
   // --- User handlers ---
-  const handleSuspend = async () => {
+  const [isSuspending, startSuspending] = useTransition();
+
+  const handleSuspend = () => {
     if (!currentAdmin || !userId) return;
-    await suspendUser({
-      userId: userId as Id<"users">,
-      reason: suspendReason || undefined,
+    startSuspending(async () => {
+      await suspendUser({
+        userId: userId as Id<"users">,
+        reason: suspendReason || undefined,
+      });
+      setShowSuspendDialog(false);
+      setSuspendReason("");
     });
-    setShowSuspendDialog(false);
-    setSuspendReason("");
   };
 
-  const handleUnsuspend = async () => {
+  const [isUnsuspending, startUnsuspending] = useTransition();
+
+  const handleUnsuspend = () => {
     if (!currentAdmin || !selectedBatchId || !userId) return;
-    await unsuspendUser({
-      userId: userId as Id<"users">,
-      batchId: selectedBatchId as Id<"batches">,
+    startUnsuspending(async () => {
+      await unsuspendUser({
+        userId: userId as Id<"users">,
+        batchId: selectedBatchId as Id<"batches">,
+      });
+      setShowUnsuspendDialog(false);
+      setSelectedBatchId("");
     });
-    setShowUnsuspendDialog(false);
-    setSelectedBatchId("");
   };
 
   const openUnsuspendDialog = () => {
@@ -226,44 +235,48 @@ export function UserDetailSheet({
     setShowAddFeeDialog(true);
   };
 
-  const handleFeeSubmit = async () => {
-    if (!currentAdmin || !amount || !dueDate || !userId) return;
-    try {
-      const dueDateTimestamp = new Date(dueDate).getTime();
-      const paidDateTimestamp = paidDate
-        ? new Date(paidDate).getTime()
-        : undefined;
+  const [isSavingFee, startSavingFee] = useTransition();
 
-      if (editingFee) {
-        await updateFee({
-          id: editingFee._id as Id<"fees">,
-          amount: parseFloat(amount),
-          status: feeStatus,
-          dueDate: dueDateTimestamp,
-          paidDate: paidDateTimestamp,
-          description: description || undefined,
+  const handleFeeSubmit = () => {
+    if (!currentAdmin || !amount || !dueDate || !userId) return;
+    startSavingFee(async () => {
+      try {
+        const dueDateTimestamp = new Date(dueDate).getTime();
+        const paidDateTimestamp = paidDate
+          ? new Date(paidDate).getTime()
+          : undefined;
+
+        if (editingFee) {
+          await updateFee({
+            id: editingFee._id as Id<"fees">,
+            amount: parseFloat(amount),
+            status: feeStatus,
+            dueDate: dueDateTimestamp,
+            paidDate: paidDateTimestamp,
+            description: description || undefined,
+          });
+          toast({ title: "Fee updated" });
+        } else {
+          await createFee({
+            studentId: userId as Id<"users">,
+            amount: parseFloat(amount),
+            status: feeStatus,
+            dueDate: dueDateTimestamp,
+            paidDate: paidDateTimestamp,
+            description: description || undefined,
+          });
+          toast({ title: "Fee record added" });
+        }
+        setShowAddFeeDialog(false);
+        resetFeeForm();
+      } catch (err: any) {
+        toast({
+          title: "Error",
+          description: err?.message || "Failed to save fee record.",
+          variant: "destructive",
         });
-        toast({ title: "Fee updated" });
-      } else {
-        await createFee({
-          studentId: userId as Id<"users">,
-          amount: parseFloat(amount),
-          status: feeStatus,
-          dueDate: dueDateTimestamp,
-          paidDate: paidDateTimestamp,
-          description: description || undefined,
-        });
-        toast({ title: "Fee record added" });
       }
-      setShowAddFeeDialog(false);
-      resetFeeForm();
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to save fee record.",
-        variant: "destructive",
-      });
-    }
+    });
   };
 
   const handleMarkAsPaid = async () => {
@@ -1019,12 +1032,20 @@ export function UserDetailSheet({
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isSuspending}
               onClick={() => setShowSuspendDialog(false)}
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleSuspend}>
-              Suspend User
+            <Button variant="destructive" onClick={handleSuspend} disabled={isSuspending}>
+              {isSuspending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Suspending…
+                </>
+              ) : (
+                "Suspend User"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1068,12 +1089,20 @@ export function UserDetailSheet({
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isUnsuspending}
               onClick={() => setShowUnsuspendDialog(false)}
             >
               Cancel
             </Button>
-            <Button onClick={handleUnsuspend} disabled={!selectedBatchId}>
-              Unsuspend User
+            <Button onClick={handleUnsuspend} disabled={!selectedBatchId || isUnsuspending}>
+              {isUnsuspending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Unsuspending…
+                </>
+              ) : (
+                "Unsuspend User"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1217,6 +1246,7 @@ export function UserDetailSheet({
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isSavingFee}
               onClick={() => {
                 setShowAddFeeDialog(false);
                 resetFeeForm();
@@ -1224,8 +1254,15 @@ export function UserDetailSheet({
             >
               Cancel
             </Button>
-            <Button onClick={handleFeeSubmit} disabled={!amount || !dueDate}>
-              {editingFee ? "Update" : "Add Record"}
+            <Button onClick={handleFeeSubmit} disabled={!amount || !dueDate || isSavingFee}>
+              {isSavingFee ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editingFee ? "Updating…" : "Adding…"}
+                </>
+              ) : (
+                editingFee ? "Update" : "Add Record"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

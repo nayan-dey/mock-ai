@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useTransition } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Card,
@@ -43,6 +43,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
@@ -268,26 +269,30 @@ export function FeesClient() {
     };
   }, [filteredFees]);
 
-  const handleMarkAsPaid = async () => {
+  const [isMarkingPaid, startMarkingPaid] = useTransition();
+
+  const handleMarkAsPaid = () => {
     if (!currentAdmin || !markPaidFeeId) return;
-    try {
-      const paidTimestamp = markPaidDate
-        ? new Date(markPaidDate).getTime()
-        : undefined;
-      await markAsPaid({
-        id: markPaidFeeId as Id<"fees">,
-        paidDate: paidTimestamp,
-      });
-      toast({ title: "Marked as paid" });
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to update fee.",
-        variant: "destructive",
-      });
-    }
-    setMarkPaidFeeId(null);
-    setMarkPaidDate(new Date().toISOString().split("T")[0]);
+    startMarkingPaid(async () => {
+      try {
+        const paidTimestamp = markPaidDate
+          ? new Date(markPaidDate).getTime()
+          : undefined;
+        await markAsPaid({
+          id: markPaidFeeId as Id<"fees">,
+          paidDate: paidTimestamp,
+        });
+        toast({ title: "Marked as paid" });
+        setMarkPaidFeeId(null);
+        setMarkPaidDate(new Date().toISOString().split("T")[0]);
+      } catch (err: any) {
+        toast({
+          title: "Error",
+          description: err?.message || "Failed to update fee.",
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   const handleDelete = async (feeId: string) => {
@@ -949,6 +954,7 @@ export function FeesClient() {
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isMarkingPaid}
               onClick={() => {
                 setMarkPaidFeeId(null);
                 setMarkPaidDate(new Date().toISOString().split("T")[0]);
@@ -956,8 +962,15 @@ export function FeesClient() {
             >
               Cancel
             </Button>
-            <Button onClick={handleMarkAsPaid} disabled={!markPaidDate}>
-              Confirm Payment
+            <Button onClick={handleMarkAsPaid} disabled={!markPaidDate || isMarkingPaid}>
+              {isMarkingPaid ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing…
+                </>
+              ) : (
+                "Confirm Payment"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

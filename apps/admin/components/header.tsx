@@ -28,8 +28,9 @@ import {
   Ban,
   UserCheck,
   CheckCheck,
+  Loader2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserDetailSheet } from "./user-detail-sheet";
 
@@ -91,10 +92,17 @@ export function Header() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [isMarkingAllRead, startMarkAllRead] = useTransition();
   const [selectedStudent, setSelectedStudent] = useState<{
     id: string;
     name: string;
   } | null>(null);
+
+  const handleMarkAllRead = () => {
+    startMarkAllRead(async () => {
+      await markAllAsRead({});
+    });
+  };
 
   const org = useQuery(api.organizations.getMyOrg);
   const unreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;
@@ -218,9 +226,10 @@ export function Header() {
                   variant="ghost"
                   size="sm"
                   className="h-8 gap-1.5 text-xs"
-                  onClick={() => markAllAsRead({})}
+                  disabled={isMarkingAllRead}
+                  onClick={handleMarkAllRead}
                 >
-                  <CheckCheck className="h-3.5 w-3.5" />
+                  {isMarkingAllRead ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
                   Mark all as read
                 </Button>
               )}
