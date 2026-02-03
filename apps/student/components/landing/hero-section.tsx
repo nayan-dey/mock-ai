@@ -126,13 +126,8 @@ export function HeroSection() {
 
       <div className="relative z-10 mx-auto max-w-4xl text-center">
         {/* Badge with border beam */}
-        <FadeIn delay={0}>
-          <motion.div
-            className="group relative mb-6 inline-flex"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+        <FadeIn>
+          <div className="group relative mb-6 inline-flex">
             {/* Soft glow */}
             <div className="absolute -inset-2 rounded-full bg-primary/15 blur-xl" />
 
@@ -167,7 +162,7 @@ export function HeroSection() {
                 <ArrowRight className="h-4 w-4 text-primary" />
               </motion.div>
             </div>
-          </motion.div>
+          </div>
         </FadeIn>
 
         {/* Headline */}

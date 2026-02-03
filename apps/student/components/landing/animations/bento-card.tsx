@@ -1,20 +1,18 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion, useInView } from "motion/react";
+import { motion } from "motion/react";
 import { cn } from "@repo/ui";
 
 export function BentoCard({
   children,
   className,
-  index = 0,
 }: {
   children: React.ReactNode;
   className?: string;
   index?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-60px" });
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
 
@@ -35,15 +33,8 @@ export function BentoCard({
   }
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : undefined}
-      transition={{
-        duration: 0.5,
-        delay: index * 0.08,
-        ease: [0.21, 0.47, 0.32, 0.98],
-      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       className={cn("group relative", className)}
@@ -71,6 +62,6 @@ export function BentoCard({
       >
         {children}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

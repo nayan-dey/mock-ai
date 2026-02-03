@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useInView } from "motion/react";
-import { useRef } from "react";
+import { motion } from "motion/react";
 import { Button } from "@repo/ui";
 import { ArrowRight, Github } from "lucide-react";
 import { FadeIn } from "./animations/fade-in";
@@ -13,9 +12,6 @@ const ADMIN_URL =
     : "http://localhost:3001";
 
 export function CtaSection() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
     <section className="relative overflow-hidden">
       {/* Footer-style background - stronger in light mode */}
@@ -45,13 +41,7 @@ export function CtaSection() {
       <div className="relative px-4 pt-20 pb-8 sm:px-6 sm:pt-28 lg:px-8">
         <div className="mx-auto max-w-4xl">
           {/* CTA Card */}
-          <motion.div
-            ref={ref}
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={isInView ? { opacity: 1, scale: 1 } : undefined}
-            transition={{ duration: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
-            className="relative rounded-3xl p-[2px]"
-          >
+          <div className="relative rounded-3xl p-[2px]">
             {/* Animated spinning gradient border */}
             <div className="absolute inset-0 overflow-hidden rounded-3xl">
               <motion.div
@@ -107,7 +97,7 @@ export function CtaSection() {
                 </div>
               </FadeIn>
             </div>
-          </motion.div>
+          </div>
 
           {/* Footer content */}
           <div className="mt-16 flex flex-col items-center gap-6">

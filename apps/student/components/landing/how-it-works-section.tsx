@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useInView } from "motion/react";
 import {
   UserPlus,
   FileText,
@@ -57,25 +55,15 @@ const instructorSteps = [
 function StepCard({
   step,
   index,
-  delay,
   total,
 }: {
   step: (typeof studentSteps)[number];
   index: number;
-  delay: number;
+  delay?: number;
   total: number;
 }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-60px" });
-
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: 0.5, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
-      className="relative flex flex-col items-center text-center"
-    >
+    <div className="relative flex flex-col items-center text-center">
       {/* Step number badge */}
       <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
         {index + 1}
@@ -95,7 +83,7 @@ function StepCard({
       <p className="max-w-[220px] text-sm leading-relaxed text-muted-foreground">
         {step.description}
       </p>
-    </motion.div>
+    </div>
   );
 }
 

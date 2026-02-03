@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useInView } from "motion/react";
 import {
   FileText,
   BarChart3,
@@ -53,64 +51,34 @@ const adminFeatures = [
 
 function FeatureList({
   features,
-  delay = 0,
 }: {
   features: typeof studentFeatures;
   delay?: number;
 }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-60px" });
-
   return (
-    <motion.ul
-      ref={ref}
-      initial="hidden"
-      animate={isInView ? "visible" : "hidden"}
-      variants={{
-        hidden: {},
-        visible: { transition: { staggerChildren: 0.05, delayChildren: delay } },
-      }}
-      className="space-y-3"
-    >
+    <ul className="space-y-3">
       {features.map((feature) => (
-        <motion.li
-          key={feature.label}
-          variants={{
-            hidden: { opacity: 0, x: -10 },
-            visible: { opacity: 1, x: 0 },
-          }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className="flex items-center gap-3"
-        >
+        <li key={feature.label} className="flex items-center gap-3">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
             <Check className="h-3.5 w-3.5 text-primary" />
           </div>
           <span className="text-sm text-muted-foreground">{feature.label}</span>
-        </motion.li>
+        </li>
       ))}
-    </motion.ul>
+    </ul>
   );
 }
 
 function PortalCard({
   type,
-  delay = 0,
 }: {
   type: "student" | "admin";
   delay?: number;
 }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
   const isStudent = type === "student";
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: 0.6, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
-      className="group relative"
-    >
+    <div className="group relative">
       {/* Card glow effect on hover */}
       <div className="pointer-events-none absolute -inset-px rounded-3xl bg-gradient-to-b from-primary/20 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
@@ -153,10 +121,7 @@ function PortalCard({
 
         {/* Features list */}
         <div className="relative mb-8">
-          <FeatureList
-            features={isStudent ? studentFeatures : adminFeatures}
-            delay={delay + 0.2}
-          />
+          <FeatureList features={isStudent ? studentFeatures : adminFeatures} />
         </div>
 
         {/* CTA */}
@@ -183,7 +148,7 @@ function PortalCard({
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
