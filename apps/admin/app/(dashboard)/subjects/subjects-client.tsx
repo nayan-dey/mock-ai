@@ -184,6 +184,7 @@ export function SubjectsClient() {
           },
         }}
         showColumnVisibility={true}
+        showCard={false}
         toolbarExtra={
           <ExportDropdown
             onExportExcel={handleExportExcel}

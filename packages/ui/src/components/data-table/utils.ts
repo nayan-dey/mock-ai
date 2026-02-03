@@ -1,7 +1,8 @@
 export function getPageNumbers(currentPage: number, totalPages: number): (number | "ellipsis")[] {
   const pages: (number | "ellipsis")[] = [];
 
-  if (totalPages <= 7) {
+  // If 4 or fewer pages, show all
+  if (totalPages <= 4) {
     for (let i = 1; i <= totalPages; i++) {
       pages.push(i);
     }
@@ -11,24 +12,24 @@ export function getPageNumbers(currentPage: number, totalPages: number): (number
   // Always show first page
   pages.push(1);
 
-  if (currentPage > 3) {
+  // Determine which pages to show around current
+  if (currentPage <= 2) {
+    // Near the start: show 1, 2, ..., last
+    pages.push(2);
     pages.push("ellipsis");
-  }
-
-  // Show pages around current
-  const start = Math.max(2, currentPage - 1);
-  const end = Math.min(totalPages - 1, currentPage + 1);
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-
-  if (currentPage < totalPages - 2) {
+    pages.push(totalPages);
+  } else if (currentPage >= totalPages - 1) {
+    // Near the end: show 1, ..., (last-1), last
     pages.push("ellipsis");
+    pages.push(totalPages - 1);
+    pages.push(totalPages);
+  } else {
+    // In the middle: show 1, ..., current, ..., last
+    pages.push("ellipsis");
+    pages.push(currentPage);
+    pages.push("ellipsis");
+    pages.push(totalPages);
   }
-
-  // Always show last page
-  pages.push(totalPages);
 
   return pages;
 }

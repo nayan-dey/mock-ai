@@ -190,6 +190,7 @@ export function ClassesClient() {
         description="Manage video lectures"
         facetedFilters={facetedFilters}
         showColumnVisibility={true}
+        showCard={false}
         primaryAction={{
           label: "Add Class",
           onClick: () => {

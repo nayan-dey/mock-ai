@@ -235,6 +235,7 @@ export function BatchesClient() {
         }}
         facetedFilters={facetedFilters}
         showColumnVisibility={true}
+        showCard={false}
         toolbarExtra={
           <ExportDropdown
             onExportExcel={handleExportExcel}

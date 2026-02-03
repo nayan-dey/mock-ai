@@ -189,6 +189,7 @@ export function NotesClient() {
         description="Manage study materials"
         facetedFilters={facetedFilters}
         showColumnVisibility={true}
+        showCard={false}
         primaryAction={{
           label: "Add Note",
           onClick: () => {

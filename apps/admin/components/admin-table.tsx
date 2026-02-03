@@ -108,6 +108,7 @@ interface AdminTableProps<TData> {
   renderSubRow?: (row: TData) => React.ReactNode | null;
   onClearAllFilters?: () => void;
   hasExternalFilters?: boolean;
+  showCard?: boolean;
 }
 
 export function AdminTable<TData>({
@@ -133,6 +134,7 @@ export function AdminTable<TData>({
   renderSubRow,
   onClearAllFilters,
   hasExternalFilters = false,
+  showCard = true,
 }: AdminTableProps<TData>) {
   // Wrap non-action column cells with click handler when onRowClick is provided
   const columns = React.useMemo(() => {
@@ -216,6 +218,30 @@ export function AdminTable<TData>({
     );
   }
 
+  const tableContent = (
+    <DataTable
+      columns={columns}
+      data={data}
+      searchKey={searchKey}
+      searchPlaceholder={searchPlaceholder}
+      showPagination
+      pageSize={pageSize}
+      emptyMessage={emptyTitle}
+      className="h-full"
+      rowClassName={(row: TData) => {
+        const click = onRowClick ? "cursor-pointer hover:bg-muted/50 transition-colors" : "";
+        const custom = rowClassName?.(row) ?? "";
+        return [click, custom].filter(Boolean).join(" ");
+      }}
+      facetedFilters={facetedFilters}
+      showColumnVisibility={showColumnVisibility}
+      toolbarExtra={toolbarExtra}
+      renderSubRow={renderSubRow}
+      onClearAll={onClearAllFilters}
+      hasExternalFilters={hasExternalFilters}
+    />
+  );
+
   return (
     <div className="p-6 space-y-4 h-full flex flex-col">
       {/* Page Header */}
@@ -238,31 +264,17 @@ export function AdminTable<TData>({
       {headerExtra}
 
       {/* Table with integrated toolbar */}
-      <Card className="flex-1 min-h-0 flex flex-col">
-        <CardContent className="pt-6 flex-1 min-h-0 flex flex-col">
-          <DataTable
-            columns={columns}
-            data={data}
-            searchKey={searchKey}
-            searchPlaceholder={searchPlaceholder}
-            showPagination
-            pageSize={pageSize}
-            emptyMessage={emptyTitle}
-            className="h-full"
-            rowClassName={(row: TData) => {
-              const click = onRowClick ? "cursor-pointer hover:bg-muted/50 transition-colors" : "";
-              const custom = rowClassName?.(row) ?? "";
-              return [click, custom].filter(Boolean).join(" ");
-            }}
-            facetedFilters={facetedFilters}
-            showColumnVisibility={showColumnVisibility}
-            toolbarExtra={toolbarExtra}
-            renderSubRow={renderSubRow}
-            onClearAll={onClearAllFilters}
-            hasExternalFilters={hasExternalFilters}
-          />
-        </CardContent>
-      </Card>
+      {showCard ? (
+        <Card className="flex-1 min-h-0 flex flex-col">
+          <CardContent className="pt-6 flex-1 min-h-0 flex flex-col">
+            {tableContent}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex-1 min-h-0 flex flex-col">
+          {tableContent}
+        </div>
+      )}
     </div>
   );
 }

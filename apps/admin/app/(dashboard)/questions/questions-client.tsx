@@ -169,6 +169,7 @@ export function QuestionsClient() {
         }}
         facetedFilters={facetedFilters}
         showColumnVisibility={true}
+        showCard={false}
         toolbarExtra={
           <ExportDropdown
             onExportExcel={handleExportExcel}

@@ -289,6 +289,7 @@ export function UsersClient() {
         emptyDescription="Users will appear here when they sign up"
         facetedFilters={facetedFilters}
         showColumnVisibility={true}
+        showCard={false}
         headerExtra={
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <span><strong className="text-foreground">{enrichedUsers.length}</strong> total</span>

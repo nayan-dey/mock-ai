@@ -710,6 +710,7 @@ export function FeesClient() {
         }}
         facetedFilters={facetedFilters}
         showColumnVisibility={true}
+        showCard={false}
         toolbarExtra={
           <ExportDropdown
             onExportExcel={handleExportExcel}

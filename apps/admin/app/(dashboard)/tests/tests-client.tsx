@@ -325,6 +325,7 @@ export function TestsClient() {
         onClick: () => router.push("/tests/new"),
       }}
       facetedFilters={facetedFilters}
+      showCard={false}
       toolbarExtra={
         <>
           <Select value={batchFilter} onValueChange={setBatchFilter}>
