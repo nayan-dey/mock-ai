@@ -29,7 +29,7 @@ export function RequestsClient() {
       await approveRequest({ requestId: requestId as any });
       toast.success("Request approved. The admin has been added to your organization.");
     } catch (error: any) {
-      toast.error(error.message || "Failed to approve request.");
+      toast.error("Failed to approve request.");
     } finally {
       setProcessingId(null);
       setProcessingAction(null);
@@ -43,7 +43,7 @@ export function RequestsClient() {
       await rejectRequest({ requestId: requestId as any });
       toast.success("Request rejected.");
     } catch (error: any) {
-      toast.error(error.message || "Failed to reject request.");
+      toast.error("Failed to reject request.");
     } finally {
       setProcessingId(null);
       setProcessingAction(null);

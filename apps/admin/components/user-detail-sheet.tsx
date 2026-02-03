@@ -272,7 +272,7 @@ export function UserDetailSheet({
       } catch (err: any) {
         toast({
           title: "Error",
-          description: err?.message || "Failed to save fee record.",
+          description: "Failed to save fee record.",
           variant: "destructive",
         });
       }
@@ -293,7 +293,7 @@ export function UserDetailSheet({
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to update fee.",
+        description: "Failed to update fee.",
         variant: "destructive",
       });
     }
@@ -311,7 +311,7 @@ export function UserDetailSheet({
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to delete fee.",
+        description: "Failed to delete fee.",
         variant: "destructive",
       });
     }

@@ -142,7 +142,7 @@ export default function AdminOnboardingPage() {
       toast.success("Join request submitted! Waiting for approval.");
       setStep("pending");
     } catch (error: any) {
-      toast.error(error.message || "Failed to submit join request.");
+      toast.error("Failed to submit join request.");
     } finally {
       setIsSubmitting(false);
     }

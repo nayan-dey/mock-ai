@@ -68,7 +68,7 @@ export function SettingsClient() {
       } as any);
       toast.success("Organization settings updated");
     } catch (error: any) {
-      toast.error(error.message || "Failed to update settings");
+      toast.error("Failed to update settings.");
     } finally {
       setIsSaving(false);
     }

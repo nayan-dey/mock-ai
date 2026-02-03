@@ -288,7 +288,7 @@ export function FeesClient() {
       } catch (err: any) {
         toast({
           title: "Error",
-          description: err?.message || "Failed to update fee.",
+          description: "Failed to update fee.",
           variant: "destructive",
         });
       }
@@ -305,7 +305,7 @@ export function FeesClient() {
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to delete fee.",
+        description: "Failed to delete fee.",
         variant: "destructive",
       });
     }

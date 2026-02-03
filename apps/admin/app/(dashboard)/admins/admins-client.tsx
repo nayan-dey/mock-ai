@@ -27,7 +27,7 @@ export function AdminsClient() {
       await removeAdmin({ orgAdminId: orgAdminId as any });
       toast.success(`${name} has been removed from the organization.`);
     } catch (error: any) {
-      toast.error(error.message || "Failed to remove admin.");
+      toast.error("Failed to remove admin.");
     } finally {
       setRemovingId(null);
     }

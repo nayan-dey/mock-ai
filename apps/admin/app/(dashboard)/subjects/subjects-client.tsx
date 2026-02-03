@@ -56,7 +56,7 @@ export function SubjectsClient() {
       setInputValue("");
       setAddDialogOpen(false);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to create subject", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to create subject.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -73,7 +73,7 @@ export function SubjectsClient() {
       setInputValue("");
       setEditSubject(null);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to update subject", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update subject.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -87,7 +87,7 @@ export function SubjectsClient() {
       toast({ title: "Subject deleted" });
       setDeleteSubject(null);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to delete subject", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to delete subject.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }

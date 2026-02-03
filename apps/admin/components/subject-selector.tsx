@@ -50,7 +50,7 @@ export function SubjectSelector({
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err.message || "Failed to add subject",
+        description: "Failed to add subject.",
         variant: "destructive",
       });
     } finally {

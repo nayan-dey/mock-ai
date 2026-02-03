@@ -139,7 +139,7 @@ export default function SettingsPage() {
       });
       sonnerToast.success(`Created ${result.attempts?.length || 15} mock test attempts`);
     } catch (error: any) {
-      sonnerToast.error(error.message || "Failed to seed attempts");
+      sonnerToast.error("Failed to seed attempts.");
     } finally {
       setIsSeeding(false);
     }
