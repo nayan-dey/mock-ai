@@ -45,16 +45,131 @@ export const clearAllData = mutation({
   },
 });
 
+// Clear only seed data (keeps admin user and organization)
+export const clearSeedData = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = admin.organizationId;
+
+    if (!orgId) {
+      return { message: "No organization found", deleted: {} };
+    }
+
+    const deleted: Record<string, number> = {};
+
+    // Delete attempts first (references tests and users)
+    const attempts = await ctx.db.query("attempts").collect();
+    for (const record of attempts) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.attempts = attempts.length;
+
+    // Delete fees (references users)
+    const fees = await ctx.db
+      .query("fees")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of fees) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.fees = fees.length;
+
+    // Delete userSettings for students
+    const students = await ctx.db
+      .query("users")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect()
+      .then((users) => users.filter((u) => u.role === "student"));
+
+    for (const student of students) {
+      const settings = await ctx.db
+        .query("userSettings")
+        .withIndex("by_user_id", (q) => q.eq("userId", student._id))
+        .collect();
+      for (const setting of settings) {
+        await ctx.db.delete(setting._id);
+      }
+    }
+    deleted.userSettings = students.length;
+
+    // Delete student users (keep admin)
+    for (const student of students) {
+      await ctx.db.delete(student._id);
+    }
+    deleted.students = students.length;
+
+    // Delete tests
+    const tests = await ctx.db
+      .query("tests")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of tests) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.tests = tests.length;
+
+    // Delete questions
+    const questions = await ctx.db
+      .query("questions")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of questions) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.questions = questions.length;
+
+    // Delete batches
+    const batches = await ctx.db
+      .query("batches")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of batches) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.batches = batches.length;
+
+    // Delete classes
+    const classes = await ctx.db
+      .query("classes")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of classes) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.classes = classes.length;
+
+    // Delete notes
+    const notes = await ctx.db
+      .query("notes")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of notes) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.notes = notes.length;
+
+    // Delete subjects
+    const subjects = await ctx.db
+      .query("subjects")
+      .withIndex("by_org", (q) => q.eq("organizationId", orgId))
+      .collect();
+    for (const record of subjects) {
+      await ctx.db.delete(record._id);
+    }
+    deleted.subjects = subjects.length;
+
+    return {
+      message: "Seed data cleared successfully! Admin and organization preserved.",
+      deleted,
+    };
+  },
+});
+
 export const seedDatabase = mutation({
   args: {},
   handler: async (ctx) => {
     const admin = await requireAdmin(ctx);
-
-    // Check if already seeded
-    const existingQuestions = await ctx.db.query("questions").first();
-    if (existingQuestions) {
-      return { message: "Database already seeded" };
-    }
 
     const identity = await ctx.auth.getUserIdentity();
     const adminClerkId = identity!.subject;
@@ -95,8 +210,9 @@ export const seedDatabase = mutation({
       .query("subjects")
       .withIndex("by_org", (q) => q.eq("organizationId", orgId))
       .collect();
-    if (existingSubjects.length === 0) {
-      for (const name of defaultSubjects) {
+    const existingSubjectNames = new Set(existingSubjects.map((s) => s.name));
+    for (const name of defaultSubjects) {
+      if (!existingSubjectNames.has(name)) {
         await ctx.db.insert("subjects", { name, organizationId: orgId });
       }
     }
