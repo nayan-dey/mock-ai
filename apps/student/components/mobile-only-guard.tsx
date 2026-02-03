@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { Smartphone } from "lucide-react";
 
 export function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [origin, setOrigin] = useState("");
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const isLandingPage = pathname === "/";
 
   useEffect(() => {
+    // Skip mobile check for landing page
+    if (isLandingPage) return;
+
     setOrigin(window.location.origin);
 
     // Evaluate UA once (it never changes)
@@ -34,7 +40,10 @@ export function MobileOnlyGuard({ children }: { children: React.ReactNode }) {
       window.removeEventListener("resize", handleResize);
       clearTimeout(resizeTimerRef.current);
     };
-  }, []);
+  }, [isLandingPage]);
+
+  // Landing page must work on all devices
+  if (isLandingPage) return <>{children}</>;
 
   // Show loading spinner while checking instead of blank screen
   if (isMobile === null) {

@@ -34,7 +34,7 @@ export function Navbar() {
   const pathname = usePathname();
 
   // Hide navbar on full-screen pages
-  if (pathname === "/chat" || pathname === "/onboarding" || pathname === "/suspended") {
+  if (pathname === "/" || pathname === "/chat" || pathname === "/onboarding" || pathname === "/suspended") {
     return null;
   }
 
