@@ -16,7 +16,6 @@ import {
   Video,
   Sparkles,
   Zap,
-  Github,
 } from "lucide-react";
 
 function AnimatedLogo({ className }: { className?: string }) {
@@ -115,7 +114,6 @@ const marqueeItems = [
   { icon: Video, label: "Video Classes" },
   { icon: BookOpen, label: "Study Notes" },
   { icon: Sparkles, label: "Smart Insights" },
-  { icon: Github, label: "Open Source" },
   { icon: Zap, label: "Instant Results" },
 ];
 
@@ -153,7 +151,7 @@ export function HeroSection() {
               <div className="absolute inset-[1px] rounded-full bg-background" />
 
               <AnimatedLogo className="relative z-10 h-4 w-4 text-primary" />
-              <span className="relative z-10 font-medium text-foreground/80">Open Source Exam Preparation Platform</span>
+              <span className="relative z-10 font-medium text-foreground/80">AI powered Exam Preparation Platform</span>
               <motion.div
                 className="relative z-10"
                 animate={{ x: [0, 3, 0] }}

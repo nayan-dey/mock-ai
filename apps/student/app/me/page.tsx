@@ -225,13 +225,6 @@ export default function ProfilePage() {
           View public profile
         </Link>
       </div>
-
-      {/* Made by credit */}
-      <div className="mt-8 text-center">
-        <p className="text-xs text-muted-foreground/60">
-          Made by <span className="font-medium">Nayan</span>
-        </p>
-      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ export default defineSchema({
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
     adminClerkId: v.string(),
+    isVerified: v.optional(v.boolean()), // Set to true by admin in Convex dashboard to allow access
     createdAt: v.number(),
   })
     .index("by_admin_clerk_id", ["adminClerkId"])

@@ -83,6 +83,7 @@ export const create = mutation({
       phone: args.phone,
       address: args.address,
       adminClerkId,
+      isVerified: false,
       createdAt: Date.now(),
     });
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Button } from "@repo/ui";
-import { ArrowRight, Github } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { FadeIn } from "./animations/fade-in";
 
 const ADMIN_URL =
@@ -38,7 +38,7 @@ export function CtaSection() {
       </div>
 
       {/* Content */}
-      <div className="relative px-4 pt-20 pb-8 sm:px-6 sm:pt-28 lg:px-8">
+      <div className="relative px-4 pt-20 pb-4 sm:px-6 sm:pt-28 sm:pb-8 lg:px-8">
         <div className="mx-auto max-w-4xl">
           {/* CTA Card */}
           <div className="relative rounded-3xl p-[2px]">
@@ -100,30 +100,19 @@ export function CtaSection() {
           </div>
 
           {/* Footer content */}
-          <div className="mt-16 flex flex-col items-center gap-6">
+          <div className="mt-10 flex flex-col items-center gap-4 sm:mt-16 sm:gap-6">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
               <img src="/logo.svg" alt="Nindo" className="h-8 w-8 dark:invert" />
               <span className="text-xl font-semibold font-serif">Nindo</span>
             </Link>
 
-            {/* Open Source Badge */}
-            <a
-              href="https://github.com/nindo"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Github className="h-4 w-4" />
-              <span>Open Source</span>
-            </a>
-
             {/* Divider */}
             <div className="h-px w-24 bg-border" />
 
             {/* Copyright */}
             <p className="text-sm text-muted-foreground">
-              &copy; 2026 Nindo. Open source, built for students, by students.
+              &copy; 2026 Nindo. Built for students, by students.
             </p>
           </div>
         </div>
