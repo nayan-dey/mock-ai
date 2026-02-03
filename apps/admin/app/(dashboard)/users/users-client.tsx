@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
 import {
@@ -17,8 +18,35 @@ import {
 } from "@repo/ui";
 import { Eye, Users } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
+import { ExportDropdown } from "@/components/export-dropdown";
+import {
+  exportToExcel,
+  exportToPdf,
+  type ExportColumn,
+} from "@/lib/export-utils";
 import { UserDetailSheet } from "../../../components/user-detail-sheet";
 import { useUrlState } from "@/hooks/use-url-state";
+
+const userExportColumns: ExportColumn[] = [
+  { header: "Name", key: "name" },
+  { header: "Email", key: "email" },
+  { header: "Role", key: "role", format: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
+  { header: "Batch", key: "batchName", format: (v) => v || "—" },
+  { header: "Fees Paid", key: "feesPaid", format: (v) => String(v) },
+  { header: "Fees Due", key: "feesDue", format: (v) => String(v) },
+  { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+];
+
+const facetedFilters: FacetedFilterConfig[] = [
+  {
+    columnId: "role",
+    title: "Role",
+    options: [
+      { label: "Student", value: "student" },
+      { label: "Teacher", value: "teacher" },
+    ],
+  },
+];
 
 interface UserData {
   _id: string;
@@ -29,15 +57,34 @@ interface UserData {
   batchName?: string;
   isSuspended?: boolean;
   createdAt: number;
+  feesPaid: number;
+  feesDue: number;
+  feeStatus: "all_paid" | "has_due" | "no_fees";
 }
 
 export function UsersClient() {
+  const { user: clerkUser } = useUser();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
   const [joinedFilter, setJoinedFilter] = useUrlState("joined", "all");
+  const [feeFilter, setFeeFilter] = useUrlState("fees", "all");
 
   const users = useQuery(api.users.list, {});
   const batches = useQuery(api.batches.list, {});
+  const allFees = useQuery(api.fees.getAll);
+  const organization = useQuery(api.organizations.getMyOrg);
+
+  // Build per-student fee counts
+  const feeCountMap = useMemo(() => {
+    const map: Record<string, { paid: number; due: number }> = {};
+    allFees?.forEach((f) => {
+      const id = f.studentId as string;
+      if (!map[id]) map[id] = { paid: 0, due: 0 };
+      if (f.status === "paid") map[id].paid++;
+      else map[id].due++;
+    });
+    return map;
+  }, [allFees]);
 
   const batchMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -50,17 +97,29 @@ export function UsersClient() {
     if (!users) return [];
     return users
       .filter((u) => u.role !== "admin")
-      .map((user) => ({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        batchId: user.batchId,
-        batchName: user.batchId ? batchMap[user.batchId] : undefined,
-        isSuspended: user.isSuspended,
-        createdAt: user.createdAt,
-      }));
-  }, [users, batchMap]);
+      .map((user) => {
+        const counts = feeCountMap[user._id] ?? { paid: 0, due: 0 };
+        const feeStatus: UserData["feeStatus"] =
+          counts.paid === 0 && counts.due === 0
+            ? "no_fees"
+            : counts.due > 0
+              ? "has_due"
+              : "all_paid";
+        return {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          batchId: user.batchId,
+          batchName: user.batchId ? batchMap[user.batchId] : undefined,
+          isSuspended: user.isSuspended,
+          createdAt: user.createdAt,
+          feesPaid: counts.paid,
+          feesDue: counts.due,
+          feeStatus,
+        };
+      });
+  }, [users, batchMap, feeCountMap]);
 
   // Apply filters
   const filteredUsers = useMemo(() => {
@@ -81,29 +140,35 @@ export function UsersClient() {
       result = result.filter((u) => u.createdAt >= cutoff);
     }
 
+    if (feeFilter !== "all") {
+      if (feeFilter === "due") {
+        result = result.filter((u) => u.feesDue > 0);
+      } else if (feeFilter === "paid") {
+        result = result.filter((u) => u.feesDue === 0 && u.feesPaid > 0);
+      }
+    }
+
     return result;
-  }, [enrichedUsers, batchFilter, joinedFilter]);
+  }, [enrichedUsers, batchFilter, joinedFilter, feeFilter]);
 
-  const facetedFilters: FacetedFilterConfig[] = [
-    {
-      columnId: "role",
-      title: "Role",
-      options: [
-        { label: "Student", value: "student" },
-        { label: "Teacher", value: "teacher" },
-      ],
-    },
-  ];
+  // Export handlers
+  const handleExportExcel = () => {
+    exportToExcel(filteredUsers, userExportColumns, "Users", "Users");
+  };
 
-  const columns: ColumnDef<UserData, any>[] = [
+  const handleExportPdf = () => {
+    exportToPdf(filteredUsers, userExportColumns, "Users", "Users", organization?.name, organization?.resolvedLogoUrl);
+  };
+
+  const columns: ColumnDef<UserData, any>[] = useMemo(() => [
     {
       accessorKey: "name",
       header: ({ column }) => <SortableHeader column={column} title="Name" />,
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <span className="font-medium">{row.getValue("name")}</span>
+          <span className="font-medium truncate max-w-[150px]">{row.getValue("name")}</span>
           {row.original.isSuspended && (
-            <Badge variant="destructive" className="text-[10px]">
+            <Badge variant="destructive" className="text-[10px] shrink-0">
               Suspended
             </Badge>
           )}
@@ -114,7 +179,7 @@ export function UsersClient() {
       accessorKey: "email",
       header: ({ column }) => <SortableHeader column={column} title="Email" />,
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.getValue("email")}</span>
+        <span className="text-sm text-muted-foreground truncate block max-w-[180px]">{row.getValue("email")}</span>
       ),
     },
     {
@@ -142,6 +207,24 @@ export function UsersClient() {
       ),
     },
     {
+      accessorKey: "feesDue",
+      header: "Fees",
+      cell: ({ row }) => {
+        const paid = row.original.feesPaid;
+        const due = row.original.feesDue;
+        if (paid === 0 && due === 0) {
+          return <span className="text-xs text-muted-foreground">&mdash;</span>;
+        }
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium tabular-nums text-emerald-600">{paid}</span>
+            <span className="text-muted-foreground/40">/</span>
+            <span className={`text-xs font-medium tabular-nums ${due > 0 ? "text-destructive" : "text-muted-foreground"}`}>{due}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: ({ column }) => <SortableHeader column={column} title="Joined" />,
       cell: ({ row }) => (
@@ -157,7 +240,7 @@ export function UsersClient() {
         onClick: () => setSelectedUserId(user._id),
       },
     ]),
-  ];
+  ], [setSelectedUserId]);
 
   // Compact stats
   const studentCount = enrichedUsers.filter((u) => u.role === "student").length;
@@ -168,7 +251,7 @@ export function UsersClient() {
       <AdminTable<UserData>
         columns={columns}
         data={filteredUsers}
-        isLoading={users === undefined || batches === undefined}
+        isLoading={users === undefined || batches === undefined || allFees === undefined}
         searchKey="name"
         searchPlaceholder="Search users..."
         title="Users"
@@ -177,7 +260,7 @@ export function UsersClient() {
         emptyIcon={<Users className="h-6 w-6 text-muted-foreground" />}
         emptyTitle="No users yet"
         emptyDescription="Users will appear here when they sign up"
-        facetedFilters={facetedFilters}
+        // facetedFilters={facetedFilters}
         headerExtra={
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <span><strong className="text-foreground">{enrichedUsers.length}</strong> total</span>
@@ -192,7 +275,7 @@ export function UsersClient() {
         toolbarExtra={
           <>
             <Select value={batchFilter} onValueChange={setBatchFilter}>
-              <SelectTrigger className="h-8 w-[160px]">
+              <SelectTrigger className="h-8 w-[160px] shrink-0">
                 <SelectValue placeholder="All Batches" />
               </SelectTrigger>
               <SelectContent>
@@ -204,7 +287,7 @@ export function UsersClient() {
               </SelectContent>
             </Select>
             <Select value={joinedFilter} onValueChange={setJoinedFilter}>
-              <SelectTrigger className="h-8 w-[140px]">
+              <SelectTrigger className="h-8 w-[140px] shrink-0">
                 <SelectValue placeholder="All Time" />
               </SelectTrigger>
               <SelectContent>
@@ -214,6 +297,21 @@ export function UsersClient() {
                 <SelectItem value="90">Last 90 days</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={feeFilter} onValueChange={setFeeFilter}>
+              <SelectTrigger className="h-8 w-[140px] shrink-0">
+                <SelectValue placeholder="All Fees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Fees</SelectItem>
+                <SelectItem value="due">Has Due</SelectItem>
+                <SelectItem value="paid">All Paid</SelectItem>
+              </SelectContent>
+            </Select>
+            <ExportDropdown
+              onExportExcel={handleExportExcel}
+              onExportPdf={handleExportPdf}
+              disabled={filteredUsers.length === 0}
+            />
           </>
         }
       />

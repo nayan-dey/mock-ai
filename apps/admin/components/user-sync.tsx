@@ -33,16 +33,10 @@ export function UserSync({ children }: { children: ReactNode }) {
     user?.id ? { clerkId: user.id } : "skip"
   );
 
-  // Step 2: Query org after user is confirmed in DB
+  // Step 2: Query org in parallel (uses clerkId, no need to wait for convexUser)
   const organization = useQuery(
     api.organizations.getByAdminClerkId,
-    convexUser && user?.id ? { adminClerkId: user.id } : "skip"
-  );
-
-  // Step 3: Check for pending join request (only if no org)
-  const pendingRequest = useQuery(
-    api.orgJoinRequests.getMyPendingRequest,
-    convexUser && !organization && organization !== undefined ? {} : "skip"
+    user?.id ? { adminClerkId: user.id } : "skip"
   );
 
   // Reset sync flag on logout
@@ -66,7 +60,7 @@ export function UserSync({ children }: { children: ReactNode }) {
           toast.error(
             "This account is registered as a student. You cannot use the admin portal."
           );
-          signOut().then(() => router.replace("/sign-in"));
+          signOut({ redirectUrl: "/sign-in" });
         }
       });
     }
@@ -79,20 +73,20 @@ export function UserSync({ children }: { children: ReactNode }) {
     }
   }, [isLoaded, user, pathname, router]);
 
-  // Organization onboarding check
+  // Organization onboarding check — no need to wait for convexUser
   useEffect(() => {
-    if (!isLoaded || !user || !convexUser) return;
+    if (!isLoaded || !user) return;
     if (organization === undefined) return; // still loading
     if (isPublicPath(pathname)) return;
 
     if (!organization && pathname !== "/onboarding") {
-      // No org — redirect to onboarding (whether pending request or not)
+      // No org — redirect to onboarding immediately
       router.replace("/onboarding");
     } else if (organization && pathname === "/onboarding") {
       // Has org — redirect away from onboarding
       router.replace("/dashboard");
     }
-  }, [isLoaded, user, convexUser, organization, pathname, router]);
+  }, [isLoaded, user, organization, pathname, router]);
 
   // Allow public pages and onboarding to render immediately
   if (isPublicPath(pathname) || pathname === "/onboarding") {
@@ -109,13 +103,18 @@ export function UserSync({ children }: { children: ReactNode }) {
     return <LoadingSpinner />;
   }
 
-  // Wait for Convex user sync and org query to resolve
-  if (!convexUser || organization === undefined) {
+  // Wait for org query to resolve
+  if (organization === undefined) {
     return <LoadingSpinner />;
   }
 
   // No org exists — spinner while redirect to /onboarding fires
   if (!organization) {
+    return <LoadingSpinner />;
+  }
+
+  // Org exists but Convex user still syncing — wait for it
+  if (!convexUser) {
     return <LoadingSpinner />;
   }
 

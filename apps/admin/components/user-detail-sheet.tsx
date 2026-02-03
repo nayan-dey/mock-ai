@@ -3,7 +3,8 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState } from "react";
+import { exportMultiSectionPdf, exportMultiSheetExcel, type ExportColumn } from "@/lib/export-utils";
+import { useState, useMemo, useTransition } from "react";
 import {
   Sheet,
   SheetContent,
@@ -16,6 +17,10 @@ import {
   AvatarFallback,
   Input,
   ScrollArea,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -31,6 +36,10 @@ import {
   SelectValue,
   formatDate,
   useToast,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "@repo/ui";
 import {
   Mail,
@@ -43,9 +52,22 @@ import {
   Plus,
   Trash2,
   Pencil,
+  FileText,
+  TrendingUp,
+  ClipboardCheck,
+  Trophy,
+  Target,
+  Award,
+  Rocket,
+  RefreshCcw,
+  Flame,
+  Star,
+  Download,
+  Loader2,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
+import { getInitials } from "@/lib/utils";
 
 interface UserDetailSheetProps {
   userId: string | null;
@@ -65,15 +87,6 @@ interface Fee {
   createdAt: number;
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
 export function UserDetailSheet({
   userId,
   open,
@@ -89,6 +102,10 @@ export function UserDetailSheet({
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
 
   const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
+  const [markPaidFeeId, setMarkPaidFeeId] = useState<string | null>(null);
+  const [markPaidDate, setMarkPaidDate] = useState(
+    () => new Date().toISOString().split("T")[0]
+  );
 
   // Fee form state
   const [showAddFeeDialog, setShowAddFeeDialog] = useState(false);
@@ -100,13 +117,17 @@ export function UserDetailSheet({
   const [description, setDescription] = useState("");
 
   // Queries
+  const organization = useQuery(
+    api.organizations.getMyOrg,
+    open ? undefined : "skip"
+  );
   const currentAdmin = useQuery(
     api.users.getByClerkId,
-    clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
+    open && clerkUser?.id ? { clerkId: clerkUser.id } : "skip"
   );
   const userData = useQuery(
     api.users.getById,
-    userId ? { id: userId as Id<"users"> } : "skip"
+    open && userId ? { id: userId as Id<"users"> } : "skip"
   );
   // Cast to any to access all possible fields from the Convex union type
   const user = userData as any;
@@ -118,6 +139,27 @@ export function UserDetailSheet({
   const fees = useQuery(
     api.fees.getByStudent,
     open && userId ? { studentId: userId as Id<"users"> } : "skip"
+  );
+
+  // Student analytics queries
+  const isStudent = user?.role === "student";
+  const studentAnalytics = useQuery(
+    api.analytics.getStudentAnalytics,
+    open && userId && isStudent ? { userId: userId as Id<"users"> } : "skip"
+  );
+  const globalLeaderboard = useQuery(
+    api.analytics.getGlobalLeaderboard,
+    open && userId && isStudent ? { limit: 100 } : "skip"
+  );
+  const performanceTrend = useQuery(
+    api.analytics.getStudentPerformanceTrend,
+    open && userId && isStudent
+      ? { userId: userId as Id<"users">, limit: 10 }
+      : "skip"
+  );
+  const achievements = useQuery(
+    api.analytics.getStudentAchievements,
+    open && userId && isStudent ? { userId: userId as Id<"users"> } : "skip"
   );
 
   // User mutations
@@ -133,24 +175,32 @@ export function UserDetailSheet({
   const isAdmin = user?.role === "admin";
 
   // --- User handlers ---
-  const handleSuspend = async () => {
+  const [isSuspending, startSuspending] = useTransition();
+
+  const handleSuspend = () => {
     if (!currentAdmin || !userId) return;
-    await suspendUser({
-      userId: userId as Id<"users">,
-      reason: suspendReason || undefined,
+    startSuspending(async () => {
+      await suspendUser({
+        userId: userId as Id<"users">,
+        reason: suspendReason || undefined,
+      });
+      setShowSuspendDialog(false);
+      setSuspendReason("");
     });
-    setShowSuspendDialog(false);
-    setSuspendReason("");
   };
 
-  const handleUnsuspend = async () => {
+  const [isUnsuspending, startUnsuspending] = useTransition();
+
+  const handleUnsuspend = () => {
     if (!currentAdmin || !selectedBatchId || !userId) return;
-    await unsuspendUser({
-      userId: userId as Id<"users">,
-      batchId: selectedBatchId as Id<"batches">,
+    startUnsuspending(async () => {
+      await unsuspendUser({
+        userId: userId as Id<"users">,
+        batchId: selectedBatchId as Id<"batches">,
+      });
+      setShowUnsuspendDialog(false);
+      setSelectedBatchId("");
     });
-    setShowUnsuspendDialog(false);
-    setSelectedBatchId("");
   };
 
   const openUnsuspendDialog = () => {
@@ -185,60 +235,70 @@ export function UserDetailSheet({
     setShowAddFeeDialog(true);
   };
 
-  const handleFeeSubmit = async () => {
-    if (!currentAdmin || !amount || !dueDate || !userId) return;
-    try {
-      const dueDateTimestamp = new Date(dueDate).getTime();
-      const paidDateTimestamp = paidDate
-        ? new Date(paidDate).getTime()
-        : undefined;
+  const [isSavingFee, startSavingFee] = useTransition();
 
-      if (editingFee) {
-        await updateFee({
-          id: editingFee._id as Id<"fees">,
-          amount: parseFloat(amount),
-          status: feeStatus,
-          dueDate: dueDateTimestamp,
-          paidDate: paidDateTimestamp,
-          description: description || undefined,
+  const handleFeeSubmit = () => {
+    if (!currentAdmin || !amount || !dueDate || !userId) return;
+    startSavingFee(async () => {
+      try {
+        const dueDateTimestamp = new Date(dueDate).getTime();
+        const paidDateTimestamp = paidDate
+          ? new Date(paidDate).getTime()
+          : undefined;
+
+        if (editingFee) {
+          await updateFee({
+            id: editingFee._id as Id<"fees">,
+            amount: parseFloat(amount),
+            status: feeStatus,
+            dueDate: dueDateTimestamp,
+            paidDate: paidDateTimestamp,
+            description: description || undefined,
+          });
+          toast({ title: "Fee updated" });
+        } else {
+          await createFee({
+            studentId: userId as Id<"users">,
+            amount: parseFloat(amount),
+            status: feeStatus,
+            dueDate: dueDateTimestamp,
+            paidDate: paidDateTimestamp,
+            description: description || undefined,
+          });
+          toast({ title: "Fee record added" });
+        }
+        setShowAddFeeDialog(false);
+        resetFeeForm();
+      } catch (err: any) {
+        toast({
+          title: "Error",
+          description: "Failed to save fee record.",
+          variant: "destructive",
         });
-        toast({ title: "Fee updated" });
-      } else {
-        await createFee({
-          studentId: userId as Id<"users">,
-          amount: parseFloat(amount),
-          status: feeStatus,
-          dueDate: dueDateTimestamp,
-          paidDate: paidDateTimestamp,
-          description: description || undefined,
-        });
-        toast({ title: "Fee record added" });
       }
-      setShowAddFeeDialog(false);
-      resetFeeForm();
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to save fee record.",
-        variant: "destructive",
-      });
-    }
+    });
   };
 
-  const handleMarkAsPaid = async (feeId: string) => {
-    if (!currentAdmin) return;
+  const handleMarkAsPaid = async () => {
+    if (!currentAdmin || !markPaidFeeId) return;
     try {
+      const paidTimestamp = markPaidDate
+        ? new Date(markPaidDate).getTime()
+        : undefined;
       await markAsPaid({
-        id: feeId as Id<"fees">,
+        id: markPaidFeeId as Id<"fees">,
+        paidDate: paidTimestamp,
       });
       toast({ title: "Marked as paid" });
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to update fee.",
+        description: "Failed to update fee.",
         variant: "destructive",
       });
     }
+    setMarkPaidFeeId(null);
+    setMarkPaidDate(new Date().toISOString().split("T")[0]);
   };
 
   const handleDeleteFee = async (feeId: string) => {
@@ -251,25 +311,160 @@ export function UserDetailSheet({
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to delete fee.",
+        description: "Failed to delete fee.",
         variant: "destructive",
       });
     }
     setDeleteFeeId(null);
   };
 
-  const totalDue =
-    fees?.filter((f) => f.status === "due").reduce((s, f) => s + f.amount, 0) ??
-    0;
-  const totalPaid =
-    fees
-      ?.filter((f) => f.status === "paid")
-      .reduce((s, f) => s + f.amount, 0) ?? 0;
+  // --- Export helpers ---
+  const buildExportData = () => {
+    if (!user) return { sections: [], sheets: [] };
+
+    const profileColumns: ExportColumn[] = [
+      { header: "Field", key: "field" },
+      { header: "Value", key: "value" },
+    ];
+    const profileData = [
+      { field: "Name", value: user.name },
+      { field: "Email", value: user.email },
+      { field: "Role", value: user.role },
+      { field: "Batch", value: batch?.name ?? "—" },
+      { field: "Age", value: user.age ? `${user.age} years` : "—" },
+      { field: "Joined", value: new Date(user.createdAt).toLocaleDateString("en-IN") },
+      { field: "Status", value: user.isSuspended ? "Suspended" : "Active" },
+    ];
+
+    const sections: { title: string; data: Record<string, any>[]; columns: ExportColumn[] }[] = [
+      { title: "Profile", data: profileData, columns: profileColumns },
+    ];
+    const sheets: { name: string; data: Record<string, any>[]; columns: ExportColumn[] }[] = [
+      { name: "Profile", data: profileData, columns: profileColumns },
+    ];
+
+    if (isStudent && studentAnalytics) {
+      const userRankEntry = globalLeaderboard?.find((e) => e.userId === userId);
+
+      const analyticsColumns: ExportColumn[] = [
+        { header: "Metric", key: "metric" },
+        { header: "Value", key: "value" },
+      ];
+      const analyticsData = [
+        { metric: "Tests Taken", value: String(studentAnalytics.totalTestsTaken) },
+        { metric: "Average Score", value: studentAnalytics.averageScore.toFixed(1) },
+        { metric: "Global Rank", value: userRankEntry?.rank ? `#${userRankEntry.rank}` : "—" },
+        { metric: "Total Score", value: userRankEntry?.totalScore?.toFixed(1) ?? "—" },
+      ];
+      sections.push({ title: "Analytics", data: analyticsData, columns: analyticsColumns });
+      sheets.push({ name: "Analytics", data: analyticsData, columns: analyticsColumns });
+
+      // Subject Performance
+      const subjectPerf = studentAnalytics.subjectWisePerformance ?? {};
+      const subjectEntries = Object.entries(subjectPerf);
+      if (subjectEntries.length > 0) {
+        const subjectColumns: ExportColumn[] = [
+          { header: "Subject", key: "subject" },
+          { header: "Correct", key: "correct" },
+          { header: "Total", key: "total" },
+          { header: "Accuracy", key: "accuracy" },
+        ];
+        const subjectData = subjectEntries.map(([subject, data]: [string, any]) => ({
+          subject,
+          correct: String(data.correct),
+          total: String(data.total),
+          accuracy: data.total > 0 ? `${Math.round((data.correct / data.total) * 100)}%` : "0%",
+        }));
+        sections.push({ title: "Subject Performance", data: subjectData, columns: subjectColumns });
+        sheets.push({ name: "Subject Performance", data: subjectData, columns: subjectColumns });
+      }
+
+      // Recent Tests
+      if (studentAnalytics.recentAttempts.length > 0) {
+        const testColumns: ExportColumn[] = [
+          { header: "Test", key: "testTitle" },
+          { header: "Score", key: "score" },
+          { header: "Correct", key: "correct" },
+          { header: "Wrong", key: "incorrect" },
+          { header: "Skipped", key: "unanswered" },
+          { header: "Date", key: "date" },
+        ];
+        const testData = studentAnalytics.recentAttempts.map((a: any) => ({
+          testTitle: a.testTitle,
+          score: a.score.toFixed(1),
+          correct: String(a.correct),
+          incorrect: String(a.incorrect),
+          unanswered: String(a.unanswered),
+          date: a.submittedAt ? new Date(a.submittedAt).toLocaleDateString("en-IN") : "—",
+        }));
+        sections.push({ title: "Recent Tests", data: testData, columns: testColumns });
+        sheets.push({ name: "Recent Tests", data: testData, columns: testColumns });
+      }
+    }
+
+    // Fees
+    if (fees && fees.length > 0) {
+      const feeColumns: ExportColumn[] = [
+        { header: "Description", key: "description" },
+        { header: "Amount", key: "amount" },
+        { header: "Status", key: "status" },
+        { header: "Due Date", key: "dueDate" },
+        { header: "Paid Date", key: "paidDate" },
+      ];
+      const feeData = fees.map((f) => ({
+        description: f.description || "Fee Payment",
+        amount: `₹${f.amount.toLocaleString("en-IN")}`,
+        status: f.status,
+        dueDate: new Date(f.dueDate).toLocaleDateString("en-IN"),
+        paidDate: f.status === "paid" && f.paidDate ? new Date(f.paidDate).toLocaleDateString("en-IN") : "—",
+      }));
+      sections.push({ title: "Fee Records", data: feeData, columns: feeColumns });
+      sheets.push({ name: "Fees", data: feeData, columns: feeColumns });
+    }
+
+    return { sections, sheets };
+  };
+
+  const handleExportPDF = async () => {
+    if (!user) return;
+    const { sections } = buildExportData();
+    if (sections.length === 0) return;
+    await exportMultiSectionPdf(
+      sections,
+      `${user.name.replace(/\s+/g, "_")}_report`,
+      `Student Report: ${user.name}`,
+      organization?.name,
+      organization?.resolvedLogoUrl
+    );
+    toast({ title: "PDF exported successfully" });
+  };
+
+  const handleExportExcel = async () => {
+    if (!user) return;
+    const { sheets } = buildExportData();
+    if (sheets.length === 0) return;
+    await exportMultiSheetExcel(
+      sheets,
+      `${user.name.replace(/\s+/g, "_")}_report`
+    );
+    toast({ title: "Excel exported successfully" });
+  };
+
+  const totalDue = useMemo(
+    () =>
+      fees?.filter((f) => f.status === "due").reduce((s, f) => s + f.amount, 0) ?? 0,
+    [fees]
+  );
+  const totalPaid = useMemo(
+    () =>
+      fees?.filter((f) => f.status === "paid").reduce((s, f) => s + f.amount, 0) ?? 0,
+    [fees]
+  );
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-lg">
+        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col overflow-hidden">
           <SheetHeader>
             <SheetTitle>User Details</SheetTitle>
             <SheetDescription>
@@ -277,7 +472,7 @@ export function UserDetailSheet({
             </SheetDescription>
           </SheetHeader>
 
-          <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
+          <ScrollArea className="mt-4 flex-1 -mr-3 pr-3">
             {user === undefined ? (
               <div className="flex items-center justify-center py-12">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
@@ -312,6 +507,24 @@ export function UserDetailSheet({
                       <Badge variant="destructive">Suspended</Badge>
                     )}
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="mt-3 gap-1.5">
+                        <Download className="h-3.5 w-3.5" />
+                        Export Data
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center">
+                      <DropdownMenuItem onClick={handleExportPDF}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export as PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportExcel}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export as Excel
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* ── Info ── */}
@@ -478,7 +691,10 @@ export function UserDetailSheet({
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 gap-1 text-xs"
-                                  onClick={() => handleMarkAsPaid(fee._id)}
+                                  onClick={() => {
+                                    setMarkPaidDate(new Date().toISOString().split("T")[0]);
+                                    setMarkPaidFeeId(fee._id);
+                                  }}
                                 >
                                   <CheckCircle className="h-3 w-3" />
                                   Mark Paid
@@ -523,6 +739,270 @@ export function UserDetailSheet({
                     )}
                   </>
                 )}
+
+                {/* ── Student Analytics ── */}
+                {isStudent && (() => {
+                  const userRankEntry = globalLeaderboard?.find(
+                    (e) => e.userId === userId
+                  );
+                  const globalRank = userRankEntry?.rank ?? null;
+
+                  const subjectPerf = studentAnalytics?.subjectWisePerformance ?? {};
+                  const subjectEntries = Object.entries(subjectPerf).map(
+                    ([subject, data]) => ({
+                      subject,
+                      correct: data.correct,
+                      total: data.total,
+                      accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+                    })
+                  );
+                  const bestSubject = subjectEntries.length > 0
+                    ? subjectEntries.reduce((best, cur) =>
+                        cur.accuracy > best.accuracy ? cur : best
+                      )
+                    : null;
+
+                  const achievementIcons: Record<string, React.ReactNode> = {
+                    "perfectionist": <Award className="h-4 w-4" />,
+                    "speed-demon": <Rocket className="h-4 w-4" />,
+                    "comeback-king": <RefreshCcw className="h-4 w-4" />,
+                    "streak-master": <Flame className="h-4 w-4" />,
+                  };
+
+                  return (
+                    <>
+                      {/* Quick Stats Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Tests Taken</CardTitle>
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3 pt-0">
+                            <div className="text-xl font-bold tabular-nums">
+                              {studentAnalytics?.totalTestsTaken ?? "—"}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Global Rank</CardTitle>
+                            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3 pt-0">
+                            <div className="text-xl font-bold tabular-nums">
+                              {globalRank ? (
+                                <span className={
+                                  globalRank === 1
+                                    ? "text-amber-600"
+                                    : globalRank <= 3
+                                      ? "text-orange-600"
+                                      : ""
+                                }>
+                                  #{globalRank}
+                                </span>
+                              ) : "—"}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Avg Score</CardTitle>
+                            <ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3 pt-0">
+                            <div className="text-xl font-bold tabular-nums">
+                              {studentAnalytics
+                                ? studentAnalytics.averageScore.toFixed(1)
+                                : "—"}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">Total Score</CardTitle>
+                            <Trophy className="h-3.5 w-3.5 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3 pt-0">
+                            <div className="text-xl font-bold tabular-nums">
+                              {userRankEntry?.totalScore?.toFixed(1) ?? "—"}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Best Subject */}
+                      {bestSubject && (
+                        <Card className="border-emerald-500/20 bg-emerald-500/5">
+                          <CardContent className="flex items-center gap-3 p-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
+                              <Target className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-muted-foreground">Best Subject</p>
+                              <p className="text-sm font-semibold">{bestSubject.subject}</p>
+                            </div>
+                            <Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
+                              {bestSubject.accuracy}% accuracy
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Subject-wise Performance */}
+                      {subjectEntries.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2 pt-3 px-3">
+                            <CardTitle className="text-sm font-medium">Subject Performance</CardTitle>
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3 space-y-3">
+                            {subjectEntries
+                              .sort((a, b) => b.accuracy - a.accuracy)
+                              .map((s) => (
+                                <div key={s.subject} className="space-y-1">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium">{s.subject}</span>
+                                    <span className="text-xs text-muted-foreground tabular-nums">
+                                      {s.correct}/{s.total} ({s.accuracy}%)
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 w-full rounded-full bg-muted">
+                                    <div
+                                      className={`h-1.5 rounded-full transition-all ${
+                                        s.accuracy >= 70
+                                          ? "bg-emerald-500"
+                                          : s.accuracy >= 40
+                                            ? "bg-amber-500"
+                                            : "bg-destructive"
+                                      }`}
+                                      style={{ width: `${s.accuracy}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Recent Test Results */}
+                      {studentAnalytics && studentAnalytics.recentAttempts.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2 pt-3 px-3">
+                            <CardTitle className="text-sm font-medium">Recent Tests</CardTitle>
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3 space-y-2">
+                            {studentAnalytics.recentAttempts.map((attempt: any) => (
+                              <div
+                                key={attempt._id}
+                                className="flex items-center justify-between rounded-lg border p-2.5"
+                              >
+                                <div className="flex-1 min-w-0 space-y-0.5">
+                                  <p className="text-sm font-medium truncate">
+                                    {attempt.testTitle}
+                                  </p>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="text-emerald-600 tabular-nums">{attempt.correct}C</span>
+                                    <span className="text-destructive tabular-nums">{attempt.incorrect}W</span>
+                                    <span className="tabular-nums">{attempt.unanswered}S</span>
+                                    {attempt.submittedAt && (
+                                      <>
+                                        <span>&middot;</span>
+                                        <span>
+                                          {new Date(attempt.submittedAt).toLocaleDateString("en-IN", {
+                                            day: "numeric",
+                                            month: "short",
+                                          })}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-right ml-3">
+                                  <p className="text-sm font-semibold tabular-nums">
+                                    {attempt.score.toFixed(1)}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">score</p>
+                                </div>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Performance Trend */}
+                      {performanceTrend && performanceTrend.length > 1 && (
+                        <Card>
+                          <CardHeader className="pb-2 pt-3 px-3">
+                            <CardTitle className="text-sm font-medium">Score Trend</CardTitle>
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3">
+                            <div className="flex items-end gap-1 h-16">
+                              {(() => {
+                                const maxScore = Math.max(
+                                  ...performanceTrend.map((e: any) => e.score)
+                                );
+                                return performanceTrend.map((entry: any, i: number) => {
+                                  const height = maxScore > 0
+                                    ? (entry.score / maxScore) * 100
+                                    : 0;
+                                  return (
+                                    <div
+                                      key={i}
+                                      className="flex-1 rounded-t bg-primary/80 hover:bg-primary transition-colors"
+                                      style={{ height: `${Math.max(height, 4)}%` }}
+                                      title={`${entry.testTitle}: ${entry.score} (${entry.accuracy}%)`}
+                                    />
+                                  );
+                                });
+                              })()}
+                            </div>
+                            <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+                              <span>{performanceTrend[0]?.date}</span>
+                              <span>{performanceTrend[performanceTrend.length - 1]?.date}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Achievements */}
+                      {achievements && achievements.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2 pt-3 px-3">
+                            <CardTitle className="text-sm font-medium">Achievements</CardTitle>
+                          </CardHeader>
+                          <CardContent className="px-3 pb-3">
+                            <div className="flex flex-wrap gap-2">
+                              {achievements.map((a: any) => (
+                                <div
+                                  key={a.id}
+                                  className="flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1.5"
+                                >
+                                  <span className="text-amber-600">
+                                    {achievementIcons[a.id] ?? <Star className="h-4 w-4" />}
+                                  </span>
+                                  <span className="text-xs font-medium">{a.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Empty state for students with no data */}
+                      {studentAnalytics && studentAnalytics.totalTestsTaken === 0 && (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                          <ClipboardCheck className="mb-2 h-8 w-8 text-muted-foreground/30" />
+                          <p className="text-sm font-medium text-muted-foreground">
+                            No test activity yet
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground/70">
+                            This student hasn't taken any tests
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </ScrollArea>
@@ -552,12 +1032,20 @@ export function UserDetailSheet({
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isSuspending}
               onClick={() => setShowSuspendDialog(false)}
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleSuspend}>
-              Suspend User
+            <Button variant="destructive" onClick={handleSuspend} disabled={isSuspending}>
+              {isSuspending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Suspending…
+                </>
+              ) : (
+                "Suspend User"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -601,12 +1089,65 @@ export function UserDetailSheet({
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isUnsuspending}
               onClick={() => setShowUnsuspendDialog(false)}
             >
               Cancel
             </Button>
-            <Button onClick={handleUnsuspend} disabled={!selectedBatchId}>
-              Unsuspend User
+            <Button onClick={handleUnsuspend} disabled={!selectedBatchId || isUnsuspending}>
+              {isUnsuspending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Unsuspending…
+                </>
+              ) : (
+                "Unsuspend User"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as Paid Confirmation */}
+      <Dialog
+        open={!!markPaidFeeId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setMarkPaidFeeId(null);
+            setMarkPaidDate(new Date().toISOString().split("T")[0]);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Fee as Paid</DialogTitle>
+            <DialogDescription>
+              Confirm payment and select the date it was paid.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="mark-paid-date">Paid Date</Label>
+              <Input
+                id="mark-paid-date"
+                type="date"
+                value={markPaidDate}
+                onChange={(e) => setMarkPaidDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMarkPaidFeeId(null);
+                setMarkPaidDate(new Date().toISOString().split("T")[0]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleMarkAsPaid} disabled={!markPaidDate}>
+              Confirm Payment
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -705,6 +1246,7 @@ export function UserDetailSheet({
           <DialogFooter>
             <Button
               variant="outline"
+              disabled={isSavingFee}
               onClick={() => {
                 setShowAddFeeDialog(false);
                 resetFeeForm();
@@ -712,8 +1254,15 @@ export function UserDetailSheet({
             >
               Cancel
             </Button>
-            <Button onClick={handleFeeSubmit} disabled={!amount || !dueDate}>
-              {editingFee ? "Update" : "Add Record"}
+            <Button onClick={handleFeeSubmit} disabled={!amount || !dueDate || isSavingFee}>
+              {isSavingFee ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editingFee ? "Updating…" : "Adding…"}
+                </>
+              ) : (
+                editingFee ? "Update" : "Add Record"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

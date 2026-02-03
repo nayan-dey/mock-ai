@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -23,15 +23,7 @@ import {
 import { Trophy, Medal, Users, Search, ChevronLeft, ChevronRight, LayoutGrid, LayoutList, Target, FileText, ChevronRight as ChevronRightIcon, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { getInitials } from "@/lib/utils";
 
 function LeaderboardSkeleton() {
   return (
@@ -66,17 +58,12 @@ type LeaderboardMode = "global" | "batch";
 const PAGE_SIZE = 10;
 
 export default function LeaderboardPage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [leaderboardMode, setLeaderboardMode] = useState<LeaderboardMode>("batch");
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const batch = useQuery(
     api.batches.getById,
@@ -139,7 +126,7 @@ export default function LeaderboardPage() {
     (currentPage + 1) * PAGE_SIZE
   );
 
-  if (!isUserLoaded || (user && dbUser === undefined) || activeLeaderboard === undefined) {
+  if (isUserLoading || activeLeaderboard === undefined) {
     return <LeaderboardSkeleton />;
   }
 

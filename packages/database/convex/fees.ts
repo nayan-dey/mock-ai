@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -179,6 +180,7 @@ export const update = mutation({
 export const markAsPaid = mutation({
   args: {
     id: v.id("fees"),
+    paidDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
@@ -188,8 +190,27 @@ export const markAsPaid = mutation({
 
     await ctx.db.patch(args.id, {
       status: "paid",
-      paidDate: Date.now(),
+      paidDate: args.paidDate ?? Date.now(),
     });
+
+    // Notify admins about the payment
+    if (fee) {
+      const student = await ctx.db.get(fee.studentId);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.notifications.createNotification,
+        {
+          organizationId: orgId,
+          type: "fee_paid",
+          title: "Fee Paid",
+          message: `${student?.name ?? "A student"} paid fee of ₹${fee.amount}`,
+          referenceId: args.id,
+          referenceType: "fee",
+          actorId: fee.studentId,
+          actorName: student?.name,
+        }
+      );
+    }
   },
 });
 

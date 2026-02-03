@@ -16,12 +16,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  VideoPlayer,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  formatDuration,
   Button,
   DropdownMenu,
   DropdownMenuTrigger,
@@ -31,18 +29,18 @@ import {
   DropdownMenuSeparator,
   BackButton,
 } from "@repo/ui";
-import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, Clock, ChevronRight } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
-import { useQuery as useConvexQuery } from "convex/react";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { Video, Play, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight } from "lucide-react";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import dynamic from "next/dynamic";
 
-type SortOption = "default" | "duration-asc" | "duration-desc" | "title-asc" | "title-desc";
+const VideoPlayer = dynamic(() => import("@repo/ui").then(m => ({ default: m.VideoPlayer })), { ssr: false });
+
+type SortOption = "default" | "title-asc" | "title-desc";
 type ViewMode = "grid" | "list";
 
 export default function ClassesPage() {
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [selectedTopic, setSelectedTopic] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<{
     title: string;
     videoUrl: string;
@@ -50,15 +48,10 @@ export default function ClassesPage() {
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  const dbUser = useConvexQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
-
+  const subjects = useQuery(api.subjects.list, {});
   const classes = useQuery(api.classes.listForBatch, {
     batchId: dbUser?.batchId,
     subject: selectedSubject || undefined,
-    topic: selectedTopic || undefined,
   });
 
   const sortedClasses = useMemo(() => {
@@ -66,10 +59,6 @@ export default function ClassesPage() {
 
     const sorted = [...classes];
     switch (sortBy) {
-      case "duration-asc":
-        return sorted.sort((a, b) => a.duration - b.duration);
-      case "duration-desc":
-        return sorted.sort((a, b) => b.duration - a.duration);
       case "title-asc":
         return sorted.sort((a, b) => a.title.localeCompare(b.title));
       case "title-desc":
@@ -78,11 +67,6 @@ export default function ClassesPage() {
         return sorted;
     }
   }, [classes, sortBy]);
-
-  const availableTopics =
-    selectedSubject && selectedSubject in TOPICS
-      ? TOPICS[selectedSubject as keyof typeof TOPICS]
-      : [];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -144,15 +128,6 @@ export default function ClassesPage() {
                     <SortDesc className="mr-2 h-3.5 w-3.5" />
                     Title (Z to A)
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setSortBy("duration-asc")}>
-                    <SortAsc className="mr-2 h-3.5 w-3.5" />
-                    Duration (Short to Long)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("duration-desc")}>
-                    <SortDesc className="mr-2 h-3.5 w-3.5" />
-                    Duration (Long to Short)
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -166,7 +141,6 @@ export default function ClassesPage() {
           value={selectedSubject || "all"}
           onValueChange={(value) => {
             setSelectedSubject(value === "all" ? "" : value);
-            setSelectedTopic("");
           }}
         >
           <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -174,34 +148,14 @@ export default function ClassesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subjects</SelectItem>
-            {SUBJECTS.map((subject) => (
-              <SelectItem key={subject} value={subject}>
-                {subject}
+            {(subjects ?? []).map((s) => (
+              <SelectItem key={s._id} value={s.name}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {selectedSubject && availableTopics.length > 0 && (
-          <Select
-            value={selectedTopic || "all"}
-            onValueChange={(value) =>
-              setSelectedTopic(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue placeholder="All Topics" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Topics</SelectItem>
-              {availableTopics.map((topic) => (
-                <SelectItem key={topic} value={topic}>
-                  {topic}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
       {/* Classes List */}
@@ -225,7 +179,7 @@ export default function ClassesPage() {
             </div>
             <h3 className="mt-4 text-sm font-medium">No classes found</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedSubject || selectedTopic
+              {selectedSubject
                 ? "No classes match your filters."
                 : "No recorded classes available yet."}
             </p>
@@ -264,10 +218,6 @@ export default function ClassesPage() {
                     <Play className="h-6 w-6 text-primary" />
                   </div>
                 </div>
-                {/* Duration badge */}
-                <Badge className="absolute bottom-2 right-2 text-xs">
-                  {formatDuration(classItem.duration)}
-                </Badge>
               </div>
 
               <CardHeader className="pb-4">
@@ -276,7 +226,6 @@ export default function ClassesPage() {
                 </CardTitle>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-[10px]">{classItem.subject}</Badge>
-                  <Badge variant="secondary" className="text-[10px]">{classItem.topic}</Badge>
                 </div>
                 {classItem.description && (
                   <CardDescription className="line-clamp-2 text-xs">
@@ -324,10 +273,6 @@ export default function ClassesPage() {
                   <h3 className="font-medium truncate">{classItem.title}</h3>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline" className="text-[10px]">{classItem.subject}</Badge>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(classItem.duration)}
-                    </span>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />

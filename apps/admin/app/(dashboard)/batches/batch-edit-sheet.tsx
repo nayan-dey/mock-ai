@@ -14,6 +14,24 @@ import {
 import { Copy } from "lucide-react";
 import { AdminSheet } from "@/components/admin-sheet";
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  const el = document.createElement("input");
+  el.readOnly = true;
+  el.value = text;
+  el.style.position = "fixed";
+  el.style.left = "-9999px";
+  el.style.opacity = "0";
+  document.body.appendChild(el);
+  el.focus();
+  el.setSelectionRange(0, text.length);
+  document.execCommand("copy");
+  document.body.removeChild(el);
+  return Promise.resolve();
+}
+
 interface BatchEditSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,7 +103,10 @@ export function BatchEditSheet({ open, onOpenChange, batch }: BatchEditSheetProp
   const referralUrl = batch
     ? (() => {
         const studentBaseUrl =
-          process.env.NEXT_PUBLIC_STUDENT_APP_URL || "http://localhost:3000";
+          process.env.NEXT_PUBLIC_STUDENT_APP_URL ||
+          (process.env.NODE_ENV === "production"
+            ? "https://www.nindo.biz"
+            : "http://localhost:3000");
         const orgSlug = organization?.slug;
         return orgSlug
           ? `${studentBaseUrl}/sign-up?org=${orgSlug}&ref=${batch.referralCode}`
@@ -139,7 +160,7 @@ export function BatchEditSheet({ open, onOpenChange, batch }: BatchEditSheetProp
                 size="sm"
                 className="gap-1.5"
                 onClick={() => {
-                  navigator.clipboard.writeText(referralUrl || batch.referralCode);
+                  copyToClipboard(referralUrl || batch.referralCode);
                   toast({
                     title: "Copied!",
                     description: referralUrl ? "Referral link copied" : "Code copied",

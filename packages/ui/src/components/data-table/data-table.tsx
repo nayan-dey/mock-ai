@@ -40,6 +40,8 @@ interface DataTableProps<TData, TValue> {
   rowClassName?: (row: TData) => string;
   facetedFilters?: FacetedFilterConfig[];
   toolbarExtra?: React.ReactNode;
+  className?: string;
+  renderSubRow?: (row: TData) => React.ReactNode | null;
 }
 
 export function DataTable<TData, TValue>({
@@ -55,6 +57,8 @@ export function DataTable<TData, TValue>({
   rowClassName,
   facetedFilters,
   toolbarExtra,
+  className,
+  renderSubRow,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -88,7 +92,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="space-y-4">
+    <div className={`rounded-md border flex flex-col ${className ?? ""}`}>
       {/* Toolbar */}
       <DataTableToolbar
         table={table}
@@ -100,7 +104,7 @@ export function DataTable<TData, TValue>({
       />
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="flex-1 min-h-0 overflow-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -122,22 +126,33 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={rowClassName?.(row.original) ?? ""}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const subRowContent = renderSubRow?.(row.original) ?? null;
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() && "selected"}
+                      className={rowClassName?.(row.original) ?? ""}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {subRowContent && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/40">
+                        <TableCell colSpan={columns.length} className="p-0">
+                          {subRowContent}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
@@ -153,11 +168,13 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Pagination */}
-      {showPagination && data.length > pageSize && (
-        <DataTablePagination
-          table={table}
-          pageSizeOptions={pageSizeOptions}
-        />
+      {showPagination && (
+        <div className="border-t p-2">
+          <DataTablePagination
+            table={table}
+            pageSizeOptions={pageSizeOptions}
+          />
+        </div>
       )}
     </div>
   );

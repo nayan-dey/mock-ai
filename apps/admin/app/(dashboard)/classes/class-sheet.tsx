@@ -8,15 +8,10 @@ import {
   Textarea,
   Label,
   useToast,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Badge,
 } from "@repo/ui";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface ClassSheetProps {
   open: boolean;
@@ -26,9 +21,7 @@ interface ClassSheetProps {
     title: string;
     description: string;
     subject: string;
-    topic: string;
     videoUrl: string;
-    duration: number;
     thumbnail?: string;
     batchIds?: string[];
   } | null;
@@ -43,9 +36,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [duration, setDuration] = useState("");
   const [thumbnail, setThumbnail] = useState("");
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,21 +48,11 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
       setTitle(classItem?.title ?? "");
       setDescription(classItem?.description ?? "");
       setSubject(classItem?.subject ?? "");
-      setTopic(classItem?.topic ?? "");
       setVideoUrl(classItem?.videoUrl ?? "");
-      setDuration(classItem?.duration?.toString() ?? "");
       setThumbnail(classItem?.thumbnail ?? "");
       setSelectedBatchIds(classItem?.batchIds ?? []);
     }
   }, [open, classItem]);
-
-  useEffect(() => {
-    if (subject && classItem?.subject !== subject) {
-      setTopic("");
-    }
-  }, [subject, classItem?.subject]);
-
-  const topics = subject ? TOPICS[subject as keyof typeof TOPICS] || [] : [];
 
   const isValidYouTubeUrl = (url: string) =>
     /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/.test(url);
@@ -85,19 +66,13 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !subject || !topic || !videoUrl.trim() || !duration) {
+    if (!title.trim() || !subject || !videoUrl.trim()) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
     if (!isValidYouTubeUrl(videoUrl)) {
       toast({ title: "Please enter a valid YouTube URL", variant: "destructive" });
-      return;
-    }
-
-    const durationNum = parseInt(duration, 10);
-    if (isNaN(durationNum) || durationNum <= 0) {
-      toast({ title: "Please enter a valid duration", variant: "destructive" });
       return;
     }
 
@@ -109,9 +84,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           title: title.trim(),
           description: description.trim(),
           subject,
-          topic,
           videoUrl: videoUrl.trim(),
-          duration: durationNum,
           thumbnail: thumbnail.trim() || undefined,
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
@@ -121,9 +94,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           title: title.trim(),
           description: description.trim(),
           subject,
-          topic,
           videoUrl: videoUrl.trim(),
-          duration: durationNum,
           thumbnail: thumbnail.trim() || undefined,
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
@@ -150,7 +121,7 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
       onSubmit={handleSubmit}
       submitLabel={isEdit ? "Save Changes" : "Add Class"}
       isSubmitting={isSubmitting}
-      submitDisabled={!title.trim() || !subject || !topic || !videoUrl.trim() || !duration}
+      submitDisabled={!title.trim() || !subject || !videoUrl.trim()}
       wide
     >
       <div className="space-y-4">
@@ -175,33 +146,9 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="class-subject">Subject *</Label>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger id="class-subject">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="class-topic">Topic *</Label>
-            <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger id="class-topic">
-                <SelectValue placeholder="Select topic" />
-              </SelectTrigger>
-              <SelectContent>
-                {topics.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="class-subject">Subject *</Label>
+          <SubjectSelector value={subject} onValueChange={setSubject} id="class-subject" />
         </div>
 
         <div className="space-y-2">
@@ -217,27 +164,14 @@ export function ClassSheet({ open, onOpenChange, classItem }: ClassSheetProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="class-duration">Duration (minutes) *</Label>
-            <Input
-              id="class-duration"
-              type="number"
-              min={1}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="e.g. 45"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="class-thumb">Thumbnail URL</Label>
-            <Input
-              id="class-thumb"
-              value={thumbnail}
-              onChange={(e) => setThumbnail(e.target.value)}
-              placeholder="Optional thumbnail URL"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="class-thumb">Thumbnail URL</Label>
+          <Input
+            id="class-thumb"
+            value={thumbnail}
+            onChange={(e) => setThumbnail(e.target.value)}
+            placeholder="Optional thumbnail URL"
+          />
         </div>
 
         {/* Batch Selection */}

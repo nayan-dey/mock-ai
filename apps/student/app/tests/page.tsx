@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -27,7 +28,11 @@ type SortOption = "default" | "duration-asc" | "duration-desc" | "questions-asc"
 type ViewMode = "grid" | "list";
 
 export default function TestsPage() {
-  const tests = useQuery(api.tests.listPublished);
+  const { dbUser } = useCurrentUser();
+  const tests = useQuery(
+    api.tests.listPublishedForBatch,
+    dbUser ? { batchId: dbUser.batchId } : "skip"
+  );
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 

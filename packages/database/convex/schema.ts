@@ -8,10 +8,12 @@ export default defineSchema({
     slug: v.string(),
     description: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
+    logoStorageId: v.optional(v.id("_storage")),
     contactEmail: v.optional(v.string()),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
     adminClerkId: v.string(),
+    isVerified: v.optional(v.boolean()), // Set to true by admin in Convex dashboard to allow access
     createdAt: v.number(),
   })
     .index("by_admin_clerk_id", ["adminClerkId"])
@@ -76,6 +78,7 @@ export default defineSchema({
     name: v.string(),
     bio: v.optional(v.string()),
     age: v.optional(v.number()),
+    profileImageId: v.optional(v.id("_storage")),
     role: v.union(v.literal("student"), v.literal("teacher"), v.literal("admin")),
     batchId: v.optional(v.id("batches")),
     isSuspended: v.optional(v.boolean()),
@@ -98,16 +101,14 @@ export default defineSchema({
     correctOptions: v.array(v.number()),
     explanation: v.optional(v.string()),
     subject: v.string(),
-    topic: v.string(),
+    topic: v.optional(v.string()),
     difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
     organizationId: v.id("organizations"),
     createdBy: v.id("users"),
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
-    .index("by_topic", ["topic"])
     .index("by_difficulty", ["difficulty"])
-    .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
   tests: defineTable({
@@ -138,6 +139,7 @@ export default defineSchema({
         selected: v.array(v.number()),
       })
     ),
+    questionOrder: v.optional(v.array(v.id("questions"))),
     score: v.number(),
     totalQuestions: v.number(),
     correct: v.number(),
@@ -160,8 +162,8 @@ export default defineSchema({
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
-    fileUrl: v.string(),
+    topic: v.optional(v.string()),
+    fileUrl: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
     organizationId: v.id("organizations"),
@@ -169,17 +171,15 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
-    .index("by_topic", ["topic"])
-    .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
   classes: defineTable({
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
+    topic: v.optional(v.string()),
     videoUrl: v.string(),
-    duration: v.number(),
+    duration: v.optional(v.number()),
     thumbnail: v.optional(v.string()),
     batchIds: v.optional(v.array(v.id("batches"))), // empty = all batches
     organizationId: v.id("organizations"),
@@ -187,8 +187,6 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_subject", ["subject"])
-    .index("by_topic", ["topic"])
-    .index("by_subject_topic", ["subject", "topic"])
     .index("by_organization", ["organizationId"]),
 
   // Multi-admin support: maps admin clerkIds to organizations
@@ -219,6 +217,46 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_clerk_id", ["clerkId"])
     .index("by_org_status", ["organizationId", "status"]),
+
+  // Admin notifications
+  notifications: defineTable({
+    organizationId: v.id("organizations"),
+    type: v.union(
+      v.literal("fee_overdue"),
+      v.literal("fee_paid"),
+      v.literal("test_submitted"),
+      v.literal("join_request"),
+      v.literal("student_enrolled"),
+      v.literal("student_suspended"),
+      v.literal("student_unsuspended")
+    ),
+    title: v.string(),
+    message: v.string(),
+    referenceId: v.optional(v.string()),
+    referenceType: v.optional(
+      v.union(
+        v.literal("fee"),
+        v.literal("attempt"),
+        v.literal("joinRequest"),
+        v.literal("user"),
+        v.literal("batch")
+      )
+    ),
+    actorId: v.optional(v.id("users")),
+    actorName: v.optional(v.string()),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_org_read", ["organizationId", "isRead"])
+    .index("by_org_created", ["organizationId", "createdAt"])
+    .index("by_org_type", ["organizationId", "type"]),
+
+  // Dynamic subjects per organization
+  subjects: defineTable({
+    name: v.string(),
+    organizationId: v.id("organizations"),
+  }).index("by_org", ["organizationId"]),
 
   // Fee records for students
   fees: defineTable({

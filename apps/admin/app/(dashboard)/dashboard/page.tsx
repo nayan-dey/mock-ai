@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -14,9 +14,17 @@ import {
   Skeleton,
   ChartContainer,
   BarChart,
-  PieChart,
   Avatar,
   AvatarFallback,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  DataTable,
+  SortableHeader,
+  type ColumnDef,
 } from "@repo/ui";
 import {
   Users,
@@ -29,6 +37,19 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import { useUrlState } from "@/hooks/use-url-state";
+import { getInitials } from "@/lib/utils";
+import { ExportDropdown } from "@/components/export-dropdown";
+import type { ExportColumn } from "@/lib/export-utils";
+
+interface LeaderboardEntry {
+  userId: string;
+  userName: string;
+  rank: number;
+  score: number;
+  correct: number;
+  timeTaken: number;
+}
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -37,6 +58,28 @@ export default function DashboardPage() {
   const leaderboard = useQuery(api.analytics.getGlobalLeaderboard, {
     limit: 5,
   });
+  const tests = useQuery(api.tests.listPublished);
+  const [selectedTestId, setSelectedTestId] = useUrlState("test", "");
+
+  // Auto-select first test when tests are loaded (must be before useQuery calls that depend on it)
+  const effectiveTestId = selectedTestId || (tests && tests.length > 0 ? tests[0]._id : "");
+
+  const testAnalytics = useQuery(
+    api.analytics.getTestAnalytics,
+    effectiveTestId ? { testId: effectiveTestId as any } : "skip"
+  );
+  const testLeaderboard = useQuery(
+    api.analytics.getLeaderboard,
+    effectiveTestId ? { testId: effectiveTestId as any } : "skip"
+  );
+
+  // Data for full org export — only fetch when user requests export
+  const [exportRequested, setExportRequested] = useState(false);
+  const organization = useQuery(api.organizations.getMyOrg);
+  const allUsers = useQuery(api.users.list, exportRequested ? {} : "skip");
+  const allFees = useQuery(api.fees.getAll, exportRequested ? undefined : "skip");
+  const allBatches = useQuery(api.batches.list, exportRequested ? {} : "skip");
+
   const seedDatabase = useMutation(api.seed.seedDatabase);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
@@ -55,6 +98,181 @@ export default function DashboardPage() {
       setIsSeeding(false);
     }
   };
+
+  // ─── Full Org Export ──────────────────────────────────────────────────────
+  const handleExportOpen = useCallback(() => setExportRequested(true), []);
+  const orgExportReady = !!allUsers && !!allFees && !!allBatches && !!tests;
+
+  const handleOrgExportExcel = async () => {
+    if (!allUsers || !allFees || !allBatches || !tests) return;
+    const { exportMultiSheetExcel } = await import("@/lib/export-utils");
+    exportMultiSheetExcel(
+      [
+        {
+          name: "Users",
+          data: allUsers,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Email", key: "email" },
+            { header: "Role", key: "role" },
+            { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+          ],
+        },
+        {
+          name: "Fees",
+          data: allFees,
+          columns: [
+            { header: "Student", key: "studentName" },
+            { header: "Email", key: "studentEmail" },
+            { header: "Amount", key: "amount", format: (v) => `₹${Number(v).toLocaleString("en-IN")}` },
+            { header: "Status", key: "status", format: (v) => (v === "paid" ? "Paid" : "Due") },
+            { header: "Due Date", key: "dueDate", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+            { header: "Paid Date", key: "paidDate", format: (v) => (v ? new Date(v).toLocaleDateString("en-IN") : "—") },
+          ],
+        },
+        {
+          name: "Batches",
+          data: allBatches,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Description", key: "description", format: (v) => v || "" },
+            { header: "Active", key: "isActive", format: (v) => (v ? "Yes" : "No") },
+          ],
+        },
+        {
+          name: "Tests",
+          data: tests,
+          columns: [
+            { header: "Title", key: "title" },
+            { header: "Status", key: "status" },
+            { header: "Duration (min)", key: "duration", format: (v) => String(Math.round(v / 60)) },
+            { header: "Total Marks", key: "totalMarks", format: (v) => String(v) },
+          ],
+        },
+      ],
+      "OrgData"
+    );
+  };
+
+  const handleOrgExportPdf = async () => {
+    if (!allUsers || !allFees || !allBatches || !tests) return;
+    const { exportMultiSectionPdf } = await import("@/lib/export-utils");
+    exportMultiSectionPdf(
+      [
+        {
+          title: "Users",
+          data: allUsers,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Email", key: "email" },
+            { header: "Role", key: "role" },
+            { header: "Joined", key: "createdAt", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+          ],
+        },
+        {
+          title: "Fees",
+          data: allFees,
+          columns: [
+            { header: "Student", key: "studentName" },
+            { header: "Amount", key: "amount", format: (v) => `₹${Number(v).toLocaleString("en-IN")}` },
+            { header: "Status", key: "status", format: (v) => (v === "paid" ? "Paid" : "Due") },
+            { header: "Due Date", key: "dueDate", format: (v) => new Date(v).toLocaleDateString("en-IN") },
+          ],
+        },
+        {
+          title: "Batches",
+          data: allBatches,
+          columns: [
+            { header: "Name", key: "name" },
+            { header: "Description", key: "description", format: (v) => v || "" },
+            { header: "Active", key: "isActive", format: (v) => (v ? "Yes" : "No") },
+          ],
+        },
+        {
+          title: "Tests",
+          data: tests,
+          columns: [
+            { header: "Title", key: "title" },
+            { header: "Status", key: "status" },
+            { header: "Duration (min)", key: "duration", format: (v) => String(Math.round(v / 60)) },
+            { header: "Total Marks", key: "totalMarks", format: (v) => String(v) },
+          ],
+        },
+      ],
+      "OrgData",
+      "Organization Data Export",
+      organization?.name,
+      organization?.resolvedLogoUrl
+    );
+  };
+
+  const leaderboardColumns: ColumnDef<LeaderboardEntry>[] = useMemo(() => [
+    {
+      accessorKey: "rank",
+      header: ({ column }) => (
+        <SortableHeader column={column} title="Rank" />
+      ),
+      cell: ({ row }) => {
+        const rank = row.getValue("rank") as number;
+        return (
+          <div className={`flex h-6 w-6 items-center justify-center rounded text-xs font-medium ${
+            rank === 1
+              ? "bg-amber-500/10 text-amber-600"
+              : rank === 2
+                ? "bg-slate-400/10 text-slate-500"
+                : rank === 3
+                  ? "bg-orange-500/10 text-orange-600"
+                  : "text-muted-foreground"
+          }`}>
+            {rank}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "userName",
+      header: ({ column }) => (
+        <SortableHeader column={column} title="Student" />
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue("userName")}</span>
+      ),
+    },
+    {
+      accessorKey: "score",
+      header: ({ column }) => (
+        <SortableHeader column={column} title="Score" />
+      ),
+      cell: ({ row }) => (
+        <span className="tabular-nums font-medium">{(row.getValue("score") as number).toFixed(2)}</span>
+      ),
+    },
+    {
+      accessorKey: "correct",
+      header: ({ column }) => (
+        <SortableHeader column={column} title="Correct" />
+      ),
+      cell: ({ row }) => (
+        <span className="tabular-nums">{row.getValue("correct")}</span>
+      ),
+    },
+    {
+      accessorKey: "timeTaken",
+      header: ({ column }) => (
+        <SortableHeader column={column} title="Time" />
+      ),
+      cell: ({ row }) => {
+        const timeTaken = row.getValue("timeTaken") as number;
+        const minutes = Math.floor(timeTaken / 60000);
+        const seconds = Math.floor((timeTaken % 60000) / 1000);
+        return (
+          <span className="tabular-nums text-muted-foreground">
+            {minutes}m {seconds}s
+          </span>
+        );
+      },
+    },
+  ], []);
 
   // Loading state
   if (stats === undefined || batchCount === undefined) {
@@ -111,42 +329,25 @@ export default function DashboardPage() {
 
   const isEmpty = stats.totalQuestions === 0 && stats.totalTests === 0;
 
-  // Bar chart data from dashboard stats
-  const overviewData = [
-    { name: "Students", value: stats.totalStudents },
-    { name: "Tests", value: stats.totalTests },
-    { name: "Published", value: stats.publishedTests },
-    { name: "Questions", value: stats.totalQuestions },
-    { name: "Attempts", value: stats.totalAttempts },
-  ];
-
-  // Pie chart data
-  const distributionData = [
-    { name: "Published Tests", value: stats.publishedTests, color: "hsl(var(--primary))" },
-    { name: "Draft Tests", value: Math.max(stats.totalTests - stats.publishedTests, 0), color: "hsl(var(--muted-foreground))" },
-    { name: "Questions", value: stats.totalQuestions, color: "hsl(142 71% 45%)" },
-  ].filter((d) => d.value > 0);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
     <div className="space-y-4 p-4 md:p-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your test platform
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Overview of your test platform
+          </p>
+        </div>
+        <ExportDropdown
+          onExportExcel={handleOrgExportExcel}
+          onExportPdf={handleOrgExportPdf}
+          disabled={exportRequested && !orgExportReady}
+          onOpen={handleExportOpen}
+        />
       </div>
 
-      {/* Seed Database Card - Show when empty */}
-      {isEmpty && (
+      {/* Seed Database Card - Show when empty (dev only) */}
+      {process.env.NODE_ENV !== "production" && isEmpty && (
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Get Started with Sample Data</CardTitle>
@@ -236,32 +437,9 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Charts Section */}
+      {/* Top Students */}
       {!isEmpty && (
-        <div className="grid gap-4 md:grid-cols-7">
-          {/* Overview Bar Chart */}
-          <ChartContainer
-            title="Overview"
-            description="Platform statistics at a glance"
-            className="md:col-span-4"
-          >
-            <BarChart
-              data={overviewData}
-              xKey="name"
-              yKey="value"
-              height={300}
-              barColors={[
-                "hsl(var(--primary))",
-                "hsl(221 83% 53%)",
-                "hsl(142 71% 45%)",
-                "hsl(262 83% 58%)",
-                "hsl(24 95% 53%)",
-              ]}
-            />
-          </ChartContainer>
-
-          {/* Recent Activity - Top Students */}
-          <Card className="md:col-span-3">
+        <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">Top Students</CardTitle>
               <CardDescription className="text-xs">
@@ -299,10 +477,13 @@ export default function DashboardPage() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {entry.testsCompleted} test{entry.testsCompleted !== 1 ? "s" : ""} completed
+                          {entry.batchName && (
+                            <span> &middot; {entry.batchName}</span>
+                          )}
                         </p>
                       </div>
                       <div className="text-sm font-medium tabular-nums">
-                        {entry.totalScore}
+                        {entry.totalScore.toFixed(2)}
                       </div>
                     </div>
                   ))
@@ -310,87 +491,118 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
       )}
 
-      {/* Additional Charts Row */}
-      {!isEmpty && distributionData.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <ChartContainer
-            title="Content Distribution"
-            description="Tests and questions breakdown"
-          >
-            <PieChart
-              data={distributionData}
-              height={280}
-              innerRadius={60}
-              outerRadius={90}
-            />
-          </ChartContainer>
+      {/* Test Analytics Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Test Analytics</CardTitle>
+          <CardDescription className="text-xs">Select a test to view detailed performance data</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-6">
+            <Select value={effectiveTestId} onValueChange={setSelectedTestId}>
+              <SelectTrigger className="w-full max-w-md">
+                <SelectValue placeholder="Select a test" />
+              </SelectTrigger>
+              <SelectContent>
+                {tests?.map((test) => (
+                  <SelectItem key={test._id} value={test._id}>
+                    {test.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          {/* Summary stats card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Quick Stats</CardTitle>
-              <CardDescription className="text-xs">
-                Key metrics summary
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Published Rate</span>
-                  <span className="text-sm font-medium">
-                    {stats.totalTests > 0
-                      ? ((stats.publishedTests / stats.totalTests) * 100).toFixed(0)
-                      : 0}%
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-muted">
-                  <div
-                    className="h-2 rounded-full bg-primary transition-all"
-                    style={{
-                      width: `${stats.totalTests > 0 ? (stats.publishedTests / stats.totalTests) * 100 : 0}%`,
-                    }}
+          {effectiveTestId && testAnalytics && testAnalytics.totalAttempts > 0 && (
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Performance Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Performance Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total Attempts</span>
+                      <span className="font-medium tabular-nums">
+                        {testAnalytics.totalAttempts}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Average Score</span>
+                      <span className="font-medium tabular-nums">
+                        {testAnalytics.averageScore.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Highest Score</span>
+                      <span className="font-medium tabular-nums text-emerald-600">
+                        {testAnalytics.highestScore}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Lowest Score</span>
+                      <span className="font-medium tabular-nums text-destructive">
+                        {testAnalytics.lowestScore}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Score Distribution */}
+                <ChartContainer
+                  title="Score Distribution"
+                  description="How students scored on this test"
+                >
+                  <BarChart
+                    data={testAnalytics.scoreDistribution}
+                    xKey="range"
+                    yKey="count"
+                    height={200}
+                    color="hsl(var(--primary))"
                   />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Avg Questions/Test</span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {stats.totalTests > 0
-                      ? (stats.totalQuestions / stats.totalTests).toFixed(1)
-                      : 0}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Avg Attempts/Test</span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {stats.totalTests > 0
-                      ? (stats.totalAttempts / stats.totalTests).toFixed(1)
-                      : 0}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Questions</span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {stats.totalQuestions}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Published Tests</span>
-                  <span className="text-sm font-medium tabular-nums">
-                    {stats.publishedTests}
-                  </span>
-                </div>
+                </ChartContainer>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
+              {/* Leaderboard */}
+              {testLeaderboard && testLeaderboard.length > 0 && (
+                <Card className="flex-1 min-h-0 flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium">Leaderboard</CardTitle>
+                    <CardDescription className="text-xs">Students ranked by score</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 flex-1 min-h-0 flex flex-col">
+                    <DataTable
+                      columns={leaderboardColumns}
+                      data={testLeaderboard as LeaderboardEntry[]}
+                      searchKey="userName"
+                      searchPlaceholder="Search students..."
+                      showPagination
+                      pageSize={5}
+                      emptyMessage="No entries found."
+                      showColumnVisibility
+                      rowClassName={() => "hover:bg-muted/50 transition-colors"}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {effectiveTestId &&
+            testAnalytics &&
+            testAnalytics.totalAttempts === 0 && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <ClipboardCheck className="mb-2 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">
+                  No attempts for this test yet
+                </p>
+              </div>
+            )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 export const list = query({
   args: {
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
@@ -17,14 +16,8 @@ export const list = query({
       .order("desc")
       .collect();
 
-    if (args.subject && args.topic) {
-      classes = classes.filter(
-        (c) => c.subject === args.subject && c.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       classes = classes.filter((c) => c.subject === args.subject);
-    } else if (args.topic) {
-      classes = classes.filter((c) => c.topic === args.topic);
     }
 
     return classes;
@@ -35,7 +28,6 @@ export const listForBatch = query({
   args: {
     batchId: v.optional(v.id("batches")),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
@@ -48,14 +40,8 @@ export const listForBatch = query({
       .order("desc")
       .collect();
 
-    if (args.subject && args.topic) {
-      classes = classes.filter(
-        (c) => c.subject === args.subject && c.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       classes = classes.filter((c) => c.subject === args.subject);
-    } else if (args.topic) {
-      classes = classes.filter((c) => c.topic === args.topic);
     }
 
     if (args.batchId) {
@@ -83,9 +69,7 @@ export const create = mutation({
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
     videoUrl: v.string(),
-    duration: v.number(),
     thumbnail: v.optional(v.string()),
     batchIds: v.optional(v.array(v.id("batches"))),
   },
@@ -107,9 +91,7 @@ export const update = mutation({
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
-    duration: v.optional(v.number()),
     thumbnail: v.optional(v.string()),
     batchIds: v.optional(v.array(v.id("batches"))),
   },

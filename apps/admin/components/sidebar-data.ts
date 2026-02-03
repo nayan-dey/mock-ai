@@ -4,15 +4,16 @@ import {
   Users,
   IndianRupee,
   FileQuestion,
-  Sparkles,
+
   FileText,
   BookOpen,
   Video,
-  BarChart3,
   Shield,
   UserPlus,
   Database,
   BotMessageSquare,
+  Settings,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -44,26 +45,19 @@ export const sidebarData: NavGroup[] = [
   {
     title: "Content",
     items: [
-      {
-        title: "Questions",
-        url: "/questions",
-        icon: FileQuestion,
-        items: [
-          { title: "Question Bank", url: "/questions", icon: FileQuestion },
-          { title: "AI Extract", url: "/questions/extract", icon: Sparkles },
-        ],
-      },
+      { title: "Questions", url: "/questions", icon: FileQuestion },
       { title: "Tests", url: "/tests", icon: FileText },
       { title: "Notes", url: "/notes", icon: BookOpen },
       { title: "Classes", url: "/classes", icon: Video },
+      { title: "Subjects", url: "/subjects", icon: Layers },
     ],
   },
   {
     title: "System",
     items: [
-      { title: "Analytics", url: "/analytics", icon: BarChart3 },
       { title: "Admins", url: "/admins", icon: Shield },
       { title: "Join Requests", url: "/requests", icon: UserPlus },
+      { title: "Settings", url: "/settings", icon: Settings },
       { title: "Seed Data", url: "/seed", icon: Database },
     ],
   },

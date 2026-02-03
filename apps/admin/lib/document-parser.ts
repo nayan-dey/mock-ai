@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-
 export interface ParseResult {
   text: string;
   error?: string;
@@ -21,7 +19,7 @@ export async function parseDocument(
       mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       mimeType === "application/vnd.ms-excel"
     ) {
-      return parseExcel(buffer);
+      return await parseExcel(buffer);
     }
 
     if (mimeType === "text/csv") {
@@ -106,8 +104,9 @@ async function parsePDFWithOCR(fileBase64: string): Promise<ParseResult> {
   }
 }
 
-function parseExcel(buffer: Buffer): ParseResult {
+async function parseExcel(buffer: Buffer): Promise<ParseResult> {
   try {
+    const XLSX = await import("xlsx");
     const workbook = XLSX.read(buffer, { type: "buffer" });
     const textParts: string[] = [];
 

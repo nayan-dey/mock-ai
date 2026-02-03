@@ -25,6 +25,7 @@ export interface ActionMenuItem {
   onClick: () => void;
   variant?: "default" | "destructive";
   separator?: boolean;
+  disabled?: boolean;
 }
 
 export function createActionsColumn<TData>(
@@ -52,8 +53,9 @@ export function createActionsColumn<TData>(
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      action.onClick();
+                      if (!action.disabled) action.onClick();
                     }}
+                    disabled={action.disabled}
                     className={
                       action.variant === "destructive"
                         ? "text-destructive focus:text-destructive"
@@ -102,6 +104,8 @@ interface AdminTableProps<TData> {
   headerExtra?: React.ReactNode;
   facetedFilters?: FacetedFilterConfig[];
   showColumnVisibility?: boolean;
+  rowClassName?: (row: TData) => string;
+  renderSubRow?: (row: TData) => React.ReactNode | null;
 }
 
 export function AdminTable<TData>({
@@ -123,6 +127,8 @@ export function AdminTable<TData>({
   headerExtra,
   facetedFilters,
   showColumnVisibility = true,
+  rowClassName,
+  renderSubRow,
 }: AdminTableProps<TData>) {
   // Wrap non-action column cells with click handler when onRowClick is provided
   const columns = React.useMemo(() => {
@@ -207,7 +213,7 @@ export function AdminTable<TData>({
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4 h-full flex flex-col">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
@@ -228,8 +234,8 @@ export function AdminTable<TData>({
       {headerExtra}
 
       {/* Table with integrated toolbar */}
-      <Card>
-        <CardContent className="pt-6">
+      <Card className="flex-1 min-h-0 flex flex-col">
+        <CardContent className="pt-6 flex-1 min-h-0 flex flex-col">
           <DataTable
             columns={columns}
             data={data}
@@ -238,14 +244,16 @@ export function AdminTable<TData>({
             showPagination
             pageSize={pageSize}
             emptyMessage={emptyTitle}
-            rowClassName={
-              onRowClick
-                ? () => "cursor-pointer hover:bg-muted/50 transition-colors"
-                : undefined
-            }
+            className="h-full"
+            rowClassName={(row: TData) => {
+              const click = onRowClick ? "cursor-pointer hover:bg-muted/50 transition-colors" : "";
+              const custom = rowClassName?.(row) ?? "";
+              return [click, custom].filter(Boolean).join(" ");
+            }}
             facetedFilters={facetedFilters}
             showColumnVisibility={showColumnVisibility}
             toolbarExtra={toolbarExtra}
+            renderSubRow={renderSubRow}
           />
         </CardContent>
       </Card>

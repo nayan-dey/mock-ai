@@ -24,11 +24,25 @@ import {
   ArchiveRestore,
   BookOpen,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useUrlState } from "@/hooks/use-url-state";
+import { getStatusBadge } from "@/lib/utils";
+
+const facetedFilters: FacetedFilterConfig[] = [
+  {
+    columnId: "status",
+    title: "Status",
+    options: [
+      { label: "Draft", value: "draft" },
+      { label: "Published", value: "published" },
+      { label: "Archived", value: "archived" },
+    ],
+  },
+];
 
 interface Test {
   _id: string;
@@ -49,6 +63,7 @@ export function TestsClient() {
   const [batchFilter, setBatchFilter] = useUrlState("batch", "all");
   const [durationFilter, setDurationFilter] = useUrlState("duration", "all");
   const [deleteTestId, setDeleteTestId] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const tests = useQuery(api.tests.list, {});
   const batches = useQuery(api.batches.list, {});
@@ -105,49 +120,12 @@ export function TestsClient() {
     setDeleteTestId(null);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "published":
-        return (
-          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
-            Published
-          </Badge>
-        );
-      case "draft":
-        return (
-          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-500">
-            Draft
-          </Badge>
-        );
-      case "archived":
-        return (
-          <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
-            Archived
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const facetedFilters: FacetedFilterConfig[] = [
-    {
-      columnId: "status",
-      title: "Status",
-      options: [
-        { label: "Draft", value: "draft" },
-        { label: "Published", value: "published" },
-        { label: "Archived", value: "archived" },
-      ],
-    },
-  ];
-
-  const columns: ColumnDef<Test, any>[] = [
+  const columns: ColumnDef<Test, any>[] = useMemo(() => [
     {
       accessorKey: "title",
       header: ({ column }) => <SortableHeader column={column} title="Title" />,
       cell: ({ row }) => (
-        <span className="font-medium">{row.getValue("title")}</span>
+        <span className="font-medium truncate block max-w-[200px]">{row.getValue("title")}</span>
       ),
     },
     {
@@ -175,12 +153,12 @@ export function TestsClient() {
       accessorKey: "status",
       header: ({ column }) => <SortableHeader column={column} title="Status" />,
       cell: ({ row }) => (
-        <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1.5">
           {getStatusBadge(row.getValue("status"))}
           {row.original.status !== "draft" && (
             <Badge
               variant={row.original.answerKeyPublished ? "success" : "outline"}
-              className="text-[10px] w-fit"
+              className="text-[10px] shrink-0"
             >
               {row.original.answerKeyPublished ? "Key Published" : "Key Hidden"}
             </Badge>
@@ -200,14 +178,14 @@ export function TestsClient() {
           return <span className="text-xs text-muted-foreground">All</span>;
         }
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex gap-1">
             {ids.slice(0, 2).map((id) => (
-              <Badge key={id} variant="secondary" className="text-xs">
+              <Badge key={id} variant="secondary" className="text-xs truncate max-w-[100px]">
                 {batchMap.get(id) || "..."}
               </Badge>
             ))}
             {ids.length > 2 && (
-              <Badge variant="secondary" className="text-xs">+{ids.length - 2}</Badge>
+              <Badge variant="secondary" className="text-xs shrink-0">+{ids.length - 2}</Badge>
             )}
           </div>
         );
@@ -231,61 +209,83 @@ export function TestsClient() {
         },
       ];
 
+      const isActionLoading = loadingAction !== null;
+
       if (test.status === "draft") {
+        const key = `publish-${test._id}`;
         actions.push({
-          label: "Publish",
-          icon: <Globe className="h-4 w-4" />,
+          label: loadingAction === key ? "Publishing…" : "Publish",
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await publishTest({ id: test._id as any });
               toast({ title: "Test published" });
             } catch {
               toast({ title: "Error", description: "Failed to publish.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
       }
 
       if (test.status === "published") {
+        const key = `archive-${test._id}`;
         actions.push({
-          label: "Archive",
-          icon: <Archive className="h-4 w-4" />,
+          label: loadingAction === key ? "Archiving…" : "Archive",
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await archiveTest({ id: test._id as any });
               toast({ title: "Test archived" });
             } catch {
               toast({ title: "Error", description: "Failed to archive.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
       }
 
       if (test.status === "archived") {
+        const key = `unarchive-${test._id}`;
         actions.push({
-          label: "Unarchive",
-          icon: <ArchiveRestore className="h-4 w-4" />,
+          label: loadingAction === key ? "Unarchiving…" : "Unarchive",
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArchiveRestore className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await unarchiveTest({ id: test._id as any });
               toast({ title: "Test unarchived" });
             } catch {
               toast({ title: "Error", description: "Failed to unarchive.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
       }
 
       if (test.status !== "draft") {
+        const key = `toggleKey-${test._id}`;
         actions.push({
-          label: test.answerKeyPublished ? "Hide Answer Key" : "Publish Answer Key",
-          icon: <BookOpen className="h-4 w-4" />,
+          label: loadingAction === key ? "Updating…" : (test.answerKeyPublished ? "Hide Answer Key" : "Publish Answer Key"),
+          icon: loadingAction === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />,
+          disabled: isActionLoading,
           onClick: async () => {
+            setLoadingAction(key);
             try {
               await toggleAnswerKey({ id: test._id as any });
               toast({ title: test.answerKeyPublished ? "Answer key hidden" : "Answer key published" });
             } catch {
               toast({ title: "Error", description: "Failed to toggle answer key.", variant: "destructive" });
+            } finally {
+              setLoadingAction(null);
             }
           },
         });
@@ -301,7 +301,7 @@ export function TestsClient() {
 
       return actions;
     }),
-  ];
+  ], [batchMap, router, toast, publishTest, archiveTest, unarchiveTest, toggleAnswerKey, setDeleteTestId, loadingAction]);
 
   return (
     <>
@@ -328,7 +328,7 @@ export function TestsClient() {
       toolbarExtra={
         <>
           <Select value={batchFilter} onValueChange={setBatchFilter}>
-            <SelectTrigger className="h-8 w-[160px]">
+            <SelectTrigger className="h-8 w-[160px] shrink-0">
               <SelectValue placeholder="All Batches" />
             </SelectTrigger>
             <SelectContent>
@@ -339,7 +339,7 @@ export function TestsClient() {
             </SelectContent>
           </Select>
           <Select value={durationFilter} onValueChange={setDurationFilter}>
-            <SelectTrigger className="h-8 w-[140px]">
+            <SelectTrigger className="h-8 w-[140px] shrink-0">
               <SelectValue placeholder="All Durations" />
             </SelectTrigger>
             <SelectContent>

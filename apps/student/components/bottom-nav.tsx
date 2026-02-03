@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignedIn } from "@clerk/nextjs";
 import { cn } from "@repo/ui";
+import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import {
   LayoutDashboard,
   FileText,
@@ -23,25 +23,15 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    // Detect keyboard using visualViewport API
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const handleResize = () => {
-      // If viewport height is significantly less than window height, keyboard is likely open
-      const keyboardOpen = viewport.height < window.innerHeight * 0.75;
-      setIsKeyboardOpen(keyboardOpen);
-    };
-
-    viewport.addEventListener("resize", handleResize);
-    return () => viewport.removeEventListener("resize", handleResize);
-  }, []);
+  const isKeyboardOpen = useKeyboardOpen();
 
   // Don't show bottom nav on test taking page
   if (pathname.match(/^\/tests\/[^/]+$/) && !pathname.endsWith("/tests")) {
+    return null;
+  }
+
+  // Hide bottom nav on full-screen pages
+  if (pathname === "/onboarding" || pathname === "/suspended") {
     return null;
   }
 

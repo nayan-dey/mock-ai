@@ -9,6 +9,7 @@ import {
   Badge,
   formatDate,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
 import { BookOpen, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
@@ -20,9 +21,8 @@ interface Note {
   title: string;
   description: string;
   subject: string;
-  topic: string;
-  fileUrl: string;
-  storageId?: string;
+  storageId: string;
+  fileUrl: string | null;
   batchIds?: string[];
   createdAt: number;
 }
@@ -30,6 +30,7 @@ interface Note {
 export function NotesClient() {
   const notes = useQuery(api.notes.list, {});
   const batches = useQuery(api.batches.list, {});
+  const subjects = useQuery(api.subjects.list, {});
   const deleteNote = useMutation(api.notes.remove);
   const { toast } = useToast();
 
@@ -47,6 +48,19 @@ export function NotesClient() {
     return map;
   }, [batches]);
 
+  const facetedFilters = useMemo<FacetedFilterConfig[]>(() => [
+    {
+      columnId: "subject",
+      title: "Subject",
+      options: (subjects ?? []).map((s) => ({ label: s.name, value: s.name })),
+    },
+    {
+      columnId: "batchFilter",
+      title: "Batch",
+      options: (batches ?? []).map((b) => ({ label: b.name, value: b._id })),
+    },
+  ], [batches, subjects]);
+
   const handleDelete = async (id: string) => {
     try {
       await deleteNote({ id: id as any });
@@ -57,7 +71,7 @@ export function NotesClient() {
     setDeleteNoteId(null);
   };
 
-  const columns: ColumnDef<Note, any>[] = [
+  const columns = useMemo<ColumnDef<Note>[]>(() => [
     {
       accessorKey: "title",
       header: ({ column }) => <SortableHeader column={column} title="Title" />,
@@ -73,13 +87,6 @@ export function NotesClient() {
       ),
     },
     {
-      accessorKey: "topic",
-      header: ({ column }) => <SortableHeader column={column} title="Topic" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.getValue("topic")}</span>
-      ),
-    },
-    {
       id: "batches",
       header: "Batches",
       cell: ({ row }) => {
@@ -88,14 +95,14 @@ export function NotesClient() {
           return <span className="text-xs text-muted-foreground">All Batches</span>;
         }
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex gap-1">
             {ids.slice(0, 2).map((id) => (
-              <Badge key={id} variant="secondary" className="text-xs">
+              <Badge key={id} variant="secondary" className="text-xs truncate max-w-[100px]">
                 {batchMap.get(id) || "..."}
               </Badge>
             ))}
             {ids.length > 2 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs shrink-0">
                 +{ids.length - 2}
               </Badge>
             )}
@@ -112,11 +119,23 @@ export function NotesClient() {
         </span>
       ),
     },
+    {
+      id: "batchFilter",
+      accessorFn: (row) => row.batchIds ?? [],
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue: string[]) => {
+        const batchIds = row.getValue<string[]>(columnId);
+        if (!batchIds || batchIds.length === 0) return true; // "All Batches" matches any filter
+        return filterValue.some((val) => batchIds.includes(val));
+      },
+      enableHiding: true,
+    },
     createActionsColumn<Note>((note) => [
       {
         label: "View File",
         icon: <ExternalLink className="h-4 w-4" />,
-        onClick: () => window.open(note.fileUrl, "_blank"),
+        onClick: () => { if (note.fileUrl) window.open(note.fileUrl, "_blank"); },
       },
       {
         label: "Edit",
@@ -134,7 +153,7 @@ export function NotesClient() {
         separator: true,
       },
     ]),
-  ];
+  ], [batchMap]);
 
   return (
     <>
@@ -146,6 +165,7 @@ export function NotesClient() {
         searchPlaceholder="Search notes..."
         title="Notes"
         description="Manage study materials"
+        facetedFilters={facetedFilters}
         primaryAction={{
           label: "Add Note",
           onClick: () => {

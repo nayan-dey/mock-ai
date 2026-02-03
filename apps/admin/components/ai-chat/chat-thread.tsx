@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { NindoLogo } from "./nindo-logo";
 import { useChatContext } from "./chat-provider";
 import { ChatMessage } from "./chat-message";
 import { ChatWelcome } from "./chat-welcome";
@@ -48,7 +49,7 @@ export function ChatThread() {
                 <div className="px-4 py-3">
                   <div className="flex items-start gap-3">
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-                      <Sparkles className="h-5 w-5 animate-pulse text-primary" strokeWidth={1.5} />
+                      <NindoLogo className="h-5 w-5 animate-pulse text-primary" />
                     </div>
                     <div className="flex items-center gap-1 pt-1">
                       <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
@@ -71,8 +72,10 @@ export function ChatThread() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <ChatInput />
+      {/* Input Area - pinned to bottom */}
+      <div className="shrink-0">
+        <ChatInput />
+      </div>
     </div>
   );
 }

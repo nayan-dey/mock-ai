@@ -76,10 +76,20 @@ const config: Partial<Config> = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(calc(-100% - 1.5rem))" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        marquee: "marquee var(--duration, 40s) linear infinite",
+        shimmer: "shimmer 2s linear infinite",
       },
     },
   },

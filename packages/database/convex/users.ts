@@ -1,14 +1,20 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAdmin, requireAuth, getAuthUser, getOrgId } from "./lib/auth";
 
 export const getByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
+    if (!user) return null;
+    const profileImageUrl = user.profileImageId
+      ? await ctx.storage.getUrl(user.profileImageId)
+      : null;
+    return { ...user, profileImageUrl };
   },
 });
 
@@ -168,11 +174,19 @@ export const upsertAsAdmin = mutation({
   },
 });
 
+export const generateProfileImageUploadUrl = mutation({
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 export const updateProfile = mutation({
   args: {
     name: v.optional(v.string()),
     bio: v.optional(v.string()),
     age: v.optional(v.number()),
+    profileImageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     // Derive userId from auth — users can only update their own profile
@@ -225,6 +239,22 @@ export const suspendUser = mutation({
       suspendReason: args.reason,
     });
 
+    // Notify admins about the suspension
+    await ctx.scheduler.runAfter(
+      0,
+      internal.notifications.createNotification,
+      {
+        organizationId: orgId,
+        type: "student_suspended",
+        title: "Student Suspended",
+        message: `${user.name} was suspended${args.reason ? `: ${args.reason}` : ""}`,
+        referenceId: args.userId,
+        referenceType: "user",
+        actorId: admin._id,
+        actorName: admin.name,
+      }
+    );
+
     return { success: true };
   },
 });
@@ -255,6 +285,22 @@ export const unsuspendUser = mutation({
       suspendReason: undefined,
       batchId: args.batchId,
     });
+
+    // Notify admins about the unsuspension
+    await ctx.scheduler.runAfter(
+      0,
+      internal.notifications.createNotification,
+      {
+        organizationId: orgId,
+        type: "student_unsuspended",
+        title: "Student Unsuspended",
+        message: `${user.name} was unsuspended and assigned to batch "${batch.name}"`,
+        referenceId: args.userId,
+        referenceType: "user",
+        actorId: admin._id,
+        actorName: admin.name,
+      }
+    );
 
     return { success: true };
   },
@@ -307,11 +353,16 @@ export const getPublicProfile = query({
 
     const batch = user.batchId ? await ctx.db.get(user.batchId) : null;
 
+    const profileImageUrl = user.profileImageId
+      ? await ctx.storage.getUrl(user.profileImageId)
+      : null;
+
     return {
       _id: user._id,
       name: user.name,
       bio: user.bio,
       age: user.age,
+      profileImageUrl,
       createdAt: user.createdAt,
       batchId: user.batchId,
       batchName: batch?.name || null,

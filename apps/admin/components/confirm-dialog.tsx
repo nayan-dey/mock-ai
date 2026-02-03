@@ -1,5 +1,7 @@
 "use client";
 
+import { useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,13 +35,23 @@ export function ConfirmDialog({
   onConfirm,
   isLoading = false,
 }: ConfirmDialogProps) {
-  const handleConfirm = async () => {
-    await onConfirm();
-    onOpenChange(false);
+  const [isPending, startTransition] = useTransition();
+  const busy = isLoading || isPending;
+
+  const handleConfirm = () => {
+    if (busy) return;
+    startTransition(async () => {
+      try {
+        await onConfirm();
+        onOpenChange(false);
+      } catch {
+        // Let caller handle errors via toast etc.
+      }
+    });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={busy ? undefined : onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -49,16 +61,23 @@ export function ConfirmDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isLoading}
+            disabled={busy}
           >
             {cancelLabel}
           </Button>
           <Button
             variant={variant}
             onClick={handleConfirm}
-            disabled={isLoading}
+            disabled={busy}
           >
-            {isLoading ? "Processing\u2026" : confirmLabel}
+            {busy ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              confirmLabel
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

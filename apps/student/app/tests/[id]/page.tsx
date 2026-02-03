@@ -1,10 +1,10 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useState, useCallback, useEffect, useRef, useMemo, useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -28,25 +28,20 @@ import {
   BackButton,
   type QuestionStatus,
 } from "@repo/ui";
-import { Clock, ClipboardList, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain, Info } from "lucide-react";
-import type { GenericId } from "convex/values";
-
-type Id<T extends string> = GenericId<T>;
+import { Clock, ClipboardList, Trophy, AlertTriangle, ArrowLeft, ArrowRight, Play, RotateCcw, CheckCircle, List, X, Flag, Brain, Info, Loader2 } from "lucide-react";
+import type { Id } from "@repo/database/dataModel";
 
 type TestId = Id<"tests">;
 type QuestionId = Id<"questions">;
 type AttemptId = Id<"attempts">;
 
+const EMPTY_OPTIONS: number[] = [];
+
 export default function TestPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const testId = params.id as string;
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
   const testWithQuestions = useQuery(api.tests.getWithQuestions, {
     id: testId as TestId,
   });
@@ -72,11 +67,26 @@ export default function TestPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [visitedQuestions, setVisitedQuestions] = useState<Set<string>>(new Set());
   const [showInstructions, setShowInstructions] = useState(false);
+  const [questionOrder, setQuestionOrder] = useState<Id<"questions">[] | null>(null);
 
   // Swipe navigation refs — direct DOM manipulation during drag for zero re-renders
   const questionAreaRef = useRef<HTMLDivElement>(null);
   const touchRef = useRef<{ startX: number; startY: number; locked: boolean | null } | null>(null);
   const isAnimatingRef = useRef(false);
+
+  // Reorder questions based on the attempt's randomized questionOrder
+  const orderedQuestionDetails = useMemo(() => {
+    if (!testWithQuestions) return [];
+    if (!questionOrder || !isStarted) return testWithQuestions.questionDetails;
+    const detailsMap = new Map(
+      testWithQuestions.questionDetails.map((q) => [q._id, q])
+    );
+    const ordered = questionOrder
+      .map((id) => detailsMap.get(id))
+      .filter((q): q is NonNullable<typeof q> => q != null);
+    // Fallback: if questionOrder doesn't match (old attempt without it), use original order
+    return ordered.length > 0 ? ordered : testWithQuestions.questionDetails;
+  }, [testWithQuestions, questionOrder, isStarted]);
 
   const totalQuestions = testWithQuestions?.questionDetails.length ?? 0;
 
@@ -233,7 +243,7 @@ export default function TestPage() {
   // Track visited questions
   useEffect(() => {
     if (isStarted && testWithQuestions) {
-      const q = testWithQuestions.questionDetails[currentQuestion];
+      const q = orderedQuestionDetails[currentQuestion];
       if (q) {
         setVisitedQuestions((prev) => {
           if (prev.has(q._id)) return prev;
@@ -261,17 +271,28 @@ export default function TestPage() {
       setCurrentQuestion(0);
       setAnswers(new Map());
       setMarkedForReview(new Set());
+      setQuestionOrder(null); // Will be picked up from existingAttempt via effect
       setIsStarted(true);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Sync questionOrder from existingAttempt when it becomes available after starting
+  useEffect(() => {
+    if (isStarted && existingAttempt?.questionOrder && !questionOrder) {
+      setQuestionOrder(existingAttempt.questionOrder as Id<"questions">[]);
+    }
+  }, [isStarted, existingAttempt, questionOrder]);
+
   const handleResumeTest = () => {
     if (!existingAttempt || existingAttempt.status !== "in_progress") return;
 
     setAttemptId(existingAttempt._id);
     setStartTime(existingAttempt.startedAt);
+    if (existingAttempt.questionOrder) {
+      setQuestionOrder(existingAttempt.questionOrder as Id<"questions">[]);
+    }
     const answersMap = new Map<string, number[]>();
     existingAttempt.answers.forEach((a) => {
       answersMap.set(a.questionId, a.selected);
@@ -290,7 +311,7 @@ export default function TestPage() {
 
   const handleSelectAnswer = async (selected: number[]) => {
     if (!attemptId || !testWithQuestions) return;
-    const question = testWithQuestions.questionDetails[currentQuestion];
+    const question = orderedQuestionDetails[currentQuestion];
     if (!question) return;
 
     setAnswers((prev) => new Map(prev).set(question._id, selected));
@@ -304,7 +325,7 @@ export default function TestPage() {
 
   const handleMarkForReview = () => {
     if (!testWithQuestions) return;
-    const question = testWithQuestions.questionDetails[currentQuestion];
+    const question = orderedQuestionDetails[currentQuestion];
     if (!question) return;
 
     setMarkedForReview((prev) => {
@@ -318,9 +339,11 @@ export default function TestPage() {
     });
   };
 
-  const getQuestionStatuses = (): QuestionStatus[] => {
+  const answeredCount = useMemo(() => [...answers.values()].filter((a) => a.length > 0).length, [answers]);
+
+  const questionStatuses = useMemo((): QuestionStatus[] => {
     if (!testWithQuestions) return [];
-    return testWithQuestions.questionDetails.map((q, index) => {
+    return orderedQuestionDetails.map((q, index) => {
       if (!q) return "not-visited";
       if (index === currentQuestion) return "current";
       const isAnswered = answers.has(q._id) && answers.get(q._id)!.length > 0;
@@ -333,13 +356,17 @@ export default function TestPage() {
       if (isVisited) return "not-answered";
       return "not-visited";
     });
-  };
+  }, [testWithQuestions, orderedQuestionDetails, currentQuestion, answers, markedForReview, visitedQuestions]);
 
-  const handleSubmit = async () => {
+  const [isSubmitting, startSubmitting] = useTransition();
+
+  const handleSubmit = () => {
     if (!attemptId) return;
-    await submitAttempt({ attemptId });
-    localStorage.removeItem(`test-${testId}-currentQuestion`);
-    router.push(`/results/${attemptId}`);
+    startSubmitting(async () => {
+      await submitAttempt({ attemptId });
+      localStorage.removeItem(`test-${testId}-currentQuestion`);
+      router.push(`/results/${attemptId}`);
+    });
   };
 
   const handleTimeUp = useCallback(() => {
@@ -597,10 +624,8 @@ export default function TestPage() {
     );
   }
 
-  const currentQ = testWithQuestions.questionDetails[currentQuestion];
+  const currentQ = orderedQuestionDetails[currentQuestion];
   if (!currentQ) return null;
-
-  const answeredCount = [...answers.values()].filter((a) => a.length > 0).length;
 
   return (
     <div className="-mb-20 bg-muted/30 md:-mb-0">
@@ -610,7 +635,7 @@ export default function TestPage() {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-semibold sm:text-base lg:text-lg">{testWithQuestions.title}</h1>
             <p className="text-xs text-muted-foreground md:hidden">
-              Q{currentQuestion + 1}/{testWithQuestions.questionDetails.length}
+              Q{currentQuestion + 1}/{orderedQuestionDetails.length}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
@@ -655,7 +680,7 @@ export default function TestPage() {
                   questionNumber={currentQuestion + 1}
                   text={currentQ.text}
                   options={currentQ.options}
-                  selectedOptions={answers.get(currentQ._id) || []}
+                  selectedOptions={answers.get(currentQ._id) ?? EMPTY_OPTIONS}
                   isMultipleCorrect={currentQ.correctOptions.length > 1}
                   markedForReview={markedForReview.has(currentQ._id)}
                   onSelect={handleSelectAnswer}
@@ -679,7 +704,7 @@ export default function TestPage() {
                 size="sm"
                 onClick={() => navigateToQuestion(currentQuestion + 1, "left")}
                 disabled={
-                  currentQuestion === testWithQuestions.questionDetails.length - 1
+                  currentQuestion === orderedQuestionDetails.length - 1
                 }
               >
                 Next
@@ -696,9 +721,9 @@ export default function TestPage() {
               </CardHeader>
               <CardContent>
                 <TestNavigation
-                  totalQuestions={testWithQuestions.questionDetails.length}
+                  totalQuestions={orderedQuestionDetails.length}
                   currentQuestion={currentQuestion}
-                  questionStatuses={getQuestionStatuses()}
+                  questionStatuses={questionStatuses}
                   onQuestionSelect={setCurrentQuestion}
                 />
               </CardContent>
@@ -758,10 +783,10 @@ export default function TestPage() {
           {/* Next Button */}
           <button
             onClick={() => navigateToQuestion(currentQuestion + 1, "left")}
-            disabled={currentQuestion === testWithQuestions.questionDetails.length - 1}
+            disabled={currentQuestion === orderedQuestionDetails.length - 1}
             className={cn(
               "flex flex-col items-center gap-0.5 px-4 py-1.5",
-              currentQuestion === testWithQuestions.questionDetails.length - 1
+              currentQuestion === orderedQuestionDetails.length - 1
                 ? "opacity-40"
                 : "active:scale-95"
             )}
@@ -793,7 +818,7 @@ export default function TestPage() {
             <div>
               <h2 className="text-sm font-semibold">Question Navigator</h2>
               <p className="text-xs text-muted-foreground">
-                {answeredCount} of {testWithQuestions.questionDetails.length} answered
+                {answeredCount} of {orderedQuestionDetails.length} answered
               </p>
             </div>
             <Button
@@ -809,9 +834,9 @@ export default function TestPage() {
           {/* Content */}
           <div className="flex-1 overflow-auto p-4">
             <TestNavigation
-              totalQuestions={testWithQuestions.questionDetails.length}
+              totalQuestions={orderedQuestionDetails.length}
               currentQuestion={currentQuestion}
-              questionStatuses={getQuestionStatuses()}
+              questionStatuses={questionStatuses}
               onQuestionSelect={(q) => {
                 setCurrentQuestion(q);
                 setShowNavDrawer(false);
@@ -866,7 +891,7 @@ export default function TestPage() {
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-xl font-bold text-success sm:text-2xl">
-                  {[...answers.values()].filter((a) => a.length > 0).length}
+                  {answeredCount}
                 </p>
                 <p className="text-xs text-muted-foreground sm:text-sm">Answered</p>
               </div>
@@ -878,19 +903,25 @@ export default function TestPage() {
               </div>
               <div>
                 <p className="text-xl font-bold sm:text-2xl">
-                  {testWithQuestions.questionDetails.length -
-                    [...answers.values()].filter((a) => a.length > 0).length}
+                  {orderedQuestionDetails.length - answeredCount}
                 </p>
                 <p className="text-xs text-muted-foreground sm:text-sm">Unanswered</p>
               </div>
             </div>
           </div>
           <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => setShowSubmitDialog(false)} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowSubmitDialog(false)} disabled={isSubmitting} className="w-full sm:w-auto">
               Continue Test
             </Button>
-            <Button variant="destructive" onClick={handleSubmit} className="w-full sm:w-auto">
-              Submit Test
+            <Button variant="destructive" onClick={handleSubmit} disabled={isSubmitting} className="w-full sm:w-auto">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                "Submit Test"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

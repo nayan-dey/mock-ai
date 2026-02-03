@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -13,10 +13,6 @@ import {
   Badge,
   Button,
   formatDate,
-  ChartContainer,
-  LineChart,
-  RadarChart,
-  ActivityHeatmap,
   PageHeader,
   StatCard,
   Tabs,
@@ -35,7 +31,13 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useMemo } from "react";
+
+const ChartContainer = dynamic(() => import("@repo/ui").then(m => ({ default: m.ChartContainer })), { ssr: false });
+const LineChart = dynamic(() => import("@repo/ui").then(m => ({ default: m.LineChart })), { ssr: false });
+const RadarChart = dynamic(() => import("@repo/ui").then(m => ({ default: m.RadarChart })), { ssr: false });
+const ActivityHeatmap = dynamic(() => import("@repo/ui").then(m => ({ default: m.ActivityHeatmap })), { ssr: false });
 
 function DashboardSkeleton() {
   return (
@@ -57,12 +59,7 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,
@@ -113,7 +110,7 @@ export default function DashboardPage() {
       : "skip"
   );
 
-  if (!isUserLoaded || (user && dbUser === undefined)) {
+  if (isUserLoading) {
     return <DashboardSkeleton />;
   }
 

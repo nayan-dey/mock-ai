@@ -1,10 +1,11 @@
 "use client";
 
-import { X, Plus, MessageSquare, Trash2 } from "lucide-react";
+import { X, Plus, MessageSquare, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@repo/ui";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { cn } from "@repo/ui";
+import { useState } from "react";
 import { useChatContext } from "./chat-provider";
 
 interface ChatSidebarProps {
@@ -15,6 +16,7 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
   const { selectConversation, startNewChat, currentConversationId } = useChatContext();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const conversations = useQuery(
     api.chat.getUserConversations,
@@ -35,11 +37,16 @@ export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
 
   const handleDelete = async (conversationId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // If we're deleting the current conversation, start a new chat
-    if (conversationId === currentConversationId) {
-      startNewChat();
+    if (deletingId) return;
+    setDeletingId(conversationId);
+    try {
+      if (conversationId === currentConversationId) {
+        startNewChat();
+      }
+      await deleteConversation({ conversationId: conversationId as any });
+    } finally {
+      setDeletingId(null);
     }
-    await deleteConversation({ conversationId: conversationId as any });
   };
 
   return (
@@ -126,8 +133,13 @@ export function ChatSidebar({ isOpen, onClose, userId }: ChatSidebarProps) {
                     size="icon"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => handleDelete(conv._id, e)}
+                    disabled={deletingId === conv._id}
                   >
-                    <Trash2 className="h-3 w-3 text-stone-400 hover:text-red-500" />
+                    {deletingId === conv._id ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-stone-400" />
+                    ) : (
+                      <Trash2 className="h-3 w-3 text-stone-400 hover:text-red-500" />
+                    )}
                   </Button>
                 </div>
               ))}

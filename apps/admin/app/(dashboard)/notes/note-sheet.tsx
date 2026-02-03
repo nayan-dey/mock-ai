@@ -8,16 +8,11 @@ import {
   Textarea,
   Label,
   useToast,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Badge,
 } from "@repo/ui";
 import { Upload, X, FileText } from "lucide-react";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface NoteSheetProps {
   open: boolean;
@@ -27,9 +22,7 @@ interface NoteSheetProps {
     title: string;
     description: string;
     subject: string;
-    topic: string;
-    fileUrl: string;
-    storageId?: string;
+    storageId: string;
     batchIds?: string[];
   } | null;
 }
@@ -44,14 +37,12 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // File upload state
   const [file, setFile] = useState<File | null>(null);
   const [uploadedStorageId, setUploadedStorageId] = useState<string | null>(null);
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,23 +53,12 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       setTitle(note?.title ?? "");
       setDescription(note?.description ?? "");
       setSubject(note?.subject ?? "");
-      setTopic(note?.topic ?? "");
       setSelectedBatchIds(note?.batchIds ?? []);
       setFile(null);
       setUploadedStorageId(note?.storageId ?? null);
-      setUploadedFileUrl(note?.fileUrl ?? null);
       setIsUploading(false);
     }
   }, [open, note]);
-
-  // Reset topic when subject changes
-  useEffect(() => {
-    if (subject && note?.subject !== subject) {
-      setTopic("");
-    }
-  }, [subject, note?.subject]);
-
-  const topics = subject ? TOPICS[subject as keyof typeof TOPICS] || [] : [];
 
   const handleFileSelect = async (selectedFile: File) => {
     if (selectedFile.type !== "application/pdf") {
@@ -102,7 +82,6 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       });
       const { storageId } = await result.json();
       setUploadedStorageId(storageId);
-      setUploadedFileUrl(null); // Will derive from storageId
     } catch {
       toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
       setFile(null);
@@ -126,12 +105,12 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !subject || !topic) {
+    if (!title.trim() || !subject) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
-    if (!isEdit && !uploadedStorageId && !uploadedFileUrl) {
+    if (!uploadedStorageId) {
       toast({ title: "Please upload a PDF file", variant: "destructive" });
       return;
     }
@@ -144,9 +123,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
           title: title.trim(),
           description: description.trim(),
           subject,
-          topic,
-          ...(uploadedStorageId ? { storageId: uploadedStorageId as any } : {}),
-          ...(uploadedFileUrl ? { fileUrl: uploadedFileUrl } : {}),
+          ...(file ? { storageId: uploadedStorageId as any } : {}),
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
         toast({ title: "Note updated" });
@@ -155,9 +132,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
           title: title.trim(),
           description: description.trim(),
           subject,
-          topic,
-          fileUrl: uploadedFileUrl || "",
-          ...(uploadedStorageId ? { storageId: uploadedStorageId as any } : {}),
+          storageId: uploadedStorageId as any,
           batchIds: selectedBatchIds.length > 0 ? (selectedBatchIds as any[]) : undefined,
         });
         toast({ title: "Note created" });
@@ -174,7 +149,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
     }
   };
 
-  const hasFile = file || uploadedFileUrl || uploadedStorageId;
+  const hasFile = file || uploadedStorageId;
 
   return (
     <AdminSheet
@@ -185,7 +160,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
       onSubmit={handleSubmit}
       submitLabel={isEdit ? "Save Changes" : "Add Note"}
       isSubmitting={isSubmitting || isUploading}
-      submitDisabled={!title.trim() || !subject || !topic || (!hasFile && !isEdit)}
+      submitDisabled={!title.trim() || !subject || !hasFile}
       wide
     >
       <div className="space-y-4">
@@ -210,33 +185,9 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="note-subject">Subject *</Label>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger id="note-subject">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="note-topic">Topic *</Label>
-            <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger id="note-topic">
-                <SelectValue placeholder="Select topic" />
-              </SelectTrigger>
-              <SelectContent>
-                {topics.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="note-subject">Subject *</Label>
+          <SubjectSelector value={subject} onValueChange={setSubject} id="note-subject" />
         </div>
 
         {/* PDF Upload */}
@@ -262,8 +213,7 @@ export function NoteSheet({ open, onOpenChange, note }: NoteSheetProps) {
                 type="button"
                 onClick={() => {
                   setFile(null);
-                  setUploadedStorageId(null);
-                  if (!isEdit) setUploadedFileUrl(null);
+                  setUploadedStorageId(isEdit ? note?.storageId ?? null : null);
                 }}
                 aria-label="Remove file"
                 className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"

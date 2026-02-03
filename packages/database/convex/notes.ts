@@ -5,7 +5,6 @@ import { requireAdmin, requireAuth, getOrgId } from "./lib/auth";
 export const list = query({
   args: {
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
@@ -17,17 +16,20 @@ export const list = query({
       .order("desc")
       .collect();
 
-    if (args.subject && args.topic) {
-      notes = notes.filter(
-        (n) => n.subject === args.subject && n.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       notes = notes.filter((n) => n.subject === args.subject);
-    } else if (args.topic) {
-      notes = notes.filter((n) => n.topic === args.topic);
     }
 
-    return notes;
+    const notesWithUrls = await Promise.all(
+      notes.map(async (note) => ({
+        ...note,
+        fileUrl: note.storageId
+          ? await ctx.storage.getUrl(note.storageId)
+          : note.fileUrl ?? null,
+      }))
+    );
+
+    return notesWithUrls;
   },
 });
 
@@ -35,7 +37,6 @@ export const listForBatch = query({
   args: {
     batchId: v.optional(v.id("batches")),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
@@ -48,25 +49,32 @@ export const listForBatch = query({
       .order("desc")
       .collect();
 
-    if (args.subject && args.topic) {
-      notes = notes.filter(
-        (n) => n.subject === args.subject && n.topic === args.topic
-      );
-    } else if (args.subject) {
+    if (args.subject) {
       notes = notes.filter((n) => n.subject === args.subject);
-    } else if (args.topic) {
-      notes = notes.filter((n) => n.topic === args.topic);
     }
 
+    let filtered;
     if (args.batchId) {
-      return notes.filter(
+      filtered = notes.filter(
         (note) =>
           !note.batchIds ||
           note.batchIds.length === 0 ||
           note.batchIds.includes(args.batchId!)
       );
+    } else {
+      filtered = notes.filter((note) => !note.batchIds || note.batchIds.length === 0);
     }
-    return notes.filter((note) => !note.batchIds || note.batchIds.length === 0);
+
+    const notesWithUrls = await Promise.all(
+      filtered.map(async (note) => ({
+        ...note,
+        fileUrl: note.storageId
+          ? await ctx.storage.getUrl(note.storageId)
+          : note.fileUrl ?? null,
+      }))
+    );
+
+    return notesWithUrls;
   },
 });
 
@@ -74,7 +82,14 @@ export const getById = query({
   args: { id: v.id("notes") },
   handler: async (ctx, args) => {
     await requireAuth(ctx);
-    return await ctx.db.get(args.id);
+    const note = await ctx.db.get(args.id);
+    if (!note) return null;
+    return {
+      ...note,
+      fileUrl: note.storageId
+        ? await ctx.storage.getUrl(note.storageId)
+        : note.fileUrl ?? null,
+    };
   },
 });
 
@@ -85,21 +100,12 @@ export const generateUploadUrl = mutation({
   },
 });
 
-export const getFileUrl = query({
-  args: { storageId: v.id("_storage") },
-  handler: async (ctx, args) => {
-    return await ctx.storage.getUrl(args.storageId);
-  },
-});
-
 export const create = mutation({
   args: {
     title: v.string(),
     description: v.string(),
     subject: v.string(),
-    topic: v.string(),
-    fileUrl: v.string(),
-    storageId: v.optional(v.id("_storage")),
+    storageId: v.id("_storage"),
     batchIds: v.optional(v.array(v.id("batches"))),
   },
   handler: async (ctx, args) => {
@@ -120,8 +126,6 @@ export const update = mutation({
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     subject: v.optional(v.string()),
-    topic: v.optional(v.string()),
-    fileUrl: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     batchIds: v.optional(v.array(v.id("batches"))),
   },
@@ -145,6 +149,9 @@ export const remove = mutation({
     const orgId = getOrgId(admin);
     const note = await ctx.db.get(args.id);
     if (note && note.organizationId !== orgId) throw new Error("Access denied");
+    if (note?.storageId) {
+      await ctx.storage.delete(note.storageId);
+    }
     await ctx.db.delete(args.id);
   },
 });

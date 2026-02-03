@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -24,11 +24,17 @@ import {
   TableRow,
   Skeleton,
   Label,
+  Input,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@repo/ui";
-import { ArrowLeft, FileQuestion, Clock, Trophy, Users, Settings, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, FileQuestion, Clock, Trophy, Users, Settings, Save, Loader2, Pencil, Check, X, Info } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import type { Id } from "@repo/database/dataModel";
+import { getStatusBadge } from "@/lib/utils";
 
 interface TestDetailClientProps {
   testId: string;
@@ -43,6 +49,10 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
   // Batch selection state
   const [selectedBatches, setSelectedBatches] = useState<string[] | null>(null);
   const [isSavingBatches, setIsSavingBatches] = useState(false);
+
+  // Duration editing state
+  const [isEditingDuration, setIsEditingDuration] = useState(false);
+  const [durationValue, setDurationValue] = useState("");
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -93,6 +103,28 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
 
   const hasUnsavedChanges = selectedBatches !== null;
 
+  const isDraft = testWithQuestions?.status === "draft";
+
+  const [isSavingDuration, startSavingDuration] = useTransition();
+
+  const handleDurationSave = () => {
+    const newDuration = Number(durationValue);
+    if (!testWithQuestions || isNaN(newDuration) || newDuration < 1) return;
+
+    startSavingDuration(async () => {
+      try {
+        await updateTest({
+          id: testId as Id<"tests">,
+          duration: newDuration,
+        });
+        toast.success("Duration updated");
+        setIsEditingDuration(false);
+      } catch {
+        toast.error("Failed to update duration");
+      }
+    });
+  };
+
   if (testWithQuestions === undefined) {
     return (
       <div className="p-6">
@@ -131,31 +163,6 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
       </div>
     );
   }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "published":
-        return (
-          <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
-            Published
-          </Badge>
-        );
-      case "draft":
-        return (
-          <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-500">
-            Draft
-          </Badge>
-        );
-      case "archived":
-        return (
-          <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
-            Archived
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -204,16 +211,76 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
             <p className="text-xs text-muted-foreground">In this test</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Duration</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{testWithQuestions.duration} min</div>
-            <p className="text-xs text-muted-foreground">Time limit</p>
-          </CardContent>
-        </Card>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card
+                className={isDraft ? "cursor-pointer transition-colors hover:bg-muted/50" : ""}
+                onClick={() => {
+                  if (isDraft && !isEditingDuration) {
+                    setDurationValue(String(testWithQuestions.duration));
+                    setIsEditingDuration(true);
+                  }
+                }}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Duration</CardTitle>
+                  <div className="flex items-center gap-1.5">
+                    {isDraft && !isEditingDuration && (
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    )}
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isEditingDuration ? (
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={durationValue}
+                        onChange={(e) => setDurationValue(e.target.value)}
+                        className="h-8 w-20 text-lg font-bold tabular-nums"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleDurationSave();
+                          if (e.key === "Escape") setIsEditingDuration(false);
+                        }}
+                      />
+                      <span className="text-sm text-muted-foreground">min</span>
+                      <div className="ml-auto flex gap-1">
+                        <button
+                          onClick={handleDurationSave}
+                          disabled={isSavingDuration}
+                          className="rounded-md p-1 text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-50"
+                        >
+                          {isSavingDuration ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </button>
+                        <button
+                          onClick={() => setIsEditingDuration(false)}
+                          disabled={isSavingDuration}
+                          className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold tabular-nums">{testWithQuestions.duration} min</div>
+                      <p className="text-xs text-muted-foreground">Time limit</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isDraft
+                ? "Click to edit duration"
+                : "Duration can only be changed for draft tests"}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Marks</CardTitle>

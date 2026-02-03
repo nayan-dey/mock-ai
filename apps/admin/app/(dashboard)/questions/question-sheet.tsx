@@ -13,12 +13,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox,
-  Button,
+  RadioGroup,
+  RadioGroupItem,
 } from "@repo/ui";
-import { Plus, X } from "lucide-react";
 import { AdminSheet } from "@/components/admin-sheet";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { SubjectSelector } from "@/components/subject-selector";
 
 interface QuestionSheetProps {
   open: boolean;
@@ -37,10 +36,9 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
 
   const [text, setText] = useState("");
   const [options, setOptions] = useState<string[]>(["", "", "", ""]);
-  const [correctOptions, setCorrectOptions] = useState<number[]>([]);
+  const [correctOption, setCorrectOption] = useState<number | null>(null);
   const [explanation, setExplanation] = useState("");
   const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -49,24 +47,24 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
   useEffect(() => {
     if (open && question && isEdit) {
       setText(question.text);
-      setOptions(question.options);
-      setCorrectOptions(question.correctOptions);
+      setOptions(
+        question.options.length === 4
+          ? question.options
+          : [...question.options, ...Array(4 - question.options.length).fill("")].slice(0, 4)
+      );
+      setCorrectOption(question.correctOptions[0] ?? null);
       setExplanation(question.explanation || "");
       setSubject(question.subject);
-      setTopic(question.topic);
       setDifficulty(question.difficulty);
     } else if (open && !isEdit) {
       setText("");
       setOptions(["", "", "", ""]);
-      setCorrectOptions([]);
+      setCorrectOption(null);
       setExplanation("");
       setSubject("");
-      setTopic("");
       setDifficulty("medium");
     }
   }, [open, question, isEdit]);
-
-  const topics = subject ? TOPICS[subject as keyof typeof TOPICS] || [] : [];
 
   const handleOptionChange = useCallback((index: number, value: string) => {
     setOptions((prev) => {
@@ -76,46 +74,17 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
     });
   }, []);
 
-  const handleCorrectToggle = useCallback((index: number) => {
-    setCorrectOptions((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-    );
-  }, []);
-
-  const removeOption = useCallback((index: number) => {
-    setOptions((prev) => prev.filter((_, i) => i !== index));
-    setCorrectOptions((prev) =>
-      prev
-        .filter((i) => i !== index)
-        .map((i) => (i > index ? i - 1 : i))
-    );
-  }, []);
-
   const isValid =
     text.trim() &&
-    options.filter((o) => o.trim()).length >= 2 &&
-    correctOptions.length > 0 &&
-    subject &&
-    topic;
+    options.every((o) => o.trim()) &&
+    correctOption !== null &&
+    subject;
 
   const handleSubmit = async () => {
-    if (!isValid) {
+    if (!isValid || correctOption === null) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
-
-    const cleanOptions = options.filter((o) => o.trim() !== "");
-    // Remap correctOptions indices to match cleaned array
-    const indexMap = new Map<number, number>();
-    let newIdx = 0;
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].trim() !== "") {
-        indexMap.set(i, newIdx++);
-      }
-    }
-    const mappedCorrect = correctOptions
-      .filter((i) => indexMap.has(i))
-      .map((i) => indexMap.get(i)!);
 
     setIsSubmitting(true);
     try {
@@ -123,22 +92,20 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
         await updateQuestion({
           id: questionId as any,
           text: text.trim(),
-          options: cleanOptions,
-          correctOptions: mappedCorrect,
+          options,
+          correctOptions: [correctOption],
           explanation: explanation.trim() || undefined,
           subject,
-          topic,
           difficulty,
         });
         toast({ title: "Question updated" });
       } else {
         await createQuestion({
           text: text.trim(),
-          options: cleanOptions,
-          correctOptions: mappedCorrect,
+          options,
+          correctOptions: [correctOption],
           explanation: explanation.trim() || undefined,
           subject,
-          topic,
           difficulty,
         });
         toast({ title: "Question created" });
@@ -182,99 +149,52 @@ export function QuestionSheet({ open, onOpenChange, questionId }: QuestionSheetP
 
         {/* Options */}
         <div className="space-y-3">
-          <Label id="options-label">Options * (check correct answers)</Label>
-          {options.map((option, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <Checkbox
-                checked={correctOptions.includes(index)}
-                onCheckedChange={() => handleCorrectToggle(index)}
-                aria-label={`Mark option ${String.fromCharCode(65 + index)} as correct`}
-              />
-              <span className="w-6 text-sm font-medium text-muted-foreground">
-                {String.fromCharCode(65 + index)}.
-              </span>
-              <Input
-                value={option}
-                onChange={(e) => handleOptionChange(index, e.target.value)}
-                className="flex-1"
-                placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                aria-label={`Option ${String.fromCharCode(65 + index)} text`}
-              />
-              {options.length > 2 && (
-                <button
-                  type="button"
-                  onClick={() => removeOption(index)}
-                  aria-label={`Remove option ${String.fromCharCode(65 + index)}`}
-                  className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          ))}
-          {options.length < 6 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOptions([...options, ""])}
-              className="gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Option
-            </Button>
-          )}
+          <Label id="options-label">Options * (select the correct answer)</Label>
+          <RadioGroup
+            value={correctOption !== null ? String(correctOption) : ""}
+            onValueChange={(val) => setCorrectOption(Number(val))}
+          >
+            {options.map((option, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <RadioGroupItem
+                  value={String(index)}
+                  id={`option-${index}`}
+                  aria-label={`Mark option ${String.fromCharCode(65 + index)} as correct`}
+                />
+                <span className="w-6 text-sm font-medium text-muted-foreground">
+                  {String.fromCharCode(65 + index)}.
+                </span>
+                <Input
+                  value={option}
+                  onChange={(e) => handleOptionChange(index, e.target.value)}
+                  className="flex-1"
+                  placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                  aria-label={`Option ${String.fromCharCode(65 + index)} text`}
+                />
+              </div>
+            ))}
+          </RadioGroup>
         </div>
 
-        {/* Subject & Topic */}
+        {/* Subject & Difficulty */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="q-subject">Subject *</Label>
-            <Select
-              value={subject}
-              onValueChange={(v) => {
-                setSubject(v);
-                setTopic("");
-              }}
-            >
-              <SelectTrigger id="q-subject">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SubjectSelector value={subject} onValueChange={setSubject} id="q-subject" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="q-topic">Topic *</Label>
-            <Select value={topic} onValueChange={setTopic} disabled={!subject}>
-              <SelectTrigger id="q-topic">
-                <SelectValue placeholder="Select topic" />
+            <Label htmlFor="q-difficulty">Difficulty *</Label>
+            <Select value={difficulty} onValueChange={(v: any) => setDifficulty(v)}>
+              <SelectTrigger id="q-difficulty">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {topics.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
+                <SelectItem value="easy">Easy</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="hard">Hard</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        </div>
-
-        {/* Difficulty */}
-        <div className="space-y-2">
-          <Label htmlFor="q-difficulty">Difficulty *</Label>
-          <Select value={difficulty} onValueChange={(v: any) => setDifficulty(v)}>
-            <SelectTrigger id="q-difficulty" className="w-full sm:w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="easy">Easy</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="hard">Hard</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Explanation */}

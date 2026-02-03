@@ -1,6 +1,22 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAuth, requireAdmin } from "./lib/auth";
+
+// Keep only the first attempt per user per test (earliest startedAt).
+function keepFirstAttempts<T extends { userId: any; testId: any; startedAt: number }>(
+  attempts: T[]
+): T[] {
+  const firstMap = new Map<string, T>();
+  for (const attempt of attempts) {
+    const key = `${attempt.userId}:${attempt.testId}`;
+    const existing = firstMap.get(key);
+    if (!existing || attempt.startedAt < existing.startedAt) {
+      firstMap.set(key, attempt);
+    }
+  }
+  return Array.from(firstMap.values());
+}
 
 export const getByUserAndTest = query({
   args: {
@@ -66,11 +82,17 @@ export const getByUser = query({
       throw new Error("You can only view your own attempts");
     }
 
-    const attempts = await ctx.db
+    const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_user_id", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "submitted"))
       .order("desc")
       .collect();
+
+    // Only show first attempt per test
+    const attempts = keepFirstAttempts(allAttempts).sort(
+      (a, b) => b.startedAt - a.startedAt
+    );
 
     const attemptsWithTests = await Promise.all(
       attempts.map(async (attempt) => {
@@ -96,10 +118,14 @@ export const getByTest = query({
   args: { testId: v.id("tests") },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    return await ctx.db
+    const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
+      .filter((q) => q.eq(q.field("status"), "submitted"))
       .collect();
+
+    // Only show first attempt per user for this test
+    return keepFirstAttempts(allAttempts);
   },
 });
 
@@ -193,10 +219,18 @@ export const start = mutation({
     const test = await ctx.db.get(args.testId);
     if (!test) throw new Error("Test not found");
 
+    // Shuffle question order for this attempt (Fisher-Yates)
+    const questionOrder = [...test.questions];
+    for (let i = questionOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [questionOrder[i], questionOrder[j]] = [questionOrder[j], questionOrder[i]];
+    }
+
     return await ctx.db.insert("attempts", {
       testId: args.testId,
       userId: user._id,
       answers: [],
+      questionOrder,
       score: 0,
       totalQuestions: test.questions.length,
       correct: 0,
@@ -333,6 +367,25 @@ export const submit = mutation({
       submittedAt: Date.now(),
       status: "submitted",
     });
+
+    // Notify admin about test submission
+    const studentUser = await ctx.db.get(attempt.userId);
+    if (studentUser?.organizationId) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.notifications.createNotification,
+        {
+          organizationId: studentUser.organizationId,
+          type: "test_submitted",
+          title: "Test Submitted",
+          message: `${studentUser.name} submitted "${test.title}" — Score: ${Math.max(0, score)}/${test.totalMarks}`,
+          referenceId: args.attemptId,
+          referenceType: "attempt",
+          actorId: attempt.userId,
+          actorName: studentUser.name,
+        }
+      );
+    }
 
     return {
       score: Math.max(0, score),

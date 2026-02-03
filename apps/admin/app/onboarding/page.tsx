@@ -14,6 +14,7 @@ import {
   Input,
   Label,
   Textarea,
+  ImageUpload,
 } from "@repo/ui";
 import {
   Building2,
@@ -70,14 +71,15 @@ export default function AdminOnboardingPage() {
 
   const createOrganization = useMutation(api.organizations.create);
   const createJoinRequest = useMutation(api.orgJoinRequests.create);
+  const generateLogoUploadUrl = useMutation(api.organizations.generateLogoUploadUrl);
 
   const [step, setStep] = useState<OnboardingStep>("choose");
   const [searchQuery, setSearchQuery] = useState("");
+  const [logoStorageId, setLogoStorageId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    logoUrl: "",
     contactEmail: "",
     phone: "",
     address: "",
@@ -91,12 +93,13 @@ export default function AdminOnboardingPage() {
   }, [pendingRequest, step]);
 
   // If org already exists, redirect to dashboard
-  if (organization) {
-    router.push("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (organization) {
+      router.replace("/dashboard");
+    }
+  }, [organization, router]);
 
-  if (!isLoaded || (user && organization === undefined)) {
+  if (!isLoaded || (user && organization === undefined) || organization) {
     return <OnboardingSkeleton />;
   }
 
@@ -116,11 +119,11 @@ export default function AdminOnboardingPage() {
       await createOrganization({
         name: formData.name.trim(),
         description: formData.description.trim(),
-        logoUrl: formData.logoUrl.trim() || undefined,
+        logoStorageId: logoStorageId || undefined,
         contactEmail: formData.contactEmail.trim() || undefined,
         phone: formData.phone.trim(),
         address: formData.address.trim(),
-      });
+      } as any);
       toast.success("Organization created! Welcome to Nindo.");
       router.push("/dashboard");
     } catch {
@@ -139,14 +142,14 @@ export default function AdminOnboardingPage() {
       toast.success("Join request submitted! Waiting for approval.");
       setStep("pending");
     } catch (error: any) {
-      toast.error(error.message || "Failed to submit join request.");
+      toast.error("Failed to submit join request.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleSignOut = () => {
-    signOut().then(() => router.replace("/"));
+    signOut({ redirectUrl: "/sign-in" });
   };
 
   const filteredOrgs = publicOrgs?.filter((org) =>
@@ -156,7 +159,7 @@ export default function AdminOnboardingPage() {
   // Step: Choose path
   if (step === "choose") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/20 px-4 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/20 px-4">
         <div className="w-full max-w-lg space-y-6">
           <div className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -298,18 +301,14 @@ export default function AdminOnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="logoUrl">Logo URL (optional)</Label>
-                <Input
-                  id="logoUrl"
-                  type="url"
-                  value={formData.logoUrl}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      logoUrl: e.target.value,
-                    }))
-                  }
-                  placeholder="https://example.com/logo.png"
+                <ImageUpload
+                  onUpload={(id) => setLogoStorageId(id)}
+                  onRemove={() => setLogoStorageId(null)}
+                  generateUploadUrl={generateLogoUploadUrl}
+                  maxSizeMB={10}
+                  shape="square"
+                  size="lg"
+                  label="Organization Logo (optional)"
                 />
               </div>
 

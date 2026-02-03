@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -27,19 +27,14 @@ function FeesSkeleton() {
 }
 
 export default function FeesPage() {
-  const { user } = useUser();
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
+  const { dbUser, isLoading } = useCurrentUser();
 
   const fees = useQuery(
     api.fees.getByStudent,
     dbUser?._id ? { studentId: dbUser._id } : "skip"
   );
 
-  if (!user || dbUser === undefined || fees === undefined) {
+  if (isLoading || fees === undefined) {
     return <FeesSkeleton />;
   }
 

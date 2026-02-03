@@ -55,36 +55,6 @@ export const addMessage = mutation({
       throw new Error("You can only add messages to your own conversations");
     }
 
-    // Server-side rate limit enforcement for user messages (skip for admins)
-    if (args.role === "user" && user.role !== "admin") {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const conversations = await ctx.db
-        .query("chatConversations")
-        .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-        .collect();
-
-      let todayCount = 0;
-      for (const conv of conversations) {
-        const messages = await ctx.db
-          .query("chatMessages")
-          .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
-          .filter((q) =>
-            q.and(
-              q.eq(q.field("role"), "user"),
-              q.gte(q.field("createdAt"), startOfDay.getTime())
-            )
-          )
-          .collect();
-        todayCount += messages.length;
-      }
-
-      if (todayCount >= 3) {
-        throw new Error("Daily message limit reached. Please try again tomorrow.");
-      }
-    }
-
     // Update conversation timestamp
     await ctx.db.patch(args.conversationId, {
       updatedAt: Date.now(),
@@ -200,9 +170,9 @@ export const getDailyMessageCount = query({
 
     return {
       count,
-      limit: 3,
-      remaining: Math.max(0, 3 - count),
-      hasReachedLimit: count >= 3,
+      limit: Infinity,
+      remaining: Infinity,
+      hasReachedLimit: false,
     };
   },
 });

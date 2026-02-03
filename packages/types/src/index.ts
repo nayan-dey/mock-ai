@@ -20,7 +20,6 @@ export interface Question {
   correctOptions: number[];
   explanation?: string;
   subject: string;
-  topic: string;
   difficulty: Difficulty;
   createdBy: string;
   createdAt: number;
@@ -32,7 +31,6 @@ export interface QuestionFormData {
   correctOptions: number[];
   explanation?: string;
   subject: string;
-  topic: string;
   difficulty: Difficulty;
 }
 
@@ -93,7 +91,6 @@ export interface Note {
   title: string;
   description: string;
   subject: string;
-  topic: string;
   fileUrl: string;
   createdBy: string;
   createdAt: number;
@@ -103,7 +100,6 @@ export interface NoteFormData {
   title: string;
   description: string;
   subject: string;
-  topic: string;
   fileUrl: string;
 }
 
@@ -113,9 +109,7 @@ export interface RecordedClass {
   title: string;
   description: string;
   subject: string;
-  topic: string;
   videoUrl: string;
-  duration: number;
   thumbnail?: string;
   createdBy: string;
   createdAt: number;
@@ -125,9 +119,7 @@ export interface RecordedClassFormData {
   title: string;
   description: string;
   subject: string;
-  topic: string;
   videoUrl: string;
-  duration: number;
   thumbnail?: string;
 }
 
@@ -156,7 +148,6 @@ export interface TestAnalytics {
 // Common filter types
 export interface QuestionFilters {
   subject?: string;
-  topic?: string;
   difficulty?: Difficulty;
 }
 
@@ -172,7 +163,6 @@ export interface ExtractedQuestion {
   correctOptions: number[];
   explanation?: string;
   subject: string;
-  topic: string;
   difficulty: Difficulty;
   confidence: number; // 0-1 confidence score from AI
   needsReview: boolean; // Flag for questions that may need manual review
@@ -187,8 +177,8 @@ export interface ExtractionResult {
   error?: string;
 }
 
-// Subject and topic constants
-export const SUBJECTS = [
+// Default subjects (used for seeding)
+export const DEFAULT_SUBJECTS = [
   "General Knowledge",
   "Mathematics",
   "Reasoning",
@@ -199,59 +189,7 @@ export const SUBJECTS = [
   "Geography",
 ] as const;
 
-export type Subject = (typeof SUBJECTS)[number];
-
-export const TOPICS: Record<Subject, string[]> = {
-  "General Knowledge": [
-    "Current Affairs",
-    "Indian Polity",
-    "Indian Economy",
-    "Sports",
-    "Awards & Honours",
-    "West Bengal GK",
-  ],
-  Mathematics: [
-    "Number System",
-    "Percentage",
-    "Profit & Loss",
-    "Time & Work",
-    "Time & Distance",
-    "Algebra",
-  ],
-  Reasoning: [
-    "Analogy",
-    "Series",
-    "Coding-Decoding",
-    "Blood Relations",
-    "Direction Sense",
-    "Syllogism",
-  ],
-  Bengali: [
-    "ব্যাকরণ (Grammar)",
-    "সাহিত্য (Literature)",
-    "পদ্যাংশ (Comprehension)",
-    "শব্দভাণ্ডার (Vocabulary)",
-  ],
-  English: ["Grammar", "Comprehension", "Vocabulary", "Error Spotting"],
-  "General Science": [
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "Environmental Science",
-  ],
-  "Indian History": [
-    "Ancient India",
-    "Medieval India",
-    "Modern India",
-    "Freedom Movement",
-  ],
-  Geography: [
-    "Physical Geography",
-    "Indian Geography",
-    "West Bengal Geography",
-    "World Geography",
-  ],
-};
+export type Subject = string;
 
 // Export AI configuration
 export * from './ai-config';

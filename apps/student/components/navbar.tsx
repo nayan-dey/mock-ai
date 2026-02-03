@@ -15,6 +15,12 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 
+const USER_BUTTON_APPEARANCE = {
+  elements: {
+    avatarBox: "h-7 w-7",
+  },
+} as const;
+
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tests", label: "Tests", icon: FileText },
@@ -27,8 +33,8 @@ const navItems = [
 export function Navbar() {
   const pathname = usePathname();
 
-  // Hide navbar on chat page
-  if (pathname === "/chat") {
+  // Hide navbar on full-screen pages
+  if (pathname === "/" || pathname === "/chat" || pathname === "/onboarding" || pathname === "/suspended") {
     return null;
   }
 
@@ -77,11 +83,7 @@ export function Navbar() {
               <div className="hidden md:block">
                 <UserButton
                   afterSignOutUrl="/"
-                  appearance={{
-                    elements: {
-                      avatarBox: "h-7 w-7",
-                    },
-                  }}
+                  appearance={USER_BUTTON_APPEARANCE}
                 />
               </div>
             </SignedIn>

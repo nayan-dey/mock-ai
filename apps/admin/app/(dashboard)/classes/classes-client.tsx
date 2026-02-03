@@ -8,8 +8,8 @@ import {
   SortableHeader,
   Badge,
   formatDate,
-  formatDuration,
   type ColumnDef,
+  type FacetedFilterConfig,
 } from "@repo/ui";
 import { Video, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { AdminTable, createActionsColumn } from "@/components/admin-table";
@@ -21,9 +21,7 @@ interface ClassItem {
   title: string;
   description: string;
   subject: string;
-  topic: string;
   videoUrl: string;
-  duration: number;
   thumbnail?: string;
   batchIds?: string[];
   createdAt: number;
@@ -32,6 +30,7 @@ interface ClassItem {
 export function ClassesClient() {
   const classes = useQuery(api.classes.list, {});
   const batches = useQuery(api.batches.list, {});
+  const subjects = useQuery(api.subjects.list, {});
   const deleteClass = useMutation(api.classes.remove);
   const { toast } = useToast();
 
@@ -49,6 +48,19 @@ export function ClassesClient() {
     return map;
   }, [batches]);
 
+  const facetedFilters = useMemo<FacetedFilterConfig[]>(() => [
+    {
+      columnId: "subject",
+      title: "Subject",
+      options: (subjects ?? []).map((s) => ({ label: s.name, value: s.name })),
+    },
+    {
+      columnId: "batchFilter",
+      title: "Batch",
+      options: (batches ?? []).map((b) => ({ label: b.name, value: b._id })),
+    },
+  ], [batches, subjects]);
+
   const handleDelete = async (id: string) => {
     try {
       await deleteClass({ id: id as any });
@@ -59,7 +71,7 @@ export function ClassesClient() {
     setDeleteClassId(null);
   };
 
-  const columns: ColumnDef<ClassItem, any>[] = [
+  const columns: ColumnDef<ClassItem>[] = useMemo(() => [
     {
       accessorKey: "title",
       header: ({ column }) => <SortableHeader column={column} title="Title" />,
@@ -75,22 +87,6 @@ export function ClassesClient() {
       ),
     },
     {
-      accessorKey: "topic",
-      header: ({ column }) => <SortableHeader column={column} title="Topic" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">{row.getValue("topic")}</span>
-      ),
-    },
-    {
-      accessorKey: "duration",
-      header: ({ column }) => <SortableHeader column={column} title="Duration" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {formatDuration(row.getValue("duration") as number)}
-        </span>
-      ),
-    },
-    {
       id: "batches",
       header: "Batches",
       cell: ({ row }) => {
@@ -99,14 +95,14 @@ export function ClassesClient() {
           return <span className="text-xs text-muted-foreground">All Batches</span>;
         }
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex gap-1">
             {ids.slice(0, 2).map((id) => (
-              <Badge key={id} variant="secondary" className="text-xs">
+              <Badge key={id} variant="secondary" className="text-xs truncate max-w-[100px]">
                 {batchMap.get(id) || "..."}
               </Badge>
             ))}
             {ids.length > 2 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs shrink-0">
                 +{ids.length - 2}
               </Badge>
             )}
@@ -122,6 +118,18 @@ export function ClassesClient() {
           {formatDate(row.getValue("createdAt") as number)}
         </span>
       ),
+    },
+    {
+      id: "batchFilter",
+      accessorFn: (row) => row.batchIds ?? [],
+      header: () => null,
+      cell: () => null,
+      filterFn: (row, columnId, filterValue: string[]) => {
+        const batchIds = row.getValue<string[]>(columnId);
+        if (!batchIds || batchIds.length === 0) return true; // "All Batches" matches any filter
+        return filterValue.some((val) => batchIds.includes(val));
+      },
+      enableHiding: true,
     },
     createActionsColumn<ClassItem>((classItem) => [
       {
@@ -145,7 +153,7 @@ export function ClassesClient() {
         separator: true,
       },
     ]),
-  ];
+  ], [batchMap]);
 
   return (
     <>
@@ -157,6 +165,7 @@ export function ClassesClient() {
         searchPlaceholder="Search classes..."
         title="Recorded Classes"
         description="Manage video lectures"
+        facetedFilters={facetedFilters}
         primaryAction={{
           label: "Add Class",
           onClick: () => {

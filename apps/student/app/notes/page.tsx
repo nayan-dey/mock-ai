@@ -28,29 +28,21 @@ import {
   BackButton,
 } from "@repo/ui";
 import { FileText, Download, BookOpen, LayoutGrid, LayoutList, ArrowUpDown, SortAsc, SortDesc, ChevronRight, Calendar } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
-import { useQuery as useConvexQuery } from "convex/react";
-import { SUBJECTS, TOPICS } from "@repo/types";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type SortOption = "default" | "title-asc" | "title-desc" | "date-asc" | "date-desc";
 type ViewMode = "grid" | "list";
 
 export default function NotesPage() {
-  const { user } = useUser();
+  const { dbUser } = useCurrentUser();
   const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [selectedTopic, setSelectedTopic] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("default");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  const dbUser = useConvexQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
-
+  const subjects = useQuery(api.subjects.list, {});
   const notes = useQuery(api.notes.listForBatch, {
     batchId: dbUser?.batchId,
     subject: selectedSubject || undefined,
-    topic: selectedTopic || undefined,
   });
 
   const sortedNotes = useMemo(() => {
@@ -71,16 +63,11 @@ export default function NotesPage() {
     }
   }, [notes, sortBy]);
 
-  const availableTopics =
-    selectedSubject && selectedSubject in TOPICS
-      ? TOPICS[selectedSubject as keyof typeof TOPICS]
-      : [];
-
-  const handleDownload = (fileUrl: string, title: string) => {
-    // Create a temporary anchor element to trigger download
+  const handleDownload = (fileUrl: string | null, title: string) => {
+    if (!fileUrl) return;
     const link = document.createElement('a');
     link.href = fileUrl;
-    link.download = title;
+    link.download = `${title}.pdf`;
     link.target = '_blank';
     document.body.appendChild(link);
     link.click();
@@ -169,7 +156,6 @@ export default function NotesPage() {
           value={selectedSubject || "all"}
           onValueChange={(value) => {
             setSelectedSubject(value === "all" ? "" : value);
-            setSelectedTopic("");
           }}
         >
           <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -177,34 +163,14 @@ export default function NotesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subjects</SelectItem>
-            {SUBJECTS.map((subject) => (
-              <SelectItem key={subject} value={subject}>
-                {subject}
+            {(subjects ?? []).map((s) => (
+              <SelectItem key={s._id} value={s.name}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {selectedSubject && availableTopics.length > 0 && (
-          <Select
-            value={selectedTopic || "all"}
-            onValueChange={(value) =>
-              setSelectedTopic(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue placeholder="All Topics" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Topics</SelectItem>
-              {availableTopics.map((topic) => (
-                <SelectItem key={topic} value={topic}>
-                  {topic}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
       </div>
 
       {/* Notes List */}
@@ -230,7 +196,7 @@ export default function NotesPage() {
             </div>
             <h3 className="mt-4 text-sm font-medium">No notes found</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedSubject || selectedTopic
+              {selectedSubject
                 ? "No notes match your filters."
                 : "No study notes available yet."}
             </p>
@@ -251,7 +217,6 @@ export default function NotesPage() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-xs">{note.subject}</Badge>
-                  <Badge variant="secondary" className="text-xs">{note.topic}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="flex-1">
@@ -282,17 +247,16 @@ export default function NotesPage() {
           {sortedNotes.map((note) => (
             <Card
               key={note._id}
-              className="transition-colors hover:bg-muted/50 my-3"
+              className="transition-colors hover:bg-muted/50"
             >
-              <CardContent className="flex items-center gap-4 p-4">
-                {/* Icon */}
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <FileText className="h-6 w-6 text-muted-foreground" />
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium truncate">{note.title}</h3>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <h3 className="text-sm font-medium truncate">{note.title}</h3>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="outline" className="text-[10px]">{note.subject}</Badge>
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
@@ -301,13 +265,12 @@ export default function NotesPage() {
                   </div>
                 </div>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5 shrink-0"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
                   onClick={() => handleDownload(note.fileUrl, note.title)}
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
+                  <Download className="h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>

@@ -1,16 +1,19 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { Sparkles } from "lucide-react";
 import { SuggestedLinks, extractLinksFromContent } from "./suggested-links";
+
+const EMPTY_LINKS: { label: string; href: string }[] = [];
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
 }
 
-export function ChatMessage({ role, content }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({ role, content }: ChatMessageProps) {
   const isUser = role === "user";
-  const suggestedLinks = isUser ? [] : extractLinksFromContent(content);
+  const suggestedLinks = useMemo(() => isUser ? EMPTY_LINKS : extractLinksFromContent(content), [isUser, content]);
 
   if (isUser) {
     return (
@@ -37,9 +40,9 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       </div>
     </div>
   );
-}
+});
 
-function MessageContent({ content }: { content: string }) {
+const MessageContent = memo(function MessageContent({ content }: { content: string }) {
   // Simple markdown-like rendering for common patterns
   const paragraphs = content.split("\n\n");
 
@@ -83,7 +86,7 @@ function MessageContent({ content }: { content: string }) {
       })}
     </>
   );
-}
+});
 
 function formatInlineText(text: string) {
   // Handle bold text (**text**)

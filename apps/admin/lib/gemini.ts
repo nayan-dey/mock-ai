@@ -1,15 +1,13 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import {
-  SUBJECTS,
-  TOPICS,
   type ExtractedQuestion,
-  type Subject,
   ADMIN_EXTRACTION_MODEL,
   EXTRACTION_MODEL_CONFIG,
 } from "@repo/types";
 
-const EXTRACTION_PROMPT_IMAGE = `You are an expert at extracting multiple-choice questions from educational documents.
+function getExtractionPromptImage(subjectsList: string) {
+  return `You are an expert at extracting multiple-choice questions from educational documents.
 
 Analyze the provided image and extract ALL multiple-choice questions you can find.
 
@@ -20,20 +18,26 @@ For each question, provide:
    - Explicit marking in the document (checkmarks, circles, highlighting)
    - Answer keys if visible
    - If no answer is marked, make your best educated guess based on the subject matter
-4. Subject classification (must be one of: ${SUBJECTS.join(", ")})
-5. Topic classification based on the subject
-6. Difficulty level (easy, medium, or hard) based on complexity
-7. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
+4. Subject classification (must be one of: ${subjectsList})
+5. Difficulty level (easy, medium, or hard) based on complexity
+6. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
 
 IMPORTANT RULES:
 - Extract EVERY question you can find
 - If a question has multiple correct answers, include all of them
 - If you're uncertain about the correct answer, still provide your best guess but mark it for review
-- Preserve mathematical notation, formulas, and special characters
 - If the document quality is poor or text is unclear, still attempt extraction and flag for review
+- CRITICAL: Do NOT use LaTeX notation in the output. Write all math expressions as plain readable text using Unicode symbols.
+  - Do NOT wrap anything in dollar signs ($...$) or use LaTeX commands like \\tan, \\frac, \\circ, \\sqrt, etc.
+  - Use Unicode math symbols instead: × (multiply), ÷ (divide), ° (degree), √ (square root), π (pi), ≤, ≥, ≠, ±
+  - Write trig functions as plain text: tan, sin, cos, log (not \\tan, \\sin, \\cos, \\log)
+  - Write fractions as a/b (not \\frac{a}{b})
+  - Write exponents as x^2 or x² (not $x^{2}$)
+  - Examples: Write "tan 45° = 1" NOT "$\\tan 45^\\circ = 1$", Write "2x + 5 = 13" NOT "$2x + 5 = 13$"
+- Preserve Bengali/Bangla text exactly as written using Unicode characters
+- IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
-Available subjects and their topics:
-${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
+Available subjects: ${subjectsList}
 
 Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exact format:
 {
@@ -44,7 +48,6 @@ Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exac
       "correctOptions": [0],
       "explanation": "Explanation of the correct answer",
       "subject": "Mathematics",
-      "topic": "Algebra",
       "difficulty": "medium",
       "confidence": 0.95,
       "needsReview": false,
@@ -58,8 +61,10 @@ Notes:
 - confidence should be 0.0 to 1.0 indicating how confident you are in the extraction
 - Set needsReview to true if: unclear text, uncertain answer, poor image quality, or missing information
 - reviewReason should explain why review is needed (or null if not needed)`;
+}
 
-const EXTRACTION_PROMPT_TEXT = `You are an expert at extracting multiple-choice questions from educational documents.
+function getExtractionPromptText(subjectsList: string) {
+  return `You are an expert at extracting multiple-choice questions from educational documents.
 
 Analyze the following text extracted from a document and extract ALL multiple-choice questions you can find.
 
@@ -70,19 +75,25 @@ For each question, provide:
    - Explicit marking in the document (checkmarks, circles, highlighting)
    - Answer keys if visible
    - If no answer is marked, make your best educated guess based on the subject matter
-4. Subject classification (must be one of: ${SUBJECTS.join(", ")})
-5. Topic classification based on the subject
-6. Difficulty level (easy, medium, or hard) based on complexity
-7. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
+4. Subject classification (must be one of: ${subjectsList})
+5. Difficulty level (easy, medium, or hard) based on complexity
+6. An explanation of why the answer is correct (if not provided in the document, generate a brief one)
 
 IMPORTANT RULES:
 - Extract EVERY question you can find
 - If a question has multiple correct answers, include all of them
 - If you're uncertain about the correct answer, still provide your best guess but mark it for review
-- Preserve mathematical notation, formulas, and special characters
+- CRITICAL: Do NOT use LaTeX notation in the output. Write all math expressions as plain readable text using Unicode symbols.
+  - Do NOT wrap anything in dollar signs ($...$) or use LaTeX commands like \\tan, \\frac, \\circ, \\sqrt, etc.
+  - Use Unicode math symbols instead: × (multiply), ÷ (divide), ° (degree), √ (square root), π (pi), ≤, ≥, ≠, ±
+  - Write trig functions as plain text: tan, sin, cos, log (not \\tan, \\sin, \\cos, \\log)
+  - Write fractions as a/b (not \\frac{a}{b})
+  - Write exponents as x^2 or x² (not $x^{2}$)
+  - Examples: Write "tan 45° = 1" NOT "$\\tan 45^\\circ = 1$", Write "2x + 5 = 13" NOT "$2x + 5 = 13$"
+- Preserve Bengali/Bangla text exactly as written using Unicode characters
+- IMPORTANT: Do NOT include question numbers in the question text. Remove any numbering prefixes like "1.", "2>", "3)", "Q1.", "Question 1.", "No.1", "#1", "i.", "ii)", "III.", "a.", "A)", "প্রশ্ন ১." or roman numerals etc. The question text should start directly with the actual question content, not a number or label.
 
-Available subjects and their topics:
-${SUBJECTS.map((s) => `${s}: ${TOPICS[s as Subject].join(", ")}`).join("\n")}
+Available subjects: ${subjectsList}
 
 Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exact format:
 {
@@ -93,7 +104,6 @@ Respond ONLY with a valid JSON object (no markdown, no code blocks) in this exac
       "correctOptions": [0],
       "explanation": "Explanation of the correct answer",
       "subject": "Mathematics",
-      "topic": "Algebra",
       "difficulty": "medium",
       "confidence": 0.95,
       "needsReview": false,
@@ -110,6 +120,7 @@ Notes:
 
 --- DOCUMENT TEXT ---
 `;
+}
 
 export interface GeminiExtractionResult {
   questions: ExtractedQuestion[];
@@ -118,7 +129,8 @@ export interface GeminiExtractionResult {
 
 export async function extractQuestionsFromText(
   text: string,
-  model?: string
+  model?: string,
+  subjects?: string[]
 ): Promise<GeminiExtractionResult> {
   try {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -132,13 +144,19 @@ export async function extractQuestionsFromText(
 
     const selectedModel = model || ADMIN_EXTRACTION_MODEL;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+
     const result = await generateText({
       model: google(selectedModel),
-      prompt: EXTRACTION_PROMPT_TEXT + text,
+      prompt: getExtractionPromptText(subjects?.join(", ") || "General Knowledge, Mathematics, Reasoning, Bengali, English, General Science, Indian History, Geography") + text,
       temperature: EXTRACTION_MODEL_CONFIG.temperature,
       topP: EXTRACTION_MODEL_CONFIG.topP,
       topK: EXTRACTION_MODEL_CONFIG.topK,
+      abortSignal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     return parseAIResponse(result.text);
   } catch (error) {
@@ -150,7 +168,8 @@ export async function extractQuestionsFromText(
 export async function extractQuestionsFromFile(
   fileBase64: string,
   mimeType: string,
-  model?: string
+  model?: string,
+  subjects?: string[]
 ): Promise<GeminiExtractionResult> {
   try {
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -163,6 +182,9 @@ export async function extractQuestionsFromFile(
     }
 
     const selectedModel = model || ADMIN_EXTRACTION_MODEL;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
 
     const result = await generateText({
       model: google(selectedModel),
@@ -176,7 +198,7 @@ export async function extractQuestionsFromFile(
             },
             {
               type: "text",
-              text: EXTRACTION_PROMPT_IMAGE,
+              text: getExtractionPromptImage(subjects?.join(", ") || "General Knowledge, Mathematics, Reasoning, Bengali, English, General Science, Indian History, Geography"),
             },
           ],
         },
@@ -184,7 +206,10 @@ export async function extractQuestionsFromFile(
       temperature: EXTRACTION_MODEL_CONFIG.temperature,
       topP: EXTRACTION_MODEL_CONFIG.topP,
       topK: EXTRACTION_MODEL_CONFIG.topK,
+      abortSignal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     return parseAIResponse(result.text);
   } catch (error) {
@@ -236,6 +261,14 @@ function parseAIResponse(content: string): GeminiExtractionResult {
 function handleGeminiError(error: unknown): GeminiExtractionResult {
   const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 
+  // Handle timeout/abort errors
+  if (error instanceof DOMException && error.name === "AbortError" || errorMessage.includes("aborted")) {
+    return {
+      questions: [],
+      error: "AI processing timed out. The image may be too complex. Please try a clearer image or a smaller file.",
+    };
+  }
+
   // Handle rate limit errors
   if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("RESOURCE_EXHAUSTED")) {
     return {
@@ -266,6 +299,136 @@ function handleGeminiError(error: unknown): GeminiExtractionResult {
   };
 }
 
+function cleanLatexArtifacts(text: string): string {
+  let cleaned = text;
+
+  // Remove $$ ... $$ (display math) and $ ... $ (inline math) delimiters
+  cleaned = cleaned.replace(/\$\$(.*?)\$\$/g, "$1");
+  cleaned = cleaned.replace(/\$(.*?)\$/g, "$1");
+
+  // Replace \frac{a}{b} with a/b
+  cleaned = cleaned.replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "$1/$2");
+
+  // Replace \sqrt{x} with √x and \sqrt[n]{x} with ⁿ√x
+  cleaned = cleaned.replace(/\\sqrt\[([^\]]*)\]\{([^}]*)\}/g, "$1√$2");
+  cleaned = cleaned.replace(/\\sqrt\{([^}]*)\}/g, "√$1");
+
+  // Replace \text{...} with content inside
+  cleaned = cleaned.replace(/\\text\{([^}]*)\}/g, "$1");
+
+  // Replace trig/log functions (remove backslash)
+  cleaned = cleaned.replace(/\\(sin|cos|tan|cot|sec|csc|log|ln|lim|max|min)\b/g, "$1");
+
+  // Replace common LaTeX symbols with Unicode
+  const symbolMap: [RegExp, string][] = [
+    [/\\times/g, "×"],
+    [/\\div/g, "÷"],
+    [/\\circ/g, "°"],
+    [/\\degree/g, "°"],
+    [/\\pi/g, "π"],
+    [/\\theta/g, "θ"],
+    [/\\alpha/g, "α"],
+    [/\\beta/g, "β"],
+    [/\\gamma/g, "γ"],
+    [/\\delta/g, "δ"],
+    [/\\lambda/g, "λ"],
+    [/\\mu/g, "μ"],
+    [/\\sigma/g, "σ"],
+    [/\\omega/g, "ω"],
+    [/\\infty/g, "∞"],
+    [/\\leq/g, "≤"],
+    [/\\geq/g, "≥"],
+    [/\\neq/g, "≠"],
+    [/\\pm/g, "±"],
+    [/\\mp/g, "∓"],
+    [/\\approx/g, "≈"],
+    [/\\rightarrow/g, "→"],
+    [/\\leftarrow/g, "←"],
+    [/\\Rightarrow/g, "⇒"],
+    [/\\Leftarrow/g, "⇐"],
+    [/\\subset/g, "⊂"],
+    [/\\supset/g, "⊃"],
+    [/\\cup/g, "∪"],
+    [/\\cap/g, "∩"],
+    [/\\in /g, "∈ "],
+    [/\\notin/g, "∉"],
+    [/\\forall/g, "∀"],
+    [/\\exists/g, "∃"],
+    [/\\sum/g, "Σ"],
+    [/\\prod/g, "Π"],
+    [/\\int/g, "∫"],
+    [/\\partial/g, "∂"],
+    [/\\nabla/g, "∇"],
+    [/\\cdot/g, "·"],
+    [/\\ldots/g, "…"],
+    [/\\dots/g, "…"],
+  ];
+  for (const [pattern, replacement] of symbolMap) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+
+  // Remove \left and \right (sizing commands)
+  cleaned = cleaned.replace(/\\left/g, "");
+  cleaned = cleaned.replace(/\\right/g, "");
+
+  // Remove redundant ^ before degree symbol (from ^\circ -> ^°)
+  cleaned = cleaned.replace(/\^°/g, "°");
+
+  // Replace ^{...} with plain text (superscript content)
+  cleaned = cleaned.replace(/\^\{([^}]*)\}/g, "^$1");
+  // Replace _{...} with plain text (subscript content)
+  cleaned = cleaned.replace(/_\{([^}]*)\}/g, "_$1");
+
+  // Remove any remaining backslash commands (e.g., \quad, \space, \;, \,)
+  cleaned = cleaned.replace(/\\[a-zA-Z]+/g, " ");
+  cleaned = cleaned.replace(/\\[;,!: ]/g, " ");
+
+  // Clean up extra whitespace
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+  return cleaned;
+}
+
+function stripQuestionNumbering(text: string): string {
+  let cleaned = text;
+
+  // "Question 1.", "Ques. 2)", "Ques 3:" etc.
+  cleaned = cleaned.replace(/^(?:Question|Ques\.?)\s*\d+[\.\)\:\-\>]?\s*/i, "");
+
+  // "Q1.", "Q2:", "Q 3)", "q1." etc.
+  cleaned = cleaned.replace(/^Q\s*\d+[\.\)\:\-\>]?\s*/i, "");
+
+  // Bengali question prefix: "প্রশ্ন ১.", "প্র ২)" etc.
+  cleaned = cleaned.replace(/^(?:প্রশ্ন|প্র)\s*[০-৯\d]+[\.\)\>\-\:]?\s*/, "");
+
+  // "No.1", "No. 2", "no.3" etc.
+  cleaned = cleaned.replace(/^No\.?\s*\d+[\.\)\:\-\>]?\s*/i, "");
+
+  // "#1", "#2" etc.
+  cleaned = cleaned.replace(/^#\s*\d+[\.\)\:\-\>]?\s*/, "");
+
+  // "(1)", "(২)", "(iv)" etc. (parenthesized numbers or roman numerals)
+  cleaned = cleaned.replace(/^\([০-৯\d]+\)\s*/, "");
+  cleaned = cleaned.replace(/^\([ivxlcdmIVXLCDM]+\)\s*/, "");
+
+  // Roman numerals: "i.", "ii)", "III.", "IV>", "ix:" etc.
+  cleaned = cleaned.replace(/^(?:x{0,3})(ix|iv|v?i{0,3})[\.\)\>\-\:]\s*/i, "");
+
+  // "1.", "2)", "3>", "4-", "5:" etc. (digit followed by punctuation)
+  cleaned = cleaned.replace(/^\d+[\.\)\>\-\:]\s*/, "");
+
+  // Bengali numerals: "১.", "২)", "৩>" etc.
+  cleaned = cleaned.replace(/^[০-৯]+[\.\)\>\-\:]\s*/, "");
+
+  // Devanagari numerals: "१.", "२)" etc. (sometimes appear in regional docs)
+  cleaned = cleaned.replace(/^[०-९]+[\.\)\>\-\:]\s*/, "");
+
+  // Single letter prefix: "a.", "A)", "b." etc. (only single letter to avoid stripping words)
+  cleaned = cleaned.replace(/^[a-zA-Z][\.\)]\s*/, "");
+
+  return cleaned;
+}
+
 function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion | null {
   // Basic validation
   if (!q.text || typeof q.text !== "string" || q.text.trim() === "") {
@@ -276,9 +439,9 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
     return null;
   }
 
-  const options = q.options.filter(
-    (o: unknown) => typeof o === "string" && o.trim() !== ""
-  );
+  const options = q.options
+    .filter((o: unknown) => typeof o === "string" && o.trim() !== "")
+    .map((o: string) => cleanLatexArtifacts(o));
   if (options.length < 2) {
     return null;
   }
@@ -299,17 +462,7 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
   }
 
   // Validate subject
-  let subject = String(q.subject || "");
-  if (!SUBJECTS.includes(subject as (typeof SUBJECTS)[number])) {
-    subject = "Mathematics"; // Default subject
-  }
-
-  // Validate topic
-  const validTopics = TOPICS[subject as Subject];
-  let topic = String(q.topic || "");
-  if (!validTopics.includes(topic)) {
-    topic = validTopics[0]; // Default to first topic
-  }
+  const subject = String(q.subject || "General Knowledge");
 
   // Validate difficulty
   let difficulty: "easy" | "medium" | "hard" = "medium";
@@ -338,12 +491,11 @@ function validateAndCleanQuestion(q: Record<string, unknown>): ExtractedQuestion
   }
 
   return {
-    text: q.text.trim(),
+    text: stripQuestionNumbering(cleanLatexArtifacts(q.text.trim())),
     options,
     correctOptions,
-    explanation: typeof q.explanation === "string" ? q.explanation : undefined,
+    explanation: typeof q.explanation === "string" ? cleanLatexArtifacts(q.explanation) : undefined,
     subject,
-    topic,
     difficulty,
     confidence,
     needsReview,

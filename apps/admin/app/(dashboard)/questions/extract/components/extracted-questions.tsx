@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import {
   Button,
   Card,
@@ -113,7 +114,12 @@ export function ExtractedQuestions({
       {/* Questions List */}
       <div className="space-y-3">
         {questions.map((question, index) => (
-          <div key={index}>
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.5) }}
+          >
             {editingIndex === index ? (
               <QuestionEditor
                 question={question}
@@ -204,7 +210,6 @@ export function ExtractedQuestions({
                       {/* Tags */}
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{question.subject}</Badge>
-                        <Badge variant="outline">{question.topic}</Badge>
                         {getDifficultyBadge(question.difficulty)}
                       </div>
 
@@ -254,7 +259,7 @@ export function ExtractedQuestions({
                 </CardContent>
               </Card>
             )}
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

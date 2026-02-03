@@ -1,8 +1,9 @@
 "use client";
 
-import { useUser, UserButton, SignOutButton } from "@clerk/nextjs";
+import { SignOutButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -35,15 +36,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { getInitials } from "@/lib/utils";
 
 function ProfileSkeleton() {
   return (
@@ -72,13 +65,8 @@ const menuItems = [
 ];
 
 export default function ProfilePage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,
@@ -95,7 +83,7 @@ export default function ProfilePage() {
     dbUser?.batchId ? { id: dbUser.batchId } : "skip"
   );
 
-  if (!isUserLoaded || (user && dbUser === undefined)) {
+  if (isUserLoading) {
     return <ProfileSkeleton />;
   }
 
@@ -116,8 +104,8 @@ export default function ProfilePage() {
       <div className="mb-8 flex flex-col items-center text-center">
         <div className="relative">
           <Avatar className="h-20 w-20 border-2 border-border">
-            {user?.imageUrl ? (
-              <img src={user.imageUrl} alt={dbUser.name} className="h-full w-full object-cover" />
+            {(dbUser.profileImageUrl || user?.imageUrl) ? (
+              <img src={dbUser.profileImageUrl || user?.imageUrl} alt={dbUser.name} className="h-full w-full object-cover" />
             ) : (
               <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
                 {getInitials(dbUser.name)}
@@ -236,13 +224,6 @@ export default function ProfilePage() {
         >
           View public profile
         </Link>
-      </div>
-
-      {/* Made by credit */}
-      <div className="mt-8 text-center">
-        <p className="text-xs text-muted-foreground/60">
-          Made by <span className="font-medium">Nayan</span>
-        </p>
       </div>
     </div>
   );

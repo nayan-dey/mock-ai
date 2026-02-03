@@ -1,8 +1,8 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -44,13 +44,8 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
   const { toast } = useToast();
-
-  const dbUser = useQuery(
-    api.users.getByClerkId,
-    user?.id ? { clerkId: user.id } : "skip"
-  );
 
   const userSettings = useQuery(
     api.userSettings.getOrCreateDefault,
@@ -63,7 +58,7 @@ export default function SettingsPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
 
-  if (!isUserLoaded || (user && (dbUser === undefined || userSettings === undefined))) {
+  if (isUserLoading || (user && userSettings === undefined)) {
     return <SettingsSkeleton />;
   }
 
@@ -144,7 +139,7 @@ export default function SettingsPage() {
       });
       sonnerToast.success(`Created ${result.attempts?.length || 15} mock test attempts`);
     } catch (error: any) {
-      sonnerToast.error(error.message || "Failed to seed attempts");
+      sonnerToast.error("Failed to seed attempts.");
     } finally {
       setIsSeeding(false);
     }
@@ -201,7 +196,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Developer Tools */}
+        {/* Developer Tools (dev only) */}
+        {process.env.NODE_ENV !== "production" && (
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -239,6 +235,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

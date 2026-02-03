@@ -3,11 +3,23 @@
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@repo/database";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 
-export function UserSync() {
+function isPublicPath(pathname: string): boolean {
+  return pathname === "/" || pathname.startsWith("/sign-");
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary motion-reduce:animate-none" />
+    </div>
+  );
+}
+
+export function UserSync({ children }: { children: ReactNode }) {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const upsertUser = useMutation(api.users.upsertFromClerk);
@@ -19,6 +31,13 @@ export function UserSync() {
     api.users.getByClerkId,
     user?.id ? { clerkId: user.id } : "skip"
   );
+
+  // Reset sync flag on logout
+  useEffect(() => {
+    if (!user) {
+      hasSynced.current = false;
+    }
+  }, [user]);
 
   // Sync user to database on first load
   useEffect(() => {
@@ -32,23 +51,23 @@ export function UserSync() {
         console.error("Student sync error:", error);
         if (error.message?.includes("admin")) {
           toast.error("This account is registered as an admin. You cannot use the student portal.");
-          signOut().then(() => {
-            router.push("/sign-in");
-          });
+          signOut({ redirectUrl: "/sign-in" });
         }
       });
     }
-  }, [isLoaded, user, upsertUser]);
+  }, [isLoaded, user, upsertUser, signOut]);
+
+  // Redirect logged-out users away from protected routes
+  useEffect(() => {
+    if (isLoaded && !user && !isPublicPath(pathname)) {
+      router.replace("/sign-in");
+    }
+  }, [isLoaded, user, pathname, router]);
 
   // CRITICAL: Check for suspended users and redirect - runs on every render
   useEffect(() => {
-    // Skip if auth not loaded or no user
     if (!isLoaded || !user) return;
-
-    // Skip auth pages
-    if (pathname.startsWith("/sign-")) return;
-
-    // Wait for db data
+    if (isPublicPath(pathname)) return;
     if (dbUser === undefined) return;
 
     // If user is suspended and NOT on suspended page, redirect immediately
@@ -56,12 +75,12 @@ export function UserSync() {
       if (pathname !== "/suspended") {
         router.replace("/suspended");
       }
-      return; // Don't run other checks for suspended users
+      return;
     }
 
-    // If user is NOT suspended but is on suspended page, redirect to home
+    // If user is NOT suspended but is on suspended page, redirect to dashboard
     if (dbUser && !dbUser.isSuspended && pathname === "/suspended") {
-      router.replace("/");
+      router.replace("/dashboard");
       return;
     }
 
@@ -72,7 +91,6 @@ export function UserSync() {
       dbUser.role === "student" &&
       !dbUser.batchId
     ) {
-      // Preserve ref and org params if present in current URL
       const searchParams = new URLSearchParams(window.location.search);
       const ref = searchParams.get("ref");
       const org = searchParams.get("org");
@@ -81,9 +99,39 @@ export function UserSync() {
       if (ref) params.set("ref", ref);
       const qs = params.toString();
       const onboardingUrl = qs ? `/onboarding?${qs}` : "/onboarding";
-      router.push(onboardingUrl);
+      router.replace(onboardingUrl);
     }
   }, [isLoaded, user, dbUser, pathname, router]);
 
-  return null;
+  // Allow public pages, onboarding, and suspended to render immediately
+  if (isPublicPath(pathname) || pathname === "/onboarding" || pathname === "/suspended") {
+    return <>{children}</>;
+  }
+
+  // Show spinner while Clerk auth is loading
+  if (!isLoaded) {
+    return <LoadingSpinner />;
+  }
+
+  // User signed out on a protected route — spinner while redirect fires
+  if (!user) {
+    return <LoadingSpinner />;
+  }
+
+  // Wait for DB user to load or sync (undefined = loading, null = not in DB yet)
+  if (!dbUser) {
+    return <LoadingSpinner />;
+  }
+
+  // User has no batch — spinner while redirect to onboarding fires
+  if (dbUser && dbUser.role === "student" && !dbUser.batchId) {
+    return <LoadingSpinner />;
+  }
+
+  // Suspended user — spinner while redirect fires
+  if (dbUser?.isSuspended) {
+    return <LoadingSpinner />;
+  }
+
+  return <>{children}</>;
 }

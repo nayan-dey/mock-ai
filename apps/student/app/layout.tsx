@@ -23,6 +23,9 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
           <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         </head>
         <body>
@@ -34,10 +37,11 @@ export default function RootLayout({
           >
             <ConvexClientProvider>
               <MobileOnlyGuard>
-                <UserSync />
-                <Navbar />
-                <main className="min-h-screen pt-14 pb-20 md:pb-0">{children}</main>
-                <BottomNav />
+                <UserSync>
+                  <Navbar />
+                  <main className="min-h-screen pt-14 pb-20 md:pb-0">{children}</main>
+                  <BottomNav />
+                </UserSync>
               </MobileOnlyGuard>
               <SonnerToaster position="top-center" richColors />
             </ConvexClientProvider>

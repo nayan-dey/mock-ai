@@ -1,25 +1,20 @@
 "use client";
 
-import { BotMessageSquare } from "lucide-react";
+import { useCallback } from "react";
+import { NindoLogo } from "./nindo-logo";
 import { useChatContext } from "./chat-provider";
 
 export function ChatWelcome() {
-  const { setInput } = useChatContext();
+  const { submitMessage } = useChatContext();
 
-  const handleSuggestionClick = (question: string) => {
-    setInput(question);
-    setTimeout(() => {
-      const form = document.querySelector("form");
-      if (form) {
-        form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      }
-    }, 10);
-  };
+  const handleSuggestionClick = useCallback((question: string) => {
+    submitMessage(question);
+  }, [submitMessage]);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6">
       <div className="mb-3">
-        <BotMessageSquare className="h-12 w-12 text-primary" strokeWidth={1.5} />
+        <NindoLogo className="h-12 w-12 text-primary" />
       </div>
 
       <h2 className="mb-6 text-lg font-serif font-medium text-foreground">

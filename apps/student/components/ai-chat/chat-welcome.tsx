@@ -1,20 +1,15 @@
 "use client";
 
+import { useCallback } from "react";
 import { DraftingCompass, Sparkles } from "lucide-react";
 import { useChatContext } from "./chat-provider";
 
 export function ChatWelcome() {
-  const { setInput } = useChatContext();
+  const { submitMessage } = useChatContext();
 
-  const handleSuggestionClick = (question: string) => {
-    setInput(question);
-    setTimeout(() => {
-      const form = document.querySelector("form");
-      if (form) {
-        form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      }
-    }, 10);
-  };
+  const handleSuggestionClick = useCallback((question: string) => {
+    submitMessage(question);
+  }, [submitMessage]);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6">
