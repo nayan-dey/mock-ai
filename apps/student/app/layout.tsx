@@ -37,9 +37,10 @@ export default function RootLayout({
           >
             <ConvexClientProvider>
               <MobileOnlyGuard>
-                <UserSync />
                 <Navbar />
-                <main className="min-h-screen pt-14 pb-20 md:pb-0">{children}</main>
+                <UserSync>
+                  <main className="min-h-screen pt-14 pb-20 md:pb-0">{children}</main>
+                </UserSync>
                 <BottomNav />
               </MobileOnlyGuard>
               <SonnerToaster position="top-center" richColors />

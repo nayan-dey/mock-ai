@@ -148,7 +148,7 @@ export default function AdminOnboardingPage() {
   };
 
   const handleSignOut = () => {
-    signOut().then(() => router.replace("/"));
+    signOut({ redirectUrl: "/sign-in" });
   };
 
   const filteredOrgs = publicOrgs?.filter((org) =>

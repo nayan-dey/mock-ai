@@ -1,8 +1,5 @@
-"use client";
-
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, CardContent } from "@repo/ui";
 import {
@@ -13,23 +10,11 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export default function HomePage() {
-  const { user, isLoaded } = useUser();
-  const router = useRouter();
+export default async function HomePage() {
+  const { userId } = await auth();
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      router.replace("/dashboard");
-    }
-  }, [isLoaded, user, router]);
-
-  // While loading or if authenticated, show nothing (will redirect)
-  if (!isLoaded || user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent motion-reduce:animate-none" />
-      </div>
-    );
+  if (userId) {
+    redirect("/dashboard");
   }
 
   return (

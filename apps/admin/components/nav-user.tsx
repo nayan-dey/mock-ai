@@ -27,7 +27,7 @@ export function NavUser() {
   const { state, isMobile } = useSidebar();
 
   const handleSignOut = () => {
-    signOut().then(() => router.replace("/"));
+    signOut({ redirectUrl: "/sign-in" });
   };
 
   const displayName = user?.fullName || "Admin";
