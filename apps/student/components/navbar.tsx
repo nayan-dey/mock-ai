@@ -33,8 +33,8 @@ const navItems = [
 export function Navbar() {
   const pathname = usePathname();
 
-  // Hide navbar on chat page
-  if (pathname === "/chat") {
+  // Hide navbar on full-screen pages
+  if (pathname === "/chat" || pathname === "/onboarding" || pathname === "/suspended") {
     return null;
   }
 

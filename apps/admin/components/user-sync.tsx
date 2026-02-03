@@ -39,12 +39,6 @@ export function UserSync({ children }: { children: ReactNode }) {
     user?.id ? { adminClerkId: user.id } : "skip"
   );
 
-  // Step 3: Check for pending join request (only if no org)
-  const pendingRequest = useQuery(
-    api.orgJoinRequests.getMyPendingRequest,
-    convexUser && !organization && organization !== undefined ? {} : "skip"
-  );
-
   // Reset sync flag on logout
   useEffect(() => {
     if (!user) {

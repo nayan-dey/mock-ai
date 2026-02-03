@@ -30,6 +30,11 @@ export function BottomNav() {
     return null;
   }
 
+  // Hide bottom nav on full-screen pages
+  if (pathname === "/onboarding" || pathname === "/suspended") {
+    return null;
+  }
+
   // Hide bottom nav on chat page when keyboard is open
   if (pathname === "/chat" && isKeyboardOpen) {
     return null;

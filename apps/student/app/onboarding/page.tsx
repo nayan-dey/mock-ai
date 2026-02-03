@@ -140,8 +140,10 @@ export default function OnboardingPage() {
       });
       router.push("/dashboard");
     } catch (err: any) {
-      const message =
-        err?.message || "Failed to join batch. Please try again.";
+      const raw = err?.message || "";
+      // Convex wraps errors like "[CONVEX M(...)] Uncaught Error: actual message"
+      const match = raw.match(/Uncaught Error:\s*(.+)/);
+      const message = match?.[1]?.trim() || raw || "Failed to join batch. Please try again.";
       setError(message);
     } finally {
       setIsSubmitting(false);

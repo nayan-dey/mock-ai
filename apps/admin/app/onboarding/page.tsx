@@ -93,12 +93,13 @@ export default function AdminOnboardingPage() {
   }, [pendingRequest, step]);
 
   // If org already exists, redirect to dashboard
-  if (organization) {
-    router.push("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (organization) {
+      router.replace("/dashboard");
+    }
+  }, [organization, router]);
 
-  if (!isLoaded || (user && organization === undefined)) {
+  if (!isLoaded || (user && organization === undefined) || organization) {
     return <OnboardingSkeleton />;
   }
 
@@ -158,7 +159,7 @@ export default function AdminOnboardingPage() {
   // Step: Choose path
   if (step === "choose") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/20 px-4 py-12">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/20 px-4">
         <div className="w-full max-w-lg space-y-6">
           <div className="text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">

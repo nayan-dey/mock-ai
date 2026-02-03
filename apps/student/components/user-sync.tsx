@@ -118,8 +118,8 @@ export function UserSync({ children }: { children: ReactNode }) {
     return <LoadingSpinner />;
   }
 
-  // Wait for DB user to load
-  if (dbUser === undefined) {
+  // Wait for DB user to load or sync (undefined = loading, null = not in DB yet)
+  if (!dbUser) {
     return <LoadingSpinner />;
   }
 
