@@ -5,6 +5,7 @@ import { requireAdmin, getOrgId } from "./lib/auth";
 const notificationType = v.union(
   v.literal("fee_overdue"),
   v.literal("fee_paid"),
+  v.literal("fee_query"),
   v.literal("test_submitted"),
   v.literal("join_request"),
   v.literal("student_enrolled"),
@@ -14,6 +15,7 @@ const notificationType = v.union(
 
 const referenceType = v.union(
   v.literal("fee"),
+  v.literal("feeQuery"),
   v.literal("attempt"),
   v.literal("joinRequest"),
   v.literal("user"),

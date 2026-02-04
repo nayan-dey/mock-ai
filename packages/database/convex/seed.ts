@@ -20,6 +20,8 @@ export const clearAllData = mutation({
       "userSettings",
       "organizations",
       "fees",
+      "feeQueries",
+      "feeQueryMessages",
       "notifications",
       "chatConversations",
       "chatMessages",
@@ -64,6 +66,30 @@ export const clearSeedData = mutation({
       await ctx.db.delete(record._id);
     }
     deleted.attempts = attempts.length;
+
+    // Delete fee query messages first (references feeQueries)
+    const feeQueries = await ctx.db
+      .query("feeQueries")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    let feeQueryMessagesCount = 0;
+    for (const query of feeQueries) {
+      const messages = await ctx.db
+        .query("feeQueryMessages")
+        .withIndex("by_query", (q) => q.eq("queryId", query._id))
+        .collect();
+      for (const msg of messages) {
+        await ctx.db.delete(msg._id);
+      }
+      feeQueryMessagesCount += messages.length;
+    }
+    deleted.feeQueryMessages = feeQueryMessagesCount;
+
+    // Delete fee queries (references fees and users)
+    for (const query of feeQueries) {
+      await ctx.db.delete(query._id);
+    }
+    deleted.feeQueries = feeQueries.length;
 
     // Delete fees (references users)
     const fees = await ctx.db
@@ -525,6 +551,97 @@ export const seedMockStudents = mutation({
       }
 
       createdStudents.push({ userId, name, email });
+    }
+
+    // ==================== FEE QUERIES ====================
+    // Create some mock fee queries for a subset of students
+    const queryTypes = ["dispute", "clarification", "payment_issue", "extension_request", "other"] as const;
+    const querySubjects = [
+      "Payment not reflected",
+      "Need extension for fee payment",
+      "Incorrect fee amount",
+      "Request for fee waiver",
+      "Query about late fee charges",
+      "Payment method issue",
+    ];
+    const queryDescriptions = [
+      "I made the payment last week but it's still showing as due. Please check and update.",
+      "Due to family financial issues, I need an extension of 2 weeks for the fee payment.",
+      "The fee amount seems higher than what was communicated earlier. Please clarify.",
+      "I would like to request a partial fee waiver due to financial hardship.",
+      "I was charged late fee but I paid on time. Please review.",
+      "I'm having trouble with the online payment. Can I pay via bank transfer?",
+    ];
+
+    // Get all fees for seeded students
+    const allStudentFees = await ctx.db
+      .query("fees")
+      .withIndex("by_organization", (q) => q.eq("organizationId", adminOrgId))
+      .collect();
+
+    const studentFeeMap = new Map<string, typeof allStudentFees>();
+    for (const fee of allStudentFees) {
+      const existing = studentFeeMap.get(fee.studentId) || [];
+      existing.push(fee);
+      studentFeeMap.set(fee.studentId, existing);
+    }
+
+    // Create queries for ~40% of students
+    for (const student of createdStudents) {
+      if (Math.random() > 0.4) continue; // Skip 60% of students
+
+      const studentFees = studentFeeMap.get(student.userId) || [];
+      if (studentFees.length === 0) continue;
+
+      // Pick a random fee (prefer due fees)
+      const dueFees = studentFees.filter(f => f.status === "due");
+      const targetFee = dueFees.length > 0
+        ? dueFees[Math.floor(Math.random() * dueFees.length)]
+        : studentFees[Math.floor(Math.random() * studentFees.length)];
+
+      const queryIdx = Math.floor(Math.random() * querySubjects.length);
+      const queryStatus = ["open", "in_progress", "resolved", "closed"][Math.floor(Math.random() * 4)] as "open" | "in_progress" | "resolved" | "closed";
+      const queryCreatedAt = now - Math.floor(Math.random() * 14) * 24 * 60 * 60 * 1000; // 0-14 days ago
+
+      const queryId = await ctx.db.insert("feeQueries", {
+        feeId: targetFee._id,
+        studentId: student.userId,
+        organizationId: adminOrgId,
+        type: queryTypes[Math.floor(Math.random() * queryTypes.length)],
+        subject: querySubjects[queryIdx],
+        description: queryDescriptions[queryIdx],
+        status: queryStatus,
+        createdAt: queryCreatedAt,
+        ...(queryStatus === "resolved" || queryStatus === "closed" ? {
+          resolvedBy: admin._id,
+          resolvedAt: queryCreatedAt + Math.floor(Math.random() * 3) * 24 * 60 * 60 * 1000,
+        } : {}),
+      });
+
+      // Add some messages to the thread (50% chance)
+      if (Math.random() > 0.5) {
+        // Admin response
+        await ctx.db.insert("feeQueryMessages", {
+          queryId,
+          senderId: admin._id,
+          senderRole: "admin",
+          senderName: admin.name,
+          message: "Thank you for reaching out. We are looking into this matter and will get back to you shortly.",
+          createdAt: queryCreatedAt + 2 * 60 * 60 * 1000, // 2 hours after query
+        });
+
+        // Student follow-up (30% chance)
+        if (Math.random() > 0.7) {
+          await ctx.db.insert("feeQueryMessages", {
+            queryId,
+            senderId: student.userId,
+            senderRole: "student",
+            senderName: student.name,
+            message: "Thank you for the quick response. Please let me know if you need any additional information.",
+            createdAt: queryCreatedAt + 4 * 60 * 60 * 1000, // 4 hours after query
+          });
+        }
+      }
     }
 
     // ==================== TEST ATTEMPTS ====================

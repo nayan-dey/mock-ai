@@ -10,6 +10,13 @@ crons.daily(
   internal.notifications.checkOverdueFees
 );
 
+// Generate anniversary-based monthly fees daily at 00:05 UTC
+crons.daily(
+  "generate anniversary fees",
+  { hourUTC: 0, minuteUTC: 5 },
+  internal.fees.generateAnniversaryFees
+);
+
 // Clean up old read notifications weekly on Sunday at 3:00 AM UTC
 crons.weekly(
   "cleanup old notifications",
