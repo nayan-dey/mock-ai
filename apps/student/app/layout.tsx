@@ -8,6 +8,7 @@ import { UserSync } from "../components/user-sync";
 import { MobileOnlyGuard } from "../components/mobile-only-guard";
 import { SonnerToaster } from "@repo/ui";
 import "@repo/ui/globals.css";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Nindo - Student Portal",
@@ -27,6 +28,11 @@ export default function RootLayout({
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
           <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+            <Script
+            src="//unpkg.com/react-grab/dist/index.global.js"
+            crossOrigin="anonymous"
+            strategy="beforeInteractive"
+          />
         </head>
         <body>
           <ThemeProvider

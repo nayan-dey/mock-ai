@@ -14,6 +14,10 @@ import {
   ScrollArea,
   Separator,
   SidebarTrigger,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   cn,
 } from "@repo/ui";
 import {
@@ -29,6 +33,7 @@ import {
   UserCheck,
   CheckCheck,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -93,15 +98,25 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isMarkingAllRead, startMarkAllRead] = useTransition();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{
     id: string;
     name: string;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "unread" | "read">("all");
 
   const handleMarkAllRead = () => {
     startMarkAllRead(async () => {
       await markAllAsRead({});
     });
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    // Force re-fetch by closing and opening the sheet
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 500);
   };
 
   const org = useQuery(api.organizations.getMyOrg);
@@ -217,22 +232,20 @@ export function Header() {
 
       {/* Notifications Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
+<SheetContent side="right" className="w-full sm:max-w-md [&>button]:hidden">
+
           <SheetHeader>
             <div className="flex items-center justify-between">
               <SheetTitle>Notifications</SheetTitle>
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs"
-                  disabled={isMarkingAllRead}
-                  onClick={handleMarkAllRead}
-                >
-                  {isMarkingAllRead ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
-                  Mark all as read
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={isRefreshing}
+                onClick={handleRefresh}
+              >
+                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              </Button>
             </div>
             <SheetDescription>
               {unreadCount > 0
@@ -240,64 +253,237 @@ export function Header() {
                 : "All caught up"}
             </SheetDescription>
           </SheetHeader>
-          <ScrollArea className="mt-4 h-[calc(100vh-8rem)]">
-            {notifications && notifications.length > 0 ? (
-              <div className="space-y-2 pr-4">
-                {notifications.map((notification) => {
-                  const config =
-                    notificationConfig[notification.type] ??
-                    notificationConfig.fee_overdue;
-                  const Icon = config.icon;
-                  return (
-                    <button
-                      key={notification._id}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
-                        !notification.isRead && "bg-muted/30 border-primary/20"
-                      )}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div
-                        className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                          config.bgColor
-                        )}
-                      >
-                        <Icon className={cn("h-4 w-4", config.color)} />
-                      </div>
-                      <div className="flex-1 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">
-                            {notification.title}
-                          </p>
-                          {!notification.isRead && (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as "all" | "unread" | "read")}
+            className="mt-4"
+          >
+            <TabsList className="mb-4 h-10 rounded-lg bg-muted p-1 gap-1 grid w-full grid-cols-3 items-stretch">
+              <TabsTrigger value="all" className="gap-1.5">
+                View All
+                {notifications && notifications.length > 0 && (
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium">
+                    {notifications.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="unread" className="gap-1.5">
+                Unread
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium">
+                    {unreadCount}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="read" className="gap-1.5">
+                Read
+                {notifications && notifications.filter(n => n.isRead).length > 0 && (
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium">
+                    {notifications.filter(n => n.isRead).length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all" className="mt-0">
+              <ScrollArea className="h-[calc(100vh-16rem)]">
+                {notifications && notifications.length > 0 ? (
+                  <div className="space-y-2">
+                    {notifications.map((notification) => {
+                      const config =
+                        notificationConfig[notification.type] ??
+                        notificationConfig.fee_overdue;
+                      const Icon = config.icon;
+                      return (
+                        <button
+                          key={notification._id}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+                            !notification.isRead && "bg-muted/30 border-primary/20"
                           )}
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground/60">
-                          {formatRelativeTime(notification.createdAt)}
-                        </p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Bell className="mb-3 h-10 w-10 text-muted-foreground/30" />
-                <p className="text-sm font-medium text-muted-foreground">
-                  No notifications
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground/70">
-                  You&apos;re all caught up
-                </p>
-              </div>
-            )}
-          </ScrollArea>
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <div
+                            className={cn(
+                              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                              config.bgColor
+                            )}
+                          >
+                            <Icon className={cn("h-4 w-4", config.color)} />
+                          </div>
+                          <div className="flex-1 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">
+                                {notification.title}
+                              </p>
+                              {!notification.isRead && (
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-muted-foreground/60">
+                              {formatRelativeTime(notification.createdAt)}
+                            </p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Bell className="mb-3 h-10 w-10 text-muted-foreground/30" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      No notifications
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground/70">
+                      You&apos;re all caught up
+                    </p>
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="unread" className="mt-0">
+              <ScrollArea className="h-[calc(100vh-16rem)]">
+                {notifications && notifications.filter(n => !n.isRead).length > 0 ? (
+                  <div className="space-y-2 pr-4">
+                    {notifications
+                      .filter((notification) => !notification.isRead)
+                      .map((notification) => {
+                        const config =
+                          notificationConfig[notification.type] ??
+                          notificationConfig.fee_overdue;
+                        const Icon = config.icon;
+                        return (
+                          <button
+                            key={notification._id}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+                              "bg-muted/30 border-primary/20"
+                            )}
+                            onClick={() => handleNotificationClick(notification)}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                                config.bgColor
+                              )}
+                            >
+                              <Icon className={cn("h-4 w-4", config.color)} />
+                            </div>
+                            <div className="flex-1 space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium">
+                                  {notification.title}
+                                </p>
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-muted-foreground/60">
+                                {formatRelativeTime(notification.createdAt)}
+                              </p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <CheckCheck className="mb-3 h-10 w-10 text-muted-foreground/30" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      No unread notifications
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground/70">
+                      All caught up
+                    </p>
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="read" className="mt-0">
+              <ScrollArea className="h-[calc(100vh-16rem)]">
+                {notifications && notifications.filter(n => n.isRead).length > 0 ? (
+                  <div className="space-y-2 pr-4">
+                    {notifications
+                      .filter((notification) => notification.isRead)
+                      .map((notification) => {
+                        const config =
+                          notificationConfig[notification.type] ??
+                          notificationConfig.fee_overdue;
+                        const Icon = config.icon;
+                        return (
+                          <button
+                            key={notification._id}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+                            )}
+                            onClick={() => handleNotificationClick(notification)}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                                config.bgColor
+                              )}
+                            >
+                              <Icon className={cn("h-4 w-4", config.color)} />
+                            </div>
+                            <div className="flex-1 space-y-0.5">
+                              <p className="text-sm font-medium">
+                                {notification.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-muted-foreground/60">
+                                {formatRelativeTime(notification.createdAt)}
+                              </p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          </button>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Bell className="mb-3 h-10 w-10 text-muted-foreground/30" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      No read notifications
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground/70">
+                      Read notifications will appear here
+                    </p>
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+
+          {/* Bottom Actions */}
+          <div className="absolute bottom-0 left-0 right-0 border-t bg-background p-4">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                disabled={isMarkingAllRead || unreadCount === 0}
+                onClick={handleMarkAllRead}
+              >
+                {isMarkingAllRead ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCheck className="mr-2 h-4 w-4" />
+                )}
+                Mark all as read
+              </Button>
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
 

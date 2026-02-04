@@ -562,6 +562,11 @@ export default function DashboardPage() {
                     yKey="count"
                     height={200}
                     color="hsl(var(--primary))"
+                    tooltipValueSuffix=" students"
+                    showPercentage
+                    xAxisLabel="Score Range"
+                    yAxisLabel="Students"
+                    tooltipSubtitle={tests?.find(t => t._id === effectiveTestId)?.title}
                   />
                 </ChartContainer>
               </div>

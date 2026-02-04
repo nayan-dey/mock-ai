@@ -401,28 +401,41 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
                 <CardTitle className="text-sm font-medium">Score Distribution</CardTitle>
               </CardHeader>
               <CardContent>
-                {testAnalytics?.scoreDistribution.map((item) => (
-                  <div key={item.range} className="mb-2 flex items-center gap-2">
-                    <span className="w-16 text-xs text-muted-foreground">
-                      {item.range}
-                    </span>
-                    <div className="flex-1 rounded-full bg-muted">
-                      <div
-                        className="h-2 rounded-full bg-primary"
-                        style={{
-                          width: `${
-                            testAnalytics.totalAttempts > 0
-                              ? (item.count / testAnalytics.totalAttempts) * 100
-                              : 0
-                          }%`,
-                        }}
-                      />
-                    </div>
-                    <span className="w-6 text-right text-xs font-medium tabular-nums">
-                      {item.count}
-                    </span>
-                  </div>
-                ))}
+                <TooltipProvider delayDuration={0}>
+                  {testAnalytics?.scoreDistribution.map((item) => {
+                    const percentage = testAnalytics.totalAttempts > 0
+                      ? (item.count / testAnalytics.totalAttempts) * 100
+                      : 0;
+                    return (
+                      <Tooltip key={item.range}>
+                        <TooltipTrigger asChild>
+                          <div className="mb-2 flex items-center gap-2 cursor-pointer group">
+                            <span className="w-16 text-xs text-muted-foreground">
+                              {item.range}
+                            </span>
+                            <div className="flex-1 rounded-full bg-muted">
+                              <div
+                                className="h-2 rounded-full bg-primary group-hover:bg-primary/80 transition-colors"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="w-6 text-right text-xs font-medium tabular-nums">
+                              {item.count}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="px-3 py-2">
+                          <p className="font-medium text-sm">{item.range} marks</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs">
+                            <span className="tabular-nums">{item.count} student{item.count !== 1 ? 's' : ''}</span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className="tabular-nums">{percentage.toFixed(1)}%</span>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </TooltipProvider>
               </CardContent>
             </Card>
           </div>

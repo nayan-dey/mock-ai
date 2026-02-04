@@ -38,9 +38,10 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  EllipsisVertical,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
-import { UserDetailSheet } from "../../../components/user-detail-sheet";
+import { FeeDetailSheet } from "../../../components/fee-detail-sheet";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
 import { ExportDropdown } from "@/components/export-dropdown";
@@ -185,13 +186,10 @@ export function FeesClient() {
 
   const toggleStudentExpand = useCallback((studentId: string) => {
     setExpandedStudents((prev) => {
-      const next = new Set(prev);
-      if (next.has(studentId)) {
-        next.delete(studentId);
-      } else {
-        next.add(studentId);
+      if (prev.has(studentId)) {
+        return new Set();
       }
-      return next;
+      return new Set([studentId]);
     });
   }, []);
 
@@ -340,40 +338,6 @@ export function FeesClient() {
       },
     },
     {
-      accessorKey: "dueMonth",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Month" />
-      ),
-      cell: ({ row }) => {
-        if (row.original._feeCount > 1) {
-          return (
-            <span className="text-xs text-muted-foreground">—</span>
-          );
-        }
-        return (
-          <span className="text-muted-foreground">
-            {row.getValue("dueMonth")}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "description",
-      header: "Description",
-      cell: ({ row }) => {
-        if (row.original._feeCount > 1) {
-          return (
-            <span className="text-xs text-muted-foreground">—</span>
-          );
-        }
-        return (
-          <span className="text-muted-foreground">
-            {row.getValue("description") || "Fee Payment"}
-          </span>
-        );
-      },
-    },
-    {
       accessorKey: "amount",
       header: ({ column }) => (
         <SortableHeader column={column} title="Amount" />
@@ -390,26 +354,6 @@ export function FeesClient() {
         return (
           <span className="font-mono font-semibold">
             &#8377;{(row.getValue("amount") as number).toLocaleString("en-IN")}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "dueDate",
-      header: ({ column }) => (
-        <SortableHeader column={column} title="Due Date" />
-      ),
-      cell: ({ row }) => {
-        if (row.original._feeCount > 1) {
-          return (
-            <span className="text-xs text-muted-foreground">—</span>
-          );
-        }
-        return (
-          <span className="text-muted-foreground">
-            {new Date(row.getValue("dueDate") as number).toLocaleDateString(
-              "en-IN"
-            )}
           </span>
         );
       },
@@ -459,23 +403,6 @@ export function FeesClient() {
         );
       },
     },
-    {
-      accessorKey: "paidDate",
-      header: "Paid Date",
-      cell: ({ row }) => {
-        if (row.original._feeCount > 1) {
-          return (
-            <span className="text-xs text-muted-foreground">—</span>
-          );
-        }
-        const pd = row.getValue("paidDate") as number | undefined;
-        return (
-          <span className="text-muted-foreground">
-            {pd ? new Date(pd).toLocaleDateString("en-IN") : "—"}
-          </span>
-        );
-      },
-    },
     // Hidden filter columns
     {
       id: "batchFilter",
@@ -513,7 +440,7 @@ export function FeesClient() {
     createActionsColumn<GroupedFeeRow>((fee) => {
       const actions: ActionMenuItem[] = [
         {
-          label: "View Details",
+          label: "View Fee Structure",
           icon: <Eye className="h-4 w-4" />,
           onClick: () =>
             setSelectedStudent({
@@ -582,6 +509,11 @@ export function FeesClient() {
         emptyIcon={<IndianRupee className="h-6 w-6 text-muted-foreground" />}
         emptyTitle="No fee records yet"
         emptyDescription="Add fee records from individual student pages"
+        onRowClick={(row: GroupedFeeRow) => {
+          if (row._feeCount > 1) {
+            toggleStudentExpand(row.studentId);
+          }
+        }}
         rowClassName={(row: GroupedFeeRow) =>
           row._feeCount === 1 && row.status === "due"
             ? "bg-destructive/5 hover:bg-destructive/10"
@@ -594,22 +526,35 @@ export function FeesClient() {
           return (
             <div className="px-4 py-2">
               <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-foreground/20 text-xs text-foreground">
+                    <th className="py-2.5 pl-7 pr-3 text-left font-semibold">Batch</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Month</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Description</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Amount</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Due Date</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Status</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Paid Date</th>
+                    <th className="py-2.5 px-3 text-right font-semibold">Action</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {otherFees.map((fee) => (
                     <tr
                       key={fee._id}
-                      className={`border-b last:border-b-0 border-border/50 ${
+                      onClick={() =>
+                        setSelectedStudent({
+                          id: fee.studentId,
+                          name: fee.studentName,
+                        })
+                      }
+                      className={`border-b last:border-b-0 border-border/50 cursor-pointer hover:bg-muted/50 transition-colors ${
                         fee.status === "due"
                           ? "bg-destructive/5"
                           : ""
                       }`}
                     >
-                      <td className="py-2 pl-7 pr-3 w-[200px]">
-                        <span className="text-xs text-muted-foreground">
-                          {getMonthLabel(fee.dueDate)}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3">
+                      <td className="py-2 pl-7 pr-3">
                         <Badge variant="outline" className="font-normal text-xs">
                           {fee.batchName}
                         </Badge>
@@ -626,8 +571,7 @@ export function FeesClient() {
                       </td>
                       <td className="py-2 px-3">
                         <span className="font-mono text-xs font-semibold">
-                          &#8377;
-                          {fee.amount.toLocaleString("en-IN")}
+                          &#8377;{fee.amount.toLocaleString("en-IN")}
                         </span>
                       </td>
                       <td className="py-2 px-3">
@@ -654,7 +598,7 @@ export function FeesClient() {
                             : "—"}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-right">
+                      <td className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -662,7 +606,7 @@ export function FeesClient() {
                               size="icon"
                               className="h-7 w-7"
                             >
-                              <Eye className="h-3.5 w-3.5" />
+                              <EllipsisVertical className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
@@ -675,7 +619,7 @@ export function FeesClient() {
                               }
                             >
                               <Eye className="mr-2 h-4 w-4" />
-                              View Details
+                              View Fee Structure
                             </DropdownMenuItem>
                             {fee.status === "due" && (
                               <DropdownMenuItem
@@ -720,9 +664,10 @@ export function FeesClient() {
         }
       />
 
-      {/* User Detail Sheet */}
-      <UserDetailSheet
-        userId={selectedStudent?.id ?? null}
+      {/* Fee Detail Sheet */}
+      <FeeDetailSheet
+        studentId={selectedStudent?.id ?? null}
+        studentName={selectedStudent?.name ?? ""}
         open={!!selectedStudent}
         onOpenChange={(open) => {
           if (!open) setSelectedStudent(null);

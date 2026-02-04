@@ -8,19 +8,13 @@ import { useState, useMemo, useTransition } from "react";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
   Button,
   Badge,
   Avatar,
   AvatarFallback,
   Input,
   ScrollArea,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  Skeleton,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -40,6 +34,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@repo/ui";
 import {
   Mail,
@@ -64,6 +63,15 @@ import {
   Star,
   Download,
   Loader2,
+  X,
+  ChevronRight,
+  Sparkles,
+  GraduationCap,
+  Clock,
+  CircleCheck,
+  CircleAlert,
+  MoreHorizontal,
+  FileSpreadsheet,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -461,482 +469,391 @@ export function UserDetailSheet({
     [fees]
   );
 
+  // Check if all required data is loaded
+  const isLoading = useMemo(() => {
+    if (user === undefined) return true;
+    if (user === null) return false;
+    // For non-admin users, wait for fees
+    if (user.role !== "admin" && fees === undefined) return true;
+    // For students, wait for analytics data
+    if (user.role === "student") {
+      if (studentAnalytics === undefined) return true;
+      if (globalLeaderboard === undefined) return true;
+    }
+    return false;
+  }, [user, fees, studentAnalytics, globalLeaderboard]);
+
+  // Get user rank entry
+  const userRankEntry = globalLeaderboard?.find((e) => e.userId === userId);
+  const globalRank = userRankEntry?.rank ?? null;
+
+  // Subject performance calculations
+  const subjectPerf = studentAnalytics?.subjectWisePerformance ?? {};
+  const subjectEntries = Object.entries(subjectPerf).map(
+    ([subject, data]) => ({
+      subject,
+      correct: (data as any).correct,
+      total: (data as any).total,
+      accuracy: (data as any).total > 0 ? Math.round(((data as any).correct / (data as any).total) * 100) : 0,
+    })
+  );
+  const bestSubject = subjectEntries.length > 0
+    ? subjectEntries.reduce((best, cur) =>
+        cur.accuracy > best.accuracy ? cur : best
+      )
+    : null;
+
+  const achievementIcons: Record<string, React.ReactNode> = {
+    "perfectionist": <Award className="h-4 w-4" />,
+    "speed-demon": <Rocket className="h-4 w-4" />,
+    "comeback-king": <RefreshCcw className="h-4 w-4" />,
+    "streak-master": <Flame className="h-4 w-4" />,
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col overflow-hidden">
-          <SheetHeader>
-            <SheetTitle>User Details</SheetTitle>
-            <SheetDescription>
-              View and manage user information
-            </SheetDescription>
-          </SheetHeader>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-xl p-0 flex flex-col overflow-hidden border-l  [&>button]:hidden"
+          
+        >
+          {/* Custom Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold">User Details</h2>
+                <p className="text-xs text-muted-foreground">View and manage profile</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-          <ScrollArea className="mt-4 flex-1 -mr-3 pr-3">
-            {user === undefined ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
+          <ScrollArea className="flex-1">
+            {isLoading ? (
+              <div className="p-4 space-y-4">
+                {/* Profile Skeleton */}
+                <div className="bg-background rounded-xl p-4">
+                  <div className="flex items-start gap-4">
+                    <Skeleton className="h-16 w-16 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-24" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-5 w-20" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Stats Skeleton */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-20 rounded-xl" />
+                  <Skeleton className="h-20 rounded-xl" />
+                  <Skeleton className="h-20 rounded-xl" />
+                  <Skeleton className="h-20 rounded-xl" />
+                </div>
+                {/* Content Skeleton */}
+                <Skeleton className="h-32 rounded-xl" />
+                <Skeleton className="h-48 rounded-xl" />
               </div>
             ) : user === null ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <p className="text-sm text-muted-foreground">User not found</p>
+              <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <Users className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">User not found</p>
+                <p className="text-xs text-muted-foreground mt-1">This user may have been deleted</p>
               </div>
             ) : (
-              <div className="space-y-5 pr-4">
-                {/* ── Profile ── */}
-                <div className="flex flex-col items-center text-center">
-                  <Avatar className="h-20 w-20 border-2">
-                    <AvatarFallback className="text-xl">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h2 className="mt-3 text-lg font-semibold truncate max-w-full">{user.name}</h2>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Badge
-                      variant={
-                        user.role === "admin"
-                          ? "destructive"
-                          : user.role === "teacher"
-                            ? "secondary"
-                            : "outline"
-                      }
-                    >
-                      {user.role}
-                    </Badge>
-                    {user.isSuspended && (
-                      <Badge variant="destructive">Suspended</Badge>
+              <div className="p-4 space-y-4">
+                {/* Profile Card */}
+                <div className="bg-background rounded-xl p-4 border">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-14 w-14 border-2 border-primary/20">
+                      <AvatarFallback className="text-base font-semibold bg-primary/10 text-primary">
+                        {getInitials(user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{user.name}</h3>
+                          <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 text-sm">
+                              <FileText className="h-4 w-4" />
+                              Export PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportExcel} className="gap-2 text-sm">
+                              <FileSpreadsheet className="h-4 w-4" />
+                              Export Excel
+                            </DropdownMenuItem>
+                            {!isAdmin && (
+                              <>
+                                <Separator className="my-1" />
+                                {user.isSuspended ? (
+                                  <DropdownMenuItem onClick={openUnsuspendDialog} className="gap-2 text-sm">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Unsuspend User
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => setShowSuspendDialog(true)}
+                                    className="gap-2 text-sm text-red-600 focus:text-red-600"
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                    Suspend User
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {user.isSuspended && (
+                          <Badge variant="destructive" className="gap-1">
+                            <Ban className="h-3 w-3" />
+                            Suspended
+                          </Badge>
+                        )}
+                        {batch && (
+                          <Badge variant="secondary" className="gap-1">
+                            <Users className="h-3 w-3" />
+                            {batch.name}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Info */}
+                  <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Joined</p>
+                        <p className="font-medium truncate">{formatDate(user.createdAt)}</p>
+                      </div>
+                    </div>
+                    {user.age && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Age</p>
+                          <p className="font-medium">{user.age} years</p>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="mt-3 gap-1.5">
-                        <Download className="h-3.5 w-3.5" />
-                        Export Data
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="center">
-                      <DropdownMenuItem onClick={handleExportPDF}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Export as PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleExportExcel}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Export as Excel
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
 
-                {/* ── Info ── */}
-                <div className="space-y-2 rounded-lg border p-3 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4 shrink-0" />
-                    Joined {formatDate(user.createdAt)}
-                  </div>
-                  {batch && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-4 w-4 shrink-0" />
-                      {batch.name}
-                    </div>
-                  )}
-                  {user.age && (
-                    <div className="text-muted-foreground">
-                      Age: {user.age} years
+                  {/* Bio */}
+                  {user.bio && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">{user.bio}</p>
                     </div>
                   )}
                 </div>
 
-                {/* ── Bio ── */}
-                {user.bio && (
-                  <div className="rounded-lg bg-muted p-3 text-sm">
-                    {user.bio}
-                  </div>
-                )}
-
-                {/* ── Suspension Info ── */}
+                {/* Suspension Alert */}
                 {user.isSuspended && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/20">
-                    <div className="flex items-center gap-2 text-sm font-medium text-red-800 dark:text-red-200">
-                      <AlertTriangle className="h-4 w-4" />
-                      Account Suspended
+                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-red-800 dark:text-red-200">Account Suspended</p>
+                        {user.suspendReason && (
+                          <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                            {user.suspendReason}
+                          </p>
+                        )}
+                        {user.suspendedAt && (
+                          <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                            Suspended on {formatDate(user.suspendedAt)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {user.suspendReason && (
-                      <p className="mt-1.5 text-xs text-red-700 dark:text-red-300">
-                        <strong>Reason:</strong> {user.suspendReason}
-                      </p>
-                    )}
-                    {user.suspendedAt && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                        Suspended on {formatDate(user.suspendedAt)}
-                      </p>
-                    )}
                   </div>
                 )}
 
-                {/* ── Suspend / Unsuspend Actions ── */}
-                {!isAdmin && (
-                  <div>
-                    {user.isSuspended ? (
-                      <Button
-                        className="w-full"
-                        onClick={openUnsuspendDialog}
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Unsuspend User
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="destructive"
-                        className="w-full"
-                        onClick={() => setShowSuspendDialog(true)}
-                      >
-                        <Ban className="mr-2 h-4 w-4" />
-                        Suspend User
-                      </Button>
-                    )}
-                  </div>
-                )}
 
-                {/* ── Fees Section ── */}
-                {!isAdmin && (
+                {/* Student Analytics */}
+                {isStudent && studentAnalytics && (
                   <>
-                    <div className="border-t pt-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="flex items-center gap-2 text-sm font-semibold">
-                          <IndianRupee className="h-4 w-4" />
-                          Fees
-                        </h3>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 gap-1 text-xs"
-                          onClick={openAddFeeDialog}
-                        >
-                          <Plus className="h-3 w-3" />
-                          Add
-                        </Button>
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-background rounded-xl p-4 border">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">Tests Taken</p>
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold mt-1 tabular-nums">
+                          {studentAnalytics.totalTestsTaken}
+                        </p>
                       </div>
-
-                      {/* Fee Summary */}
-                      <div className="mt-3 flex gap-3">
-                        <div className="flex-1 rounded-lg border bg-muted/30 p-2.5 text-center">
-                          <p className="text-xs text-muted-foreground">Due</p>
-                          <p className="font-mono text-sm font-semibold text-destructive">
-                            &#8377;{totalDue.toLocaleString("en-IN")}
-                          </p>
+                      <div className="bg-background rounded-xl p-4 border">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">Global Rank</p>
+                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div className="flex-1 rounded-lg border bg-muted/30 p-2.5 text-center">
-                          <p className="text-xs text-muted-foreground">Paid</p>
-                          <p className="font-mono text-sm font-semibold text-emerald-600">
-                            &#8377;{totalPaid.toLocaleString("en-IN")}
-                          </p>
+                        <p className={`text-2xl font-bold mt-1 tabular-nums ${
+                          globalRank === 1
+                            ? "text-amber-500"
+                            : globalRank && globalRank <= 3
+                              ? "text-orange-500"
+                              : ""
+                        }`}>
+                          {globalRank ? `#${globalRank}` : "—"}
+                        </p>
+                      </div>
+                      <div className="bg-background rounded-xl p-4 border">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">Avg Score</p>
+                          <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
                         </div>
+                        <p className="text-2xl font-bold mt-1 tabular-nums">
+                          {studentAnalytics.averageScore.toFixed(1)}
+                        </p>
+                      </div>
+                      <div className="bg-background rounded-xl p-4 border">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground">Total Score</p>
+                          <Trophy className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold mt-1 tabular-nums">
+                          {userRankEntry?.totalScore?.toFixed(1) ?? "—"}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Fee Records */}
-                    {fees && fees.length > 0 ? (
-                      <div className="space-y-2">
-                        {fees.map((fee) => (
-                          <div
-                            key={fee._id}
-                            className={`rounded-lg border p-3 ${
-                              fee.status === "due"
-                                ? "border-destructive/20 bg-destructive/5"
-                                : "bg-background"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-0.5">
-                                <p className="text-sm font-medium">
-                                  {fee.description || "Fee Payment"}
-                                </p>
-                                <p className="font-mono text-base font-semibold">
-                                  &#8377;{fee.amount.toLocaleString("en-IN")}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Due:{" "}
-                                  {new Date(fee.dueDate).toLocaleDateString(
-                                    "en-IN"
-                                  )}
-                                  {fee.status === "paid" && fee.paidDate && (
-                                    <>
-                                      {" "}
-                                      &middot; Paid:{" "}
-                                      {new Date(
-                                        fee.paidDate
-                                      ).toLocaleDateString("en-IN")}
-                                    </>
-                                  )}
-                                </p>
-                              </div>
-                              <Badge
-                                variant={
-                                  fee.status === "paid"
-                                    ? "success"
-                                    : "destructive"
-                                }
-                                className="text-[10px]"
-                              >
-                                {fee.status === "paid" ? "Paid" : "Due"}
-                              </Badge>
-                            </div>
-                            <div className="mt-2 flex gap-1">
-                              {fee.status === "due" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 gap-1 text-xs"
-                                  onClick={() => {
-                                    setMarkPaidDate(new Date().toISOString().split("T")[0]);
-                                    setMarkPaidFeeId(fee._id);
-                                  }}
-                                >
-                                  <CheckCircle className="h-3 w-3" />
-                                  Mark Paid
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 text-xs"
-                                onClick={() => openEditFeeDialog(fee as Fee)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                                onClick={() => setDeleteFeeId(fee._id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                Delete
-                              </Button>
-                            </div>
+                    {/* Best Subject */}
+                    {bestSubject && (
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
+                            <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                           </div>
-                        ))}
-                      </div>
-                    ) : fees ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <IndianRupee className="mb-3 h-8 w-8 text-muted-foreground/30" />
-                        <p className="text-sm font-medium text-muted-foreground">
-                          No fee records
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground/70">
-                          Add the first fee record for this student
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent motion-reduce:animate-none" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Best Subject</p>
+                            <p className="font-semibold text-emerald-900 dark:text-emerald-100 truncate">{bestSubject.subject}</p>
+                          </div>
+                          <Badge className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-0">
+                            {bestSubject.accuracy}%
+                          </Badge>
+                        </div>
                       </div>
                     )}
-                  </>
-                )}
 
-                {/* ── Student Analytics ── */}
-                {isStudent && (() => {
-                  const userRankEntry = globalLeaderboard?.find(
-                    (e) => e.userId === userId
-                  );
-                  const globalRank = userRankEntry?.rank ?? null;
-
-                  const subjectPerf = studentAnalytics?.subjectWisePerformance ?? {};
-                  const subjectEntries = Object.entries(subjectPerf).map(
-                    ([subject, data]) => ({
-                      subject,
-                      correct: data.correct,
-                      total: data.total,
-                      accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
-                    })
-                  );
-                  const bestSubject = subjectEntries.length > 0
-                    ? subjectEntries.reduce((best, cur) =>
-                        cur.accuracy > best.accuracy ? cur : best
-                      )
-                    : null;
-
-                  const achievementIcons: Record<string, React.ReactNode> = {
-                    "perfectionist": <Award className="h-4 w-4" />,
-                    "speed-demon": <Rocket className="h-4 w-4" />,
-                    "comeback-king": <RefreshCcw className="h-4 w-4" />,
-                    "streak-master": <Flame className="h-4 w-4" />,
-                  };
-
-                  return (
-                    <>
-                      {/* Quick Stats Grid */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-                            <CardTitle className="text-xs font-medium text-muted-foreground">Tests Taken</CardTitle>
-                            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3 pt-0">
-                            <div className="text-xl font-bold tabular-nums">
-                              {studentAnalytics?.totalTestsTaken ?? "—"}
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-                            <CardTitle className="text-xs font-medium text-muted-foreground">Global Rank</CardTitle>
-                            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3 pt-0">
-                            <div className="text-xl font-bold tabular-nums">
-                              {globalRank ? (
-                                <span className={
-                                  globalRank === 1
-                                    ? "text-amber-600"
-                                    : globalRank <= 3
-                                      ? "text-orange-600"
-                                      : ""
-                                }>
-                                  #{globalRank}
-                                </span>
-                              ) : "—"}
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-                            <CardTitle className="text-xs font-medium text-muted-foreground">Avg Score</CardTitle>
-                            <ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3 pt-0">
-                            <div className="text-xl font-bold tabular-nums">
-                              {studentAnalytics
-                                ? studentAnalytics.averageScore.toFixed(1)
-                                : "—"}
-                            </div>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3">
-                            <CardTitle className="text-xs font-medium text-muted-foreground">Total Score</CardTitle>
-                            <Trophy className="h-3.5 w-3.5 text-muted-foreground" />
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3 pt-0">
-                            <div className="text-xl font-bold tabular-nums">
-                              {userRankEntry?.totalScore?.toFixed(1) ?? "—"}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                      {/* Best Subject */}
-                      {bestSubject && (
-                        <Card className="border-emerald-500/20 bg-emerald-500/5">
-                          <CardContent className="flex items-center gap-3 p-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
-                              <Target className="h-4 w-4 text-emerald-600" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground">Best Subject</p>
-                              <p className="text-sm font-semibold">{bestSubject.subject}</p>
-                            </div>
-                            <Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
-                              {bestSubject.accuracy}% accuracy
-                            </Badge>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Subject-wise Performance */}
-                      {subjectEntries.length > 0 && (
-                        <Card>
-                          <CardHeader className="pb-2 pt-3 px-3">
-                            <CardTitle className="text-sm font-medium">Subject Performance</CardTitle>
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3 space-y-3">
-                            {subjectEntries
-                              .sort((a, b) => b.accuracy - a.accuracy)
-                              .map((s) => (
-                                <div key={s.subject} className="space-y-1">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="font-medium">{s.subject}</span>
-                                    <span className="text-xs text-muted-foreground tabular-nums">
-                                      {s.correct}/{s.total} ({s.accuracy}%)
-                                    </span>
-                                  </div>
-                                  <div className="h-1.5 w-full rounded-full bg-muted">
-                                    <div
-                                      className={`h-1.5 rounded-full transition-all ${
-                                        s.accuracy >= 70
-                                          ? "bg-emerald-500"
-                                          : s.accuracy >= 40
-                                            ? "bg-amber-500"
-                                            : "bg-destructive"
-                                      }`}
-                                      style={{ width: `${s.accuracy}%` }}
-                                    />
-                                  </div>
+                    {/* Subject Performance */}
+                    {subjectEntries.length > 0 && (
+                      <div className="bg-background rounded-xl border">
+                        <div className="px-4 py-3 border-b">
+                          <h4 className="font-semibold text-sm">Subject Performance</h4>
+                        </div>
+                        <div className="p-4 space-y-4">
+                          {subjectEntries
+                            .sort((a, b) => b.accuracy - a.accuracy)
+                            .map((s) => (
+                              <div key={s.subject} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium">{s.subject}</span>
+                                  <span className="text-xs text-muted-foreground tabular-nums">
+                                    {s.correct}/{s.total} ({s.accuracy}%)
+                                  </span>
                                 </div>
-                              ))}
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Recent Test Results */}
-                      {studentAnalytics && studentAnalytics.recentAttempts.length > 0 && (
-                        <Card>
-                          <CardHeader className="pb-2 pt-3 px-3">
-                            <CardTitle className="text-sm font-medium">Recent Tests</CardTitle>
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3 space-y-2">
-                            {studentAnalytics.recentAttempts.map((attempt: any) => (
-                              <div
-                                key={attempt._id}
-                                className="flex items-center justify-between rounded-lg border p-2.5"
-                              >
-                                <div className="flex-1 min-w-0 space-y-0.5">
-                                  <p className="text-sm font-medium truncate">
-                                    {attempt.testTitle}
-                                  </p>
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <span className="text-emerald-600 tabular-nums">{attempt.correct}C</span>
-                                    <span className="text-destructive tabular-nums">{attempt.incorrect}W</span>
-                                    <span className="tabular-nums">{attempt.unanswered}S</span>
-                                    {attempt.submittedAt && (
-                                      <>
-                                        <span>&middot;</span>
-                                        <span>
-                                          {new Date(attempt.submittedAt).toLocaleDateString("en-IN", {
-                                            day: "numeric",
-                                            month: "short",
-                                          })}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="text-right ml-3">
-                                  <p className="text-sm font-semibold tabular-nums">
-                                    {attempt.score.toFixed(1)}
-                                  </p>
-                                  <p className="text-[10px] text-muted-foreground">score</p>
+                                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      s.accuracy >= 70
+                                        ? "bg-emerald-500"
+                                        : s.accuracy >= 40
+                                          ? "bg-amber-500"
+                                          : "bg-red-500"
+                                    }`}
+                                    style={{ width: `${s.accuracy}%` }}
+                                  />
                                 </div>
                               </div>
                             ))}
-                          </CardContent>
-                        </Card>
-                      )}
+                        </div>
+                      </div>
+                    )}
 
-                      {/* Performance Trend */}
-                      {performanceTrend && performanceTrend.length > 1 && (
-                        <Card>
-                          <CardHeader className="pb-2 pt-3 px-3">
-                            <CardTitle className="text-sm font-medium">Score Trend</CardTitle>
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3">
-                            <div className="flex items-end gap-1 h-16">
+                    {/* Recent Tests */}
+                    {studentAnalytics.recentAttempts.length > 0 && (
+                      <div className="bg-background rounded-xl border">
+                        <div className="px-4 py-3 border-b">
+                          <h4 className="font-semibold text-sm">Recent Tests</h4>
+                        </div>
+                        <div className="divide-y">
+                          {studentAnalytics.recentAttempts.slice(0, 5).map((attempt: any) => (
+                            <div key={attempt._id} className="px-4 py-3 flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{attempt.testTitle}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                  <span className="text-emerald-600 tabular-nums">{attempt.correct}C</span>
+                                  <span className="text-red-500 tabular-nums">{attempt.incorrect}W</span>
+                                  <span className="tabular-nums">{attempt.unanswered}S</span>
+                                  {attempt.submittedAt && (
+                                    <>
+                                      <span className="text-muted-foreground/50">·</span>
+                                      <span>
+                                        {new Date(attempt.submittedAt).toLocaleDateString("en-IN", {
+                                          day: "numeric",
+                                          month: "short",
+                                        })}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold tabular-nums">{attempt.score.toFixed(1)}</p>
+                                <p className="text-[10px] text-muted-foreground">score</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Performance Trend */}
+                    {performanceTrend && performanceTrend.length > 1 && (
+                      <div className="bg-background rounded-xl border">
+                        <div className="px-4 py-3 border-b">
+                          <h4 className="font-semibold text-sm">Score Trend</h4>
+                        </div>
+                        <div className="p-4">
+                          <TooltipProvider delayDuration={0}>
+                            <div className="flex items-end gap-1 h-24">
                               {(() => {
                                 const maxScore = Math.max(
                                   ...performanceTrend.map((e: any) => e.score)
@@ -946,63 +863,210 @@ export function UserDetailSheet({
                                     ? (entry.score / maxScore) * 100
                                     : 0;
                                   return (
-                                    <div
-                                      key={i}
-                                      className="flex-1 rounded-t bg-primary/80 hover:bg-primary transition-colors"
-                                      style={{ height: `${Math.max(height, 4)}%` }}
-                                      title={`${entry.testTitle}: ${entry.score} (${entry.accuracy}%)`}
-                                    />
+                                    <Tooltip key={i}>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          className="flex-1 rounded-t bg-primary/20 hover:bg-primary transition-colors cursor-pointer"
+                                          style={{ height: `${Math.max(height, 8)}%` }}
+                                        />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="px-3 py-2 max-w-[200px]">
+                                        <p className="font-medium text-sm truncate">{entry.testTitle}</p>
+                                        <div className="flex items-center gap-3 mt-1 text-xs">
+                                          <span className="tabular-nums">{entry.score.toFixed(1)} pts</span>
+                                          <span className="text-muted-foreground">·</span>
+                                          <span className="tabular-nums">{entry.accuracy}%</span>
+                                          <span className="text-muted-foreground">·</span>
+                                          <span>{entry.date}</span>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
                                   );
                                 });
                               })()}
                             </div>
-                            <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
-                              <span>{performanceTrend[0]?.date}</span>
-                              <span>{performanceTrend[performanceTrend.length - 1]?.date}</span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                          </TooltipProvider>
+                          <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                            <span>{performanceTrend[0]?.date}</span>
+                            <span>{performanceTrend[performanceTrend.length - 1]?.date}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                      {/* Achievements */}
-                      {achievements && achievements.length > 0 && (
-                        <Card>
-                          <CardHeader className="pb-2 pt-3 px-3">
-                            <CardTitle className="text-sm font-medium">Achievements</CardTitle>
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3">
-                            <div className="flex flex-wrap gap-2">
-                              {achievements.map((a: any) => (
-                                <div
-                                  key={a.id}
-                                  className="flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1.5"
-                                >
-                                  <span className="text-amber-600">
-                                    {achievementIcons[a.id] ?? <Star className="h-4 w-4" />}
-                                  </span>
-                                  <span className="text-xs font-medium">{a.name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                    {/* Achievements */}
+                    {achievements && achievements.length > 0 && (
+                      <div className="bg-background rounded-xl border">
+                        <div className="px-4 py-3 border-b">
+                          <h4 className="font-semibold text-sm flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-amber-500" />
+                            Achievements
+                          </h4>
+                        </div>
+                        <div className="p-4">
+                          <div className="flex flex-wrap gap-2">
+                            {achievements.map((a: any) => (
+                              <div
+                                key={a.id}
+                                className="flex items-center gap-2 rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 px-3 py-1.5"
+                              >
+                                <span className="text-amber-600 dark:text-amber-400">
+                                  {achievementIcons[a.id] ?? <Star className="h-4 w-4" />}
+                                </span>
+                                <span className="text-xs font-medium text-amber-800 dark:text-amber-200">{a.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                      {/* Empty state for students with no data */}
-                      {studentAnalytics && studentAnalytics.totalTestsTaken === 0 && (
-                        <div className="flex flex-col items-center justify-center py-6 text-center">
-                          <ClipboardCheck className="mb-2 h-8 w-8 text-muted-foreground/30" />
-                          <p className="text-sm font-medium text-muted-foreground">
-                            No test activity yet
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground/70">
-                            This student hasn't taken any tests
+                    {/* Empty state for students with no data */}
+                    {studentAnalytics.totalTestsTaken === 0 && (
+                      <div className="bg-background rounded-xl border p-8 text-center">
+                        <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center">
+                          <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="font-medium mt-3">No test activity yet</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          This student hasn't taken any tests
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Fees Section */}
+                {!isAdmin && (
+                  <div className="bg-background rounded-xl border">
+                    <div className="px-4 py-3 border-b flex items-center justify-between">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        <IndianRupee className="h-4 w-4" />
+                        Fee Records
+                      </h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        onClick={openAddFeeDialog}
+                      >
+                        <Plus className="h-3 w-3" />
+                        Add
+                      </Button>
+                    </div>
+
+                    {/* Fee Summary */}
+                    <div className="p-4 border-b">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-3 text-center">
+                          <p className="text-xs font-medium text-red-600 dark:text-red-400">Due</p>
+                          <p className="text-lg font-bold text-red-700 dark:text-red-300 tabular-nums mt-0.5">
+                            ₹{totalDue.toLocaleString("en-IN")}
                           </p>
                         </div>
-                      )}
-                    </>
-                  );
-                })()}
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-3 text-center">
+                          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Paid</p>
+                          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 tabular-nums mt-0.5">
+                            ₹{totalPaid.toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Fee Records */}
+                    {fees && fees.length > 0 ? (
+                      <div className="divide-y">
+                        {fees.map((fee) => (
+                          <div key={fee._id} className="p-4">
+                            <div className="flex items-start gap-3">
+                              <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                fee.status === "due"
+                                  ? "bg-red-100 dark:bg-red-900/30"
+                                  : "bg-emerald-100 dark:bg-emerald-900/30"
+                              }`}>
+                                {fee.status === "due" ? (
+                                  <CircleAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                ) : (
+                                  <CircleCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm font-medium">{fee.description || "Fee Payment"}</p>
+                                    <p className="text-lg font-bold tabular-nums">
+                                      ₹{fee.amount.toLocaleString("en-IN")}
+                                    </p>
+                                  </div>
+                                  <Badge
+                                    variant={fee.status === "paid" ? "success" : "destructive"}
+                                    className="shrink-0"
+                                  >
+                                    {fee.status === "paid" ? "Paid" : "Due"}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Due: {new Date(fee.dueDate).toLocaleDateString("en-IN")}
+                                  {fee.status === "paid" && fee.paidDate && (
+                                    <> · Paid: {new Date(fee.paidDate).toLocaleDateString("en-IN")}</>
+                                  )}
+                                </p>
+                                <div className="flex items-center gap-1 mt-2">
+                                  {fee.status === "due" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 gap-1 text-xs"
+                                      onClick={() => {
+                                        setMarkPaidDate(new Date().toISOString().split("T")[0]);
+                                        setMarkPaidFeeId(fee._id);
+                                      }}
+                                    >
+                                      <CheckCircle className="h-3 w-3" />
+                                      Mark Paid
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 gap-1 text-xs"
+                                    onClick={() => openEditFeeDialog(fee as Fee)}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 gap-1 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                    onClick={() => setDeleteFeeId(fee._id)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : fees ? (
+                      <div className="p-8 text-center">
+                        <div className="h-12 w-12 rounded-full bg-muted mx-auto flex items-center justify-center">
+                          <IndianRupee className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="font-medium mt-3">No fee records</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Add the first fee record for this student
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-8 flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </ScrollArea>
@@ -1185,7 +1249,7 @@ export function UserDetailSheet({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="fee-amount">
-                Amount (&#8377;) <span className="text-destructive">*</span>
+                Amount (₹) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="fee-amount"

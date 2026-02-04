@@ -5,6 +5,7 @@ import { UserSync } from "../components/user-sync";
 import { ThemeProvider } from "../components/theme-provider";
 import { SonnerToaster } from "@repo/ui";
 import "@repo/ui/globals.css";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Nindo - Admin Portal",
@@ -24,6 +25,13 @@ export default function RootLayout({
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
           <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+           {process.env.NODE_ENV === "development" && (
+          <Script
+            src="//unpkg.com/react-grab/dist/index.global.js"
+            crossOrigin="anonymous"
+            strategy="beforeInteractive"
+          />
+        )}
         </head>
         <body>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
