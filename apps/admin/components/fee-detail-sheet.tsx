@@ -48,6 +48,10 @@ import {
   ArrowDownRight,
   CalendarDays,
   History,
+  MessageSquare,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -131,6 +135,37 @@ export function FeeDetailSheet({
     api.fees.getByStudent,
     open && studentId ? { studentId: studentId as Id<"users"> } : "skip"
   );
+  const feeQueries = useQuery(
+    api.feeQueries.getByStudent,
+    open && studentId ? { studentId: studentId as Id<"users"> } : "skip"
+  );
+
+  // Group fee queries by fee ID
+  const queriesByFeeId = useMemo(() => {
+    if (!feeQueries) return new Map<string, typeof feeQueries>();
+    const map = new Map<string, typeof feeQueries>();
+    for (const query of feeQueries) {
+      const existing = map.get(query.feeId) || [];
+      existing.push(query);
+      map.set(query.feeId, existing);
+    }
+    return map;
+  }, [feeQueries]);
+
+  const getQueryStatusIcon = (status: string) => {
+    switch (status) {
+      case "open":
+        return <AlertCircle className="h-3 w-3 text-amber-500" />;
+      case "in_progress":
+        return <Clock className="h-3 w-3 text-blue-500" />;
+      case "resolved":
+        return <CheckCircle2 className="h-3 w-3 text-emerald-500" />;
+      case "closed":
+        return <XCircle className="h-3 w-3 text-muted-foreground" />;
+      default:
+        return null;
+    }
+  };
 
   // Mutations
   const createFee = useMutation(api.fees.create);
@@ -605,6 +640,46 @@ export function FeeDetailSheet({
                                           Delete
                                         </Button>
                                       </div>
+
+                                      {/* Fee Queries */}
+                                      {queriesByFeeId.get(fee._id)?.length ? (
+                                        <div className="mt-3 pt-3 border-t border-dashed">
+                                          <div className="flex items-center gap-1.5 mb-2">
+                                            <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                              Student Queries ({queriesByFeeId.get(fee._id)?.length})
+                                            </span>
+                                          </div>
+                                          <div className="space-y-2">
+                                            {queriesByFeeId.get(fee._id)?.map((query) => (
+                                              <div
+                                                key={query._id}
+                                                className={`rounded-lg p-2.5 text-xs ${
+                                                  query.status === "open" ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800" :
+                                                  query.status === "in_progress" ? "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800" :
+                                                  "bg-muted/50 border"
+                                                }`}
+                                              >
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                  {getQueryStatusIcon(query.status)}
+                                                  <span className="font-medium">{query.subject}</span>
+                                                  <Badge variant="outline" className="text-[10px] ml-auto">
+                                                    {query.type.replace("_", " ")}
+                                                  </Badge>
+                                                </div>
+                                                <p className="text-muted-foreground">{query.description}</p>
+                                                {query.resolvedBy && query.resolverName && (
+                                                  <div className="mt-2 pt-2 border-t border-dashed">
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                      {query.status === "resolved" ? "Resolved" : "Closed"} by {query.resolverName}
+                                                    </p>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
                                     </div>
                                   </div>
                                 </div>

@@ -4,7 +4,7 @@ import {
   Users,
   IndianRupee,
   FileQuestion,
-
+  MessageSquareText,
   FileText,
   BookOpen,
   Video,
@@ -39,6 +39,7 @@ export const sidebarData: NavGroup[] = [
       { title: "Users", url: "/users", icon: UserCog },
       { title: "Batches", url: "/batches", icon: Users },
       { title: "Fees", url: "/fees", icon: IndianRupee },
+      { title: "Queries", url: "/queries", icon: MessageSquareText },
       { title: "Ask Nindo AI", url: "/ask-ai", icon: BotMessageSquare },
     ],
   },

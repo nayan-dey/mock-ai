@@ -10,8 +10,9 @@ import {
   Label,
   useToast,
   Button,
+  Separator,
 } from "@repo/ui";
-import { Copy } from "lucide-react";
+import { Copy, IndianRupee } from "lucide-react";
 import { AdminSheet } from "@/components/admin-sheet";
 
 function copyToClipboard(text: string): Promise<void> {
@@ -40,6 +41,8 @@ interface BatchEditSheetProps {
     name: string;
     description?: string;
     referralCode: string;
+    monthlyFee?: number;
+    enrollmentFee?: number;
   } | null;
 }
 
@@ -55,6 +58,8 @@ export function BatchEditSheet({ open, onOpenChange, batch }: BatchEditSheetProp
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [monthlyFee, setMonthlyFee] = useState<string>("");
+  const [enrollmentFee, setEnrollmentFee] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEdit = !!batch;
@@ -63,12 +68,26 @@ export function BatchEditSheet({ open, onOpenChange, batch }: BatchEditSheetProp
     if (open) {
       setName(batch?.name ?? "");
       setDescription(batch?.description ?? "");
+      setMonthlyFee(batch?.monthlyFee?.toString() ?? "");
+      setEnrollmentFee(batch?.enrollmentFee?.toString() ?? "");
     }
   }, [open, batch]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
       toast({ title: "Name is required", variant: "destructive" });
+      return;
+    }
+
+    const parsedMonthlyFee = monthlyFee ? parseFloat(monthlyFee) : undefined;
+    const parsedEnrollmentFee = enrollmentFee ? parseFloat(enrollmentFee) : undefined;
+
+    if (parsedMonthlyFee !== undefined && (isNaN(parsedMonthlyFee) || parsedMonthlyFee < 0)) {
+      toast({ title: "Invalid monthly fee amount", variant: "destructive" });
+      return;
+    }
+    if (parsedEnrollmentFee !== undefined && (isNaN(parsedEnrollmentFee) || parsedEnrollmentFee < 0)) {
+      toast({ title: "Invalid enrollment fee amount", variant: "destructive" });
       return;
     }
 
@@ -79,12 +98,16 @@ export function BatchEditSheet({ open, onOpenChange, batch }: BatchEditSheetProp
           id: batch._id as any,
           name: name.trim(),
           description: description.trim() || undefined,
+          monthlyFee: parsedMonthlyFee,
+          enrollmentFee: parsedEnrollmentFee,
         });
         toast({ title: "Batch updated" });
       } else {
         await createBatch({
           name: name.trim(),
           description: description.trim() || undefined,
+          monthlyFee: parsedMonthlyFee,
+          enrollmentFee: parsedEnrollmentFee,
         });
         toast({ title: "Batch created" });
       }
@@ -145,6 +168,57 @@ export function BatchEditSheet({ open, onOpenChange, batch }: BatchEditSheetProp
             placeholder="Optional description for this batch"
             rows={3}
           />
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="space-y-1">
+          <h4 className="text-sm font-medium">Fee Configuration</h4>
+          <p className="text-xs text-muted-foreground">
+            Configure automatic fee generation for students in this batch
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="monthly-fee">Monthly Fee</Label>
+            <div className="relative">
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="monthly-fee"
+                type="number"
+                min="0"
+                step="1"
+                value={monthlyFee}
+                onChange={(e) => setMonthlyFee(e.target.value)}
+                placeholder="0"
+                className="pl-9"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Auto-generated monthly on enrollment anniversary
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="enrollment-fee">Enrollment Fee</Label>
+            <div className="relative">
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="enrollment-fee"
+                type="number"
+                min="0"
+                step="1"
+                value={enrollmentFee}
+                onChange={(e) => setEnrollmentFee(e.target.value)}
+                placeholder="0"
+                className="pl-9"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              One-time fee when student joins
+            </p>
+          </div>
         </div>
 
         {isEdit && batch && (

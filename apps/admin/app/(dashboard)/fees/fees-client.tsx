@@ -5,13 +5,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
 import { useState, useMemo, useTransition, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Button,
   Badge,
-  Skeleton,
   SortableHeader,
   type ColumnDef,
   type FacetedFilterConfig,
@@ -50,7 +45,6 @@ import {
   exportToPdf,
   type ExportColumn,
 } from "@/lib/export-utils";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const feeExportColumns: ExportColumn[] = [
   { header: "Student Name", key: "studentName" },
@@ -109,10 +103,6 @@ interface GroupedFeeRow extends FeeRow {
 export function FeesClient() {
   const { user: clerkUser } = useUser();
   const { toast } = useToast();
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const [selectedStudent, setSelectedStudent] = useState<{
     id: string;
@@ -717,7 +707,7 @@ export function FeesClient() {
               {isMarkingPaid ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing…
+                  Processing...
                 </>
               ) : (
                 "Confirm Payment"
