@@ -29,6 +29,8 @@ import {
   BarChart3,
   Clock,
   CheckCircle2,
+  IndianRupee,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -79,6 +81,11 @@ export default function DashboardPage() {
   const performanceTrend = useQuery(
     api.analytics.getStudentPerformanceTrend,
     dbUser?._id ? { userId: dbUser._id, limit: 10 } : "skip"
+  );
+
+  const upcomingFees = useQuery(
+    api.fees.getUpcomingForStudent,
+    dbUser?._id ? {} : "skip"
   );
 
   const userSettings = useQuery(
@@ -233,6 +240,56 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Upcoming/Overdue Fees */}
+        {upcomingFees && upcomingFees.length > 0 && (
+          <Card className="bg-red-50/50 dark:bg-red-950/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="h-4 w-4 text-red-600" />
+                  <CardTitle className="text-sm font-medium">Fees Due</CardTitle>
+                </div>
+                <Link href="/fees">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs">
+                    View All
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {upcomingFees.slice(0, 3).map((fee) => {
+                const isOverdue = fee.dueDate < Date.now();
+                const daysLeft = Math.ceil((fee.dueDate - Date.now()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div
+                    key={fee._id}
+                    className="flex items-center justify-between gap-3 rounded-md border bg-background p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {fee.description || "Fee Payment"}
+                      </p>
+                      <p className={`text-xs ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                        {isOverdue ? (
+                          <span className="flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Overdue by {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? "s" : ""}
+                          </span>
+                        ) : (
+                          `Due in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`
+                        )}
+                      </p>
+                    </div>
+                    <span className="font-mono text-sm font-semibold shrink-0">
+                      ₹{fee.amount.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}

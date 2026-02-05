@@ -144,9 +144,9 @@ export const getByStudent = query({
         }
         return {
           ...query,
-          feeAmount: fee?.amount ?? 0,
-          feeDueDate: fee?.dueDate,
-          feeDescription: fee?.description,
+          feeAmount: fee?.amount ?? null, // null if fee deleted
+          feeDueDate: fee?.dueDate ?? null,
+          feeDescription: fee?.description ?? null,
           resolverName,
         };
       })
@@ -181,7 +181,7 @@ export const getAllForOrg = query({
       return b.createdAt - a.createdAt;
     });
 
-    // Enrich with student and fee data
+    // Enrich with student, fee, and batch data
     return Promise.all(
       queries.map(async (query) => {
         const student = await ctx.db.get(query.studentId);
@@ -191,13 +191,20 @@ export const getAllForOrg = query({
           const resolver = await ctx.db.get(query.resolvedBy);
           resolverName = resolver?.name ?? "Unknown";
         }
+        // Get batch info
+        let batchName = null;
+        if (student?.batchId) {
+          const batch = await ctx.db.get(student.batchId);
+          batchName = batch?.name ?? null;
+        }
         return {
           ...query,
           studentName: student?.name ?? "Unknown",
           studentEmail: student?.email ?? "",
-          feeAmount: fee?.amount ?? 0,
-          feeDueDate: fee?.dueDate,
-          feeDescription: fee?.description,
+          studentBatchName: batchName,
+          feeAmount: fee?.amount ?? null, // null if fee deleted
+          feeDueDate: fee?.dueDate ?? null,
+          feeDescription: fee?.description ?? null,
           resolverName,
         };
       })
@@ -389,14 +396,21 @@ export const getById = query({
       const resolver = await ctx.db.get(query.resolvedBy);
       resolverName = resolver?.name ?? "Unknown";
     }
+    // Get batch info
+    let batchName = null;
+    if (student?.batchId) {
+      const batch = await ctx.db.get(student.batchId);
+      batchName = batch?.name ?? null;
+    }
 
     return {
       ...query,
       studentName: student?.name ?? "Unknown",
       studentEmail: student?.email ?? "",
-      feeAmount: fee?.amount ?? 0,
-      feeDueDate: fee?.dueDate,
-      feeDescription: fee?.description,
+      studentBatchName: batchName,
+      feeAmount: fee?.amount ?? null, // null if fee deleted
+      feeDueDate: fee?.dueDate ?? null,
+      feeDescription: fee?.description ?? null,
       resolverName,
     };
   },

@@ -18,6 +18,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
+  Badge,
   cn,
 } from "@repo/ui";
 import {
@@ -34,8 +35,9 @@ import {
   CheckCheck,
   Loader2,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserDetailSheet } from "./user-detail-sheet";
 
@@ -78,6 +80,11 @@ const notificationConfig: Record<
     color: "text-green-600 dark:text-green-400",
     bgColor: "bg-green-100 dark:bg-green-900/30",
   },
+  fee_query: {
+    icon: IndianRupee,
+    color: "text-purple-600 dark:text-purple-400",
+    bgColor: "bg-purple-100 dark:bg-purple-900/30",
+  },
 };
 
 function formatRelativeTime(timestamp: number): string {
@@ -104,6 +111,7 @@ export function Header() {
     name: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "read">("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const handleMarkAllRead = () => {
     startMarkAllRead(async () => {
@@ -127,10 +135,37 @@ export function Header() {
   );
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
+  const clearAllNotifications = useMutation(api.notifications.clearAll);
+  const [isClearingAll, startClearingAll] = useTransition();
+
+  const handleClearAll = () => {
+    startClearingAll(async () => {
+      await clearAllNotifications({});
+    });
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const filteredNotifications = useMemo(() => {
+    if (!notifications) return [];
+    if (typeFilter === "all") return notifications;
+    return notifications.filter((n) => {
+      switch (typeFilter) {
+        case "fee":
+          return n.type === "fee_overdue" || n.type === "fee_paid";
+        case "test":
+          return n.type === "test_submitted";
+        case "student":
+          return n.type === "join_request" || n.type === "student_enrolled" || n.type === "student_suspended" || n.type === "student_unsuspended";
+        case "query":
+          return n.type === "fee_query";
+        default:
+          return true;
+      }
+    });
+  }, [notifications, typeFilter]);
 
   const handleNotificationClick = async (notification: {
     _id: string;
@@ -161,6 +196,9 @@ export function Header() {
     } else if (notification.referenceType === "attempt") {
       setSheetOpen(false);
       router.push("/tests");
+    } else if (notification.referenceType === "feeQuery") {
+      setSheetOpen(false);
+      router.push("/queries");
     }
   };
 
@@ -232,9 +270,9 @@ export function Header() {
 
       {/* Notifications Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-<SheetContent side="right" className="w-full sm:max-w-md [&>button]:hidden">
+<SheetContent side="right" className="w-full sm:max-w-md [&>button]:hidden flex flex-col overflow-hidden p-0">
 
-          <SheetHeader>
+          <SheetHeader className="px-6 pt-6 shrink-0">
             <div className="flex items-center justify-between">
               <SheetTitle>Notifications</SheetTitle>
               <Button
@@ -257,8 +295,32 @@ export function Header() {
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as "all" | "unread" | "read")}
-            className="mt-4"
+            className="mt-4 flex-1 flex flex-col overflow-hidden px-6"
           >
+            {/* Type filter chips */}
+            <div className="flex gap-1.5 flex-wrap mb-3">
+              {[
+                { value: "all", label: "All" },
+                { value: "fee", label: "Fees" },
+                { value: "test", label: "Tests" },
+                { value: "student", label: "Students" },
+                { value: "query", label: "Queries" },
+              ].map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setTypeFilter(filter.value)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium transition-colors border",
+                    typeFilter === filter.value
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+                  )}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+
             <TabsList className="mb-4 h-10 rounded-lg bg-muted p-1 gap-1 grid w-full grid-cols-3 items-stretch">
               <TabsTrigger value="all" className="gap-1.5">
                 View All
@@ -286,11 +348,11 @@ export function Header() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="all" className="mt-0">
-              <ScrollArea className="h-[calc(100vh-16rem)]">
-                {notifications && notifications.length > 0 ? (
+            <TabsContent value="all" className="mt-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                {filteredNotifications.length > 0 ? (
                   <div className="space-y-2">
-                    {notifications.map((notification) => {
+                    {filteredNotifications.map((notification) => {
                       const config =
                         notificationConfig[notification.type] ??
                         notificationConfig.fee_overdue;
@@ -347,11 +409,11 @@ export function Header() {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="unread" className="mt-0">
-              <ScrollArea className="h-[calc(100vh-16rem)]">
-                {notifications && notifications.filter(n => !n.isRead).length > 0 ? (
+            <TabsContent value="unread" className="mt-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                {filteredNotifications.filter(n => !n.isRead).length > 0 ? (
                   <div className="space-y-2 pr-4">
-                    {notifications
+                    {filteredNotifications
                       .filter((notification) => !notification.isRead)
                       .map((notification) => {
                         const config =
@@ -408,11 +470,11 @@ export function Header() {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="read" className="mt-0">
-              <ScrollArea className="h-[calc(100vh-16rem)]">
-                {notifications && notifications.filter(n => n.isRead).length > 0 ? (
+            <TabsContent value="read" className="mt-0 flex-1 overflow-hidden">
+              <ScrollArea className="h-full">
+                {filteredNotifications.filter(n => n.isRead).length > 0 ? (
                   <div className="space-y-2 pr-4">
-                    {notifications
+                    {filteredNotifications
                       .filter((notification) => notification.isRead)
                       .map((notification) => {
                         const config =
@@ -467,7 +529,7 @@ export function Header() {
           </Tabs>
 
           {/* Bottom Actions */}
-          <div className="absolute bottom-0 left-0 right-0 border-t bg-background p-4">
+          <div className="border-t bg-background p-4 shrink-0">
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -480,7 +542,19 @@ export function Header() {
                 ) : (
                   <CheckCheck className="mr-2 h-4 w-4" />
                 )}
-                Mark all as read
+                Mark all read
+              </Button>
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={isClearingAll || !notifications || notifications.length === 0}
+                onClick={handleClearAll}
+              >
+                {isClearingAll ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>

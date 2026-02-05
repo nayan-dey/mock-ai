@@ -31,7 +31,8 @@ import {
   type LeaderboardEntry,
   BackButton,
 } from "@repo/ui";
-import { Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper, Clock } from "lucide-react";
+import { Trophy, Users, CheckCircle2, XCircle, MinusCircle, Filter, ListFilter, PartyPopper, Clock, Flag } from "lucide-react";
+import { TestQueryDialog } from "@/components/test-query-dialog";
 import Link from "next/link";
 import type { Id } from "@repo/database/dataModel";
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -55,6 +56,12 @@ export default function ResultDetailPage() {
   const { dbUser } = useCurrentUser();
   const [filter, setFilter] = useState<FilterType>("all");
   const hasTriggeredConfetti = useRef(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<{
+    id: string;
+    text: string;
+    number: number;
+  } | null>(null);
 
   const attemptWithDetails = useQuery(api.attempts.getWithDetails, {
     id: attemptId as AttemptId,
@@ -135,6 +142,15 @@ export default function ResultDetailPage() {
       ? (attemptWithDetails.score / attemptWithDetails.test.totalMarks) * 100
       : 0;
     loadConfetti().then(fn => fn(pct >= 80 ? "enhanced" : "standard"));
+  };
+
+  const handleReportQuestion = (questionId: string, questionText: string, questionIndex: number) => {
+    setSelectedQuestion({
+      id: questionId,
+      text: questionText,
+      number: questionIndex + 1,
+    });
+    setReportDialogOpen(true);
   };
 
   if (!attemptWithDetails) {
@@ -526,6 +542,22 @@ export default function ResultDetailPage() {
                               <p className="text-sm">{question.explanation}</p>
                             </div>
                           )}
+
+                          {/* Report Issue Button */}
+                          <div className="flex justify-end pt-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-warning"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReportQuestion(question._id, question.text, questionIndex);
+                              }}
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                              Report Issue
+                            </Button>
+                          </div>
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -572,6 +604,17 @@ export default function ResultDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Test Query Dialog */}
+      <TestQueryDialog
+        testId={attemptWithDetails.testId}
+        attemptId={attemptId}
+        questionId={selectedQuestion?.id ?? null}
+        questionText={selectedQuestion?.text ?? null}
+        questionNumber={selectedQuestion?.number ?? null}
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+      />
     </div>
   );
 }

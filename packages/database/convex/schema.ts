@@ -323,4 +323,51 @@ export default defineSchema({
   })
     .index("by_query", ["queryId"])
     .index("by_query_created", ["queryId", "createdAt"]),
+
+  // Test question queries/corrections from students
+  testQueries: defineTable({
+    testId: v.id("tests"),
+    questionId: v.id("questions"),
+    attemptId: v.optional(v.id("attempts")), // Link to specific attempt
+    studentId: v.id("users"),
+    organizationId: v.id("organizations"),
+    type: v.union(
+      v.literal("wrong_answer"), // Correct answer marked wrong
+      v.literal("wrong_question"), // Question text has error
+      v.literal("wrong_options"), // Options have error
+      v.literal("unclear_question"), // Question is confusing
+      v.literal("other")
+    ),
+    subject: v.string(),
+    description: v.string(),
+    status: v.union(
+      v.literal("open"),
+      v.literal("in_progress"),
+      v.literal("resolved"),
+      v.literal("rejected"),
+      v.literal("closed")
+    ),
+    resolvedBy: v.optional(v.id("users")),
+    resolvedAt: v.optional(v.number()),
+    adminNote: v.optional(v.string()), // Admin response/resolution note
+    createdAt: v.number(),
+  })
+    .index("by_test", ["testId"])
+    .index("by_question", ["questionId"])
+    .index("by_student", ["studentId"])
+    .index("by_organization", ["organizationId"])
+    .index("by_status", ["status"])
+    .index("by_org_status", ["organizationId", "status"]),
+
+  // Test query messages for conversation thread
+  testQueryMessages: defineTable({
+    queryId: v.id("testQueries"),
+    senderId: v.id("users"),
+    senderRole: v.union(v.literal("student"), v.literal("admin")),
+    senderName: v.string(),
+    message: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_query", ["queryId"])
+    .index("by_query_created", ["queryId", "createdAt"]),
 });

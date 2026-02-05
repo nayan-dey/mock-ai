@@ -22,7 +22,7 @@ export function ChatThread() {
   if (isContextLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-stone-400" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -48,12 +48,12 @@ export function ChatThread() {
                 <div className="px-4 py-3">
                   <div className="flex items-start gap-3">
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-                      <Sparkles className="h-5 w-5 animate-pulse text-orange-400" strokeWidth={1.5} />
+                      <Sparkles className="h-5 w-5 animate-pulse text-primary" strokeWidth={1.5} />
                     </div>
                     <div className="flex items-center gap-1 pt-1">
-                      <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-stone-400 [animation-delay:-0.3s]" />
-                      <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-stone-400 [animation-delay:-0.15s]" />
-                      <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-stone-400" />
+                      <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:-0.3s]" />
+                      <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:-0.15s]" />
+                      <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-muted-foreground/50" />
                     </div>
                   </div>
                 </div>

@@ -18,7 +18,7 @@ export const ChatMessage = memo(function ChatMessage({ role, content }: ChatMess
   if (isUser) {
     return (
       <div className="flex justify-end px-4 py-2">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-stone-700 dark:bg-stone-600 px-4 py-3 text-[15px] text-white">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-4 py-3 text-[15px] text-primary-foreground">
           {content}
         </div>
       </div>
@@ -29,10 +29,10 @@ export const ChatMessage = memo(function ChatMessage({ role, content }: ChatMess
     <div className="px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-          <Sparkles className="h-5 w-5 text-orange-400" strokeWidth={1.5} />
+          <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.5} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] leading-relaxed text-stone-700 dark:text-stone-200">
+          <div className="text-[15px] leading-relaxed text-foreground">
             <MessageContent content={content} />
           </div>
           <SuggestedLinks links={suggestedLinks} />

@@ -25,12 +25,18 @@ import {
   Skeleton,
   Label,
   Input,
+  Textarea,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@repo/ui";
-import { ArrowLeft, FileQuestion, Clock, Trophy, Users, Settings, Save, Loader2, Pencil, Check, X, Info } from "lucide-react";
+import { ArrowLeft, FileQuestion, Clock, Trophy, Users, Settings, Save, Loader2, Pencil, Check, X, Info, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import type { Id } from "@repo/database/dataModel";
@@ -64,11 +70,24 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
+  // Question edit state
+  const [editingQuestion, setEditingQuestion] = useState<{
+    id: string;
+    text: string;
+    options: string[];
+    correctOptions: number[];
+    explanation: string;
+    subject: string;
+    difficulty: "easy" | "medium" | "hard";
+  } | null>(null);
+  const [isSavingQuestion, startSavingQuestion] = useTransition();
+
   const testWithQuestions = useQuery(api.tests.getWithQuestions, { id: testId as Id<"tests"> });
   const testAnalytics = useQuery(api.analytics.getTestAnalytics, { testId: testId as Id<"tests"> });
   const leaderboard = useQuery(api.analytics.getLeaderboard, { testId: testId as Id<"tests"> });
   const batches = useQuery(api.batches.list, { activeOnly: true });
   const updateTest = useMutation(api.tests.update);
+  const updateQuestion = useMutation(api.questions.update);
 
   // Initialize selected batches from test data
   const currentBatches = selectedBatches ?? (testWithQuestions?.batchIds as string[] | undefined) ?? [];
@@ -102,6 +121,68 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
   };
 
   const hasUnsavedChanges = selectedBatches !== null;
+
+  const openQuestionEdit = (question: any) => {
+    setEditingQuestion({
+      id: question._id,
+      text: question.text,
+      options: [...question.options],
+      correctOptions: [...question.correctOptions],
+      explanation: question.explanation || "",
+      subject: question.subject,
+      difficulty: question.difficulty,
+    });
+  };
+
+  const handleSaveQuestion = () => {
+    if (!editingQuestion) return;
+    startSavingQuestion(async () => {
+      try {
+        await updateQuestion({
+          id: editingQuestion.id as Id<"questions">,
+          text: editingQuestion.text,
+          options: editingQuestion.options,
+          correctOptions: editingQuestion.correctOptions,
+          explanation: editingQuestion.explanation || undefined,
+          subject: editingQuestion.subject,
+          difficulty: editingQuestion.difficulty,
+        });
+        toast.success("Question updated");
+        setEditingQuestion(null);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to update question");
+      }
+    });
+  };
+
+  const handleAddOption = () => {
+    if (!editingQuestion) return;
+    setEditingQuestion({
+      ...editingQuestion,
+      options: [...editingQuestion.options, ""],
+    });
+  };
+
+  const handleRemoveOption = (index: number) => {
+    if (!editingQuestion || editingQuestion.options.length <= 2) return;
+    const newOptions = editingQuestion.options.filter((_, i) => i !== index);
+    const newCorrectOptions = editingQuestion.correctOptions
+      .filter((i) => i !== index)
+      .map((i) => (i > index ? i - 1 : i));
+    setEditingQuestion({
+      ...editingQuestion,
+      options: newOptions,
+      correctOptions: newCorrectOptions,
+    });
+  };
+
+  const handleToggleCorrectOption = (index: number) => {
+    if (!editingQuestion) return;
+    setEditingQuestion({
+      ...editingQuestion,
+      correctOptions: [index],
+    });
+  };
 
   const isDraft = testWithQuestions?.status === "draft";
 
@@ -324,38 +405,226 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
             <CardContent>
               <div className="space-y-3">
                 {testWithQuestions.questionDetails.filter((q): q is NonNullable<typeof q> => q !== null).map((question, index) => (
-                  <div key={question._id} className="rounded-lg border p-4">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">Q{index + 1}</Badge>
-                      <Badge variant="secondary">{question.subject}</Badge>
-                      <Badge
-                        variant={
-                          question.difficulty === "easy"
-                            ? "success"
-                            : question.difficulty === "hard"
-                              ? "destructive"
-                              : "warning"
-                        }
-                      >
-                        {question.difficulty}
-                      </Badge>
-                    </div>
-                    <p className="mb-3 text-sm font-medium">{question.text}</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {question.options?.map((option, optIndex) => (
-                        <div
-                          key={optIndex}
-                          className={`rounded-md border p-2 text-sm ${
-                            question.correctOptions.includes(optIndex)
-                              ? "border-emerald-500/50 bg-emerald-500/10"
-                              : ""
-                          }`}
-                        >
-                          {String.fromCharCode(65 + optIndex)}. {option}
+                  editingQuestion?.id === question._id ? (
+                    /* Inline Edit Mode */
+                    <div key={question._id} className="rounded-lg border-2 border-primary p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">Q{index + 1}</Badge>
+                          <span className="text-sm font-medium text-primary">Editing</span>
                         </div>
-                      ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs text-muted-foreground"
+                          onClick={() => setEditingQuestion(null)}
+                          disabled={isSavingQuestion}
+                        >
+                          <X className="h-3 w-3" />
+                          Cancel
+                        </Button>
+                      </div>
+
+                      {/* Question Text */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Question Text</Label>
+                        <Textarea
+                          value={editingQuestion.text}
+                          onChange={(e) => setEditingQuestion({ ...editingQuestion, text: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+
+                      {/* Subject & Difficulty */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Subject</Label>
+                          <Input
+                            value={editingQuestion.subject}
+                            onChange={(e) => setEditingQuestion({ ...editingQuestion, subject: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Difficulty</Label>
+                          <Select
+                            value={editingQuestion.difficulty}
+                            onValueChange={(v) => setEditingQuestion({ ...editingQuestion, difficulty: v as "easy" | "medium" | "hard" })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="easy">Easy</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="hard">Hard</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Options */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Options</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={handleAddOption}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Option
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {editingQuestion.options.map((option, optIdx) => (
+                            <div key={optIdx} className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleCorrectOption(optIdx)}
+                                className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                  editingQuestion.correctOptions.includes(optIdx)
+                                    ? "border-emerald-500 bg-emerald-500"
+                                    : "border-muted-foreground/40 hover:border-muted-foreground"
+                                }`}
+                              >
+                                {editingQuestion.correctOptions.includes(optIdx) && (
+                                  <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                                )}
+                              </button>
+                              <span className="text-sm font-medium w-6 shrink-0 text-muted-foreground">
+                                {String.fromCharCode(65 + optIdx)}.
+                              </span>
+                              <Input
+                                value={option}
+                                onChange={(e) => {
+                                  const newOptions = [...editingQuestion.options];
+                                  newOptions[optIdx] = e.target.value;
+                                  setEditingQuestion({ ...editingQuestion, options: newOptions });
+                                }}
+                                className={editingQuestion.correctOptions.includes(optIdx)
+                                  ? "border-emerald-500/50 bg-emerald-500/5"
+                                  : ""
+                                }
+                              />
+                              {editingQuestion.options.length > 2 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleRemoveOption(optIdx)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Select the correct answer.
+                        </p>
+                      </div>
+
+                      {/* Explanation */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Explanation (optional)</Label>
+                        <Textarea
+                          value={editingQuestion.explanation}
+                          onChange={(e) => setEditingQuestion({ ...editingQuestion, explanation: e.target.value })}
+                          rows={2}
+                          placeholder="Explain why the correct answer is right..."
+                        />
+                      </div>
+
+                      {/* Save / Cancel actions */}
+                      <div className="flex justify-end gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingQuestion(null)}
+                          disabled={isSavingQuestion}
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveQuestion}
+                          disabled={
+                            isSavingQuestion ||
+                            !editingQuestion.text.trim() ||
+                            editingQuestion.correctOptions.length === 0 ||
+                            editingQuestion.options.some((o) => !o.trim())
+                          }
+                        >
+                          {isSavingQuestion ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Save Changes
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* View Mode */
+                    <div key={question._id} className="rounded-lg border p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">Q{index + 1}</Badge>
+                          <Badge variant="secondary">{question.subject}</Badge>
+                          <Badge
+                            variant={
+                              question.difficulty === "easy"
+                                ? "success"
+                                : question.difficulty === "hard"
+                                  ? "destructive"
+                                  : "warning"
+                            }
+                          >
+                            {question.difficulty}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs text-muted-foreground"
+                          onClick={() => openQuestionEdit(question)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </Button>
+                      </div>
+                      <p className="mb-3 text-sm font-medium">{question.text}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {question.options?.map((option, optIndex) => (
+                          <div
+                            key={optIndex}
+                            className={`rounded-md border p-2 text-sm ${
+                              question.correctOptions.includes(optIndex)
+                                ? "border-emerald-500/50 bg-emerald-500/10"
+                                : ""
+                            }`}
+                          >
+                            {String.fromCharCode(65 + optIndex)}. {option}
+                          </div>
+                        ))}
+                      </div>
+                      {question.explanation && (
+                        <div className="mt-3 rounded-md bg-muted/50 p-3">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Explanation</p>
+                          <p className="text-sm">{question.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
                 ))}
               </div>
             </CardContent>
@@ -582,6 +851,7 @@ export function TestDetailClient({ testId }: TestDetailClientProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
     </div>
   );
 }

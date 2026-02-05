@@ -27,6 +27,29 @@ export const getByStudent = query({
   },
 });
 
+// Get upcoming/overdue fees for the current student (for dashboard)
+export const getUpcomingForStudent = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+
+    const fees = await ctx.db
+      .query("fees")
+      .withIndex("by_student", (q) => q.eq("studentId", user._id))
+      .collect();
+
+    const now = Date.now();
+    const sevenDaysFromNow = now + 7 * 24 * 60 * 60 * 1000;
+
+    // Return due fees that are either overdue or due within 7 days
+    return fees
+      .filter(
+        (f) => f.status === "due" && f.dueDate <= sevenDaysFromNow
+      )
+      .sort((a, b) => a.dueDate - b.dueDate);
+  },
+});
+
 export const getAll = query({
   args: {},
   handler: async (ctx) => {

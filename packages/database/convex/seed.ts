@@ -22,6 +22,8 @@ export const clearAllData = mutation({
       "fees",
       "feeQueries",
       "feeQueryMessages",
+      "testQueries",
+      "testQueryMessages",
       "notifications",
       "chatConversations",
       "chatMessages",
@@ -90,6 +92,30 @@ export const clearSeedData = mutation({
       await ctx.db.delete(query._id);
     }
     deleted.feeQueries = feeQueries.length;
+
+    // Delete test query messages first (references testQueries)
+    const testQueries = await ctx.db
+      .query("testQueries")
+      .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+      .collect();
+    let testQueryMessagesCount = 0;
+    for (const query of testQueries) {
+      const messages = await ctx.db
+        .query("testQueryMessages")
+        .withIndex("by_query", (q) => q.eq("queryId", query._id))
+        .collect();
+      for (const msg of messages) {
+        await ctx.db.delete(msg._id);
+      }
+      testQueryMessagesCount += messages.length;
+    }
+    deleted.testQueryMessages = testQueryMessagesCount;
+
+    // Delete test queries (references tests and users)
+    for (const query of testQueries) {
+      await ctx.db.delete(query._id);
+    }
+    deleted.testQueries = testQueries.length;
 
     // Delete fees (references users)
     const fees = await ctx.db

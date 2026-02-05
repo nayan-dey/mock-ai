@@ -14,7 +14,7 @@ export default function ChatPage() {
   if (isLoading) {
     return (
       <div className={cn("fixed inset-0 flex items-center justify-center", !isKeyboardOpen && "bottom-20")}>
-        <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -22,7 +22,7 @@ export default function ChatPage() {
   if (!convexUser) {
     return (
       <div className={cn("fixed inset-0 flex flex-col items-center justify-center p-4", !isKeyboardOpen && "bottom-20")}>
-        <p className="text-stone-500">Unable to load user data</p>
+        <p className="text-muted-foreground">Unable to load user data</p>
         <Link href="/dashboard">
           <Button variant="outline" className="mt-4">
             Go Back

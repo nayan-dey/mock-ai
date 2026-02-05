@@ -502,6 +502,11 @@ export function FeesClient() {
         onRowClick={(row: GroupedFeeRow) => {
           if (row._feeCount > 1) {
             toggleStudentExpand(row.studentId);
+          } else {
+            setSelectedStudent({
+              id: row.studentId,
+              name: row.studentName,
+            });
           }
         }}
         rowClassName={(row: GroupedFeeRow) =>

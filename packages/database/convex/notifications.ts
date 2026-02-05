@@ -115,6 +115,22 @@ export const markAllAsRead = mutation({
   },
 });
 
+// Clear all notifications
+export const clearAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+
+    const all = await ctx.db
+      .query("notifications")
+      .withIndex("by_org_created", (q) => q.eq("organizationId", orgId))
+      .collect();
+
+    await Promise.all(all.map((n) => ctx.db.delete(n._id)));
+  },
+});
+
 // Daily cron: create notifications for overdue fees (deduped per fee per day)
 export const checkOverdueFees = internalMutation({
   args: {},
