@@ -29,6 +29,20 @@ export default defineSchema({
     .index("by_user_id", ["userId"])
     .index("by_updated_at", ["updatedAt"]),
 
+  // AI Chat rate limits (daily message counts per user)
+  chatRateLimits: defineTable({
+    userId: v.id("users"),
+    date: v.string(), // "YYYY-MM-DD" format, resets automatically when date changes
+    messageCount: v.number(),
+  }).index("by_user_id", ["userId"]),
+
+  // AI Extract rate limits (daily extraction counts per admin)
+  extractRateLimits: defineTable({
+    userId: v.id("users"),
+    date: v.string(),
+    extractCount: v.number(),
+  }).index("by_user_id", ["userId"]),
+
   // AI Chat messages
   chatMessages: defineTable({
     conversationId: v.id("chatConversations"),

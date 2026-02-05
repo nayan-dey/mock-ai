@@ -53,6 +53,7 @@ export default function ExtractQuestionsPage() {
     user?.id ? { clerkId: user.id } : "skip"
   );
   const bulkCreate = useMutation(api.questions.bulkCreate);
+  const consumeExtractLimit = useMutation(api.chat.consumeExtractLimit);
   const subjectsData = useQuery(api.subjects.list, {});
   const createTest = useMutation(api.tests.create);
   const confettiRef = useRef<ConfettiRef>(null);
@@ -79,8 +80,19 @@ export default function ExtractQuestionsPage() {
 
   const [isExtracting, startExtracting] = useTransition();
 
-  const handleExtract = () => {
+  const handleExtract = async () => {
     if (selectedFiles.length === 0) return;
+
+    // Check extraction rate limit before processing
+    try {
+      const rateLimitResult = await consumeExtractLimit();
+      if (!rateLimitResult.allowed) {
+        toast.error(`Daily extraction limit reached (${rateLimitResult.limit}/day). Try again tomorrow.`);
+        return;
+      }
+    } catch {
+      // If rate limit check fails, allow the extraction (fail open)
+    }
 
     // Set these synchronously BEFORE the transition so the UI updates immediately
     setState("processing");

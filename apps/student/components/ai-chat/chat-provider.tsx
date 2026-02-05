@@ -1,9 +1,10 @@
 "use client";
 
 import { useChat, type Message } from "ai/react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@repo/database";
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
+import { toast } from "sonner";
 
 interface ChatContextType {
   messages: ReturnType<typeof useChat>["messages"];
@@ -40,6 +41,7 @@ interface ChatProviderProps {
 export function ChatProvider({ children, userId }: ChatProviderProps) {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
+  const rateLimitAllowed = useRef(true);
 
   // Fetch student context using Convex React hook
   const studentContext = useQuery(
@@ -53,6 +55,8 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
     currentConversationId ? { conversationId: currentConversationId as any } : "skip"
   );
 
+  const consumeChatLimit = useMutation(api.chat.consumeChatLimit);
+
   const isContextLoading = studentContext === undefined;
 
   // Track if messages query is loading
@@ -65,19 +69,48 @@ export function ChatProvider({ children, userId }: ChatProviderProps) {
     messages,
     input,
     handleInputChange,
-    handleSubmit,
+    handleSubmit: originalHandleSubmit,
     isLoading,
     error,
     reload,
     stop,
     setInput,
     setMessages,
-    append,
+    append: originalAppend,
   } = useChat({
     api: "/api/chat",
     initialMessages: initialMessages,
     body: chatBody,
   });
+
+  // Wrap handleSubmit to check rate limit first
+  const handleSubmit = useCallback(async (e?: { preventDefault?: () => void }) => {
+    e?.preventDefault?.();
+    try {
+      const result = await consumeChatLimit();
+      if (!result.allowed) {
+        toast.error(`Daily chat limit reached (${result.limit} messages/day). Try again tomorrow.`);
+        return;
+      }
+    } catch {
+      // If rate limit check fails, allow the message (fail open)
+    }
+    originalHandleSubmit(e as any);
+  }, [consumeChatLimit, originalHandleSubmit]);
+
+  // Wrap append to check rate limit first
+  const append = useCallback(async (message: { role: string; content: string }) => {
+    try {
+      const result = await consumeChatLimit();
+      if (!result.allowed) {
+        toast.error(`Daily chat limit reached (${result.limit} messages/day). Try again tomorrow.`);
+        return;
+      }
+    } catch {
+      // If rate limit check fails, allow the message (fail open)
+    }
+    originalAppend(message as any);
+  }, [consumeChatLimit, originalAppend]);
 
   // Convert Convex messages to AI SDK format and sync into useChat in a single effect
   useEffect(() => {

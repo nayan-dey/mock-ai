@@ -139,40 +139,155 @@ export const deleteConversation = mutation({
   },
 });
 
+// Chat limits by role
+const CHAT_LIMITS: Record<string, number> = {
+  student: 3,
+  admin: 10,
+  teacher: 10,
+};
+
+function getTodayDateString(): string {
+  return new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+}
+
+// Check and consume one chat message quota. Returns whether the message is allowed.
+// This is a mutation so the check + increment is atomic.
+export const consumeChatLimit = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+    const today = getTodayDateString();
+    const limit = CHAT_LIMITS[user.role] ?? 3;
+
+    const existing = await ctx.db
+      .query("chatRateLimits")
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (existing) {
+      // If it's a new day, reset the count
+      if (existing.date !== today) {
+        await ctx.db.patch(existing._id, { date: today, messageCount: 1 });
+        return { allowed: true, remaining: limit - 1, limit };
+      }
+
+      // Same day — check if under limit
+      if (existing.messageCount >= limit) {
+        return { allowed: false, remaining: 0, limit };
+      }
+
+      // Increment
+      await ctx.db.patch(existing._id, {
+        messageCount: existing.messageCount + 1,
+      });
+      return {
+        allowed: true,
+        remaining: limit - (existing.messageCount + 1),
+        limit,
+      };
+    }
+
+    // First time — create record
+    await ctx.db.insert("chatRateLimits", {
+      userId: user._id,
+      date: today,
+      messageCount: 1,
+    });
+    return { allowed: true, remaining: limit - 1, limit };
+  },
+});
+
 // Get user's daily message count (for rate limiting display)
 export const getDailyMessageCount = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
+    const today = getTodayDateString();
+    const limit = CHAT_LIMITS[user.role] ?? 3;
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const conversations = await ctx.db
-      .query("chatConversations")
+    const existing = await ctx.db
+      .query("chatRateLimits")
       .withIndex("by_user_id", (q) => q.eq("userId", user._id))
-      .collect();
+      .first();
 
-    let count = 0;
-    for (const conv of conversations) {
-      const messages = await ctx.db
-        .query("chatMessages")
-        .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("role"), "user"),
-            q.gte(q.field("createdAt"), startOfDay.getTime())
-          )
-        )
-        .collect();
-      count += messages.length;
-    }
+    // No record or different day means 0 messages used today
+    const count =
+      existing && existing.date === today ? existing.messageCount : 0;
 
     return {
       count,
-      limit: Infinity,
-      remaining: Infinity,
-      hasReachedLimit: false,
+      limit,
+      remaining: Math.max(0, limit - count),
+      hasReachedLimit: count >= limit,
+    };
+  },
+});
+
+// --- Extract rate limiting ---
+
+const EXTRACT_DAILY_LIMIT = 5;
+
+// Check and consume one extraction quota. Returns whether the extraction is allowed.
+export const consumeExtractLimit = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAdmin(ctx);
+    const today = getTodayDateString();
+
+    const existing = await ctx.db
+      .query("extractRateLimits")
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (existing) {
+      if (existing.date !== today) {
+        await ctx.db.patch(existing._id, { date: today, extractCount: 1 });
+        return { allowed: true, remaining: EXTRACT_DAILY_LIMIT - 1, limit: EXTRACT_DAILY_LIMIT };
+      }
+
+      if (existing.extractCount >= EXTRACT_DAILY_LIMIT) {
+        return { allowed: false, remaining: 0, limit: EXTRACT_DAILY_LIMIT };
+      }
+
+      await ctx.db.patch(existing._id, {
+        extractCount: existing.extractCount + 1,
+      });
+      return {
+        allowed: true,
+        remaining: EXTRACT_DAILY_LIMIT - (existing.extractCount + 1),
+        limit: EXTRACT_DAILY_LIMIT,
+      };
+    }
+
+    await ctx.db.insert("extractRateLimits", {
+      userId: user._id,
+      date: today,
+      extractCount: 1,
+    });
+    return { allowed: true, remaining: EXTRACT_DAILY_LIMIT - 1, limit: EXTRACT_DAILY_LIMIT };
+  },
+});
+
+// Get admin's daily extraction count (for display)
+export const getDailyExtractCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAdmin(ctx);
+    const today = getTodayDateString();
+
+    const existing = await ctx.db
+      .query("extractRateLimits")
+      .withIndex("by_user_id", (q) => q.eq("userId", user._id))
+      .first();
+
+    const count =
+      existing && existing.date === today ? existing.extractCount : 0;
+
+    return {
+      count,
+      limit: EXTRACT_DAILY_LIMIT,
+      remaining: Math.max(0, EXTRACT_DAILY_LIMIT - count),
+      hasReachedLimit: count >= EXTRACT_DAILY_LIMIT,
     };
   },
 });
