@@ -5,6 +5,7 @@ import { HeroSection } from "./hero-section";
 import { FeaturesSection } from "./features-section";
 import { ComparisonSection } from "./comparison-section";
 import { HowItWorksSection } from "./how-it-works-section";
+import { PricingSection } from "./pricing-section";
 import { CtaSection } from "./cta-section";
 
 export function LandingPage() {
@@ -15,6 +16,7 @@ export function LandingPage() {
       <FeaturesSection />
       <ComparisonSection />
       <HowItWorksSection />
+      <PricingSection />
       <CtaSection />
     </div>
   );
