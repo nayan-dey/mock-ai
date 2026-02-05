@@ -33,17 +33,25 @@ export const list = query({
 export const getById = query({
   args: { id: v.id("questions") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-    return await ctx.db.get(args.id);
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const question = await ctx.db.get(args.id);
+    if (!question) return null;
+    if (question.organizationId !== orgId) throw new Error("Access denied");
+    return question;
   },
 });
 
 export const getByIds = query({
   args: { ids: v.array(v.id("questions")) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
     const questions = await Promise.all(args.ids.map((id) => ctx.db.get(id)));
-    return questions.filter(Boolean);
+    const valid = questions.filter(
+      (q): q is NonNullable<typeof q> => q != null && q.organizationId === orgId
+    );
+    return valid;
   },
 });
 

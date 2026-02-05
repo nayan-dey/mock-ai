@@ -1,11 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAdmin, requireAuth, getAuthUser, getOrgId } from "./lib/auth";
+import { requireAdmin, requireAuth, getAuthUser, getOrgId, requireMatchingIdentity } from "./lib/auth";
 
 export const getByClerkId = query({
   args: { clerkId: v.string() },
   handler: async (ctx, args) => {
+    // Verify caller's identity matches the requested clerkId
+    await requireMatchingIdentity(ctx, args.clerkId);
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
@@ -72,6 +75,9 @@ export const create = mutation({
     role: v.union(v.literal("student"), v.literal("teacher"), v.literal("admin")),
   },
   handler: async (ctx, args) => {
+    // Verify caller's identity matches the clerkId being created
+    await requireMatchingIdentity(ctx, args.clerkId);
+
     const existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
@@ -97,7 +103,12 @@ export const updateRole = mutation({
     role: v.union(v.literal("student"), v.literal("teacher"), v.literal("admin")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const targetUser = await ctx.db.get(args.id);
+    if (!targetUser || targetUser.organizationId !== orgId) {
+      throw new Error("Access denied");
+    }
     await ctx.db.patch(args.id, { role: args.role });
   },
 });
@@ -109,6 +120,9 @@ export const upsertFromClerk = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify caller's identity matches the clerkId being upserted
+    await requireMatchingIdentity(ctx, args.clerkId);
+
     const existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
@@ -145,6 +159,9 @@ export const upsertAsAdmin = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify caller's identity matches the clerkId being upserted
+    await requireMatchingIdentity(ctx, args.clerkId);
+
     const existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))

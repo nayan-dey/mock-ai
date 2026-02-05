@@ -2,39 +2,27 @@
 
 ## CRITICAL (Must fix before production)
 
-### 1. Unprotected Convex Mutations - Anyone Can Call These Without Auth
-- [ ] **`users.create`** - Creates users without ANY authentication. Anyone can create users with any role/email/clerkId.
-- [ ] **`users.upsertFromClerk`** - Creates/updates student accounts without auth. Attacker can manipulate clerkId to hijack accounts.
-- [ ] **`users.upsertAsAdmin`** - Creates/updates admin accounts without auth. **Anyone can make themselves an admin.**
-- [ ] **`users.getByClerkId`** - Public query returns user data by clerkId. Enables user enumeration.
+### ~~1. Unprotected Convex Mutations - Anyone Can Call These Without Auth~~ FIXED
+- [x] **`users.create`** ~~Creates users without ANY authentication.~~ Now uses `requireMatchingIdentity` to verify caller's JWT identity matches the clerkId being created.
+- [x] **`users.upsertFromClerk`** ~~Creates/updates student accounts without auth.~~ Now uses `requireMatchingIdentity` to verify caller owns the clerkId.
+- [x] **`users.upsertAsAdmin`** ~~Creates/updates admin accounts without auth.~~ Now uses `requireMatchingIdentity` to verify caller owns the clerkId.
+- [x] **`users.getByClerkId`** ~~Public query returns user data by clerkId.~~ Now uses `requireMatchingIdentity` — users can only query their own record.
 
-**Fix:** Add `requireAuth()` or use Convex HTTP actions with webhook signature verification for Clerk-initiated calls. For `upsertFromClerk`/`upsertAsAdmin`, verify the caller's identity matches the clerkId being upserted.
+### ~~2. Cross-Org Data Leakage - Admin from Org A Can Access Org B's Data~~ FIXED
+- [x] **`analytics.getTestAnalytics`** ~~No org boundary check.~~ Now verifies test belongs to admin's org.
+- [x] **`attempts.getByTest`** ~~No org validation.~~ Now verifies test belongs to admin's org.
+- [x] **`tests.getById`** ~~Any authenticated user can fetch ANY test.~~ Now checks `user.organizationId` matches test's org.
+- [x] **`tests.getWithQuestions`** ~~Any authenticated user can fetch test questions from any org.~~ Now checks org match.
+- [x] **`questions.getById` / `questions.getByIds`** ~~Admin can fetch questions from any org.~~ Now filters by admin's org.
+- [x] **`batches.getById`** ~~Any authenticated user can fetch any batch.~~ Now checks org match.
+- [x] **`batches.getStudentsByBatch`** ~~Admin can list students in any batch.~~ Now verifies batch belongs to admin's org.
+- [x] **`batches.assignUserToBatch`** ~~Admin can assign students to batches in other orgs.~~ Now verifies both batch and user belong to admin's org.
+- [x] **`batches.removeUserFromBatch`** ~~Admin can remove students from other orgs.~~ Now verifies user belongs to admin's org.
+- [x] **`notes.getById`** ~~Any authenticated user can fetch any note.~~ Now checks org match.
+- [x] **`classes.getById`** ~~Any authenticated user can fetch any class.~~ Now checks org match.
 
-### 2. Cross-Org Data Leakage - Admin from Org A Can Access Org B's Data
-- [ ] **`analytics.getTestAnalytics`** - No org boundary check. Admin can query analytics for any test in any org.
-- [ ] **`attempts.getByTest`** - No org validation. Admin can see all student attempts for any test across all orgs.
-- [ ] **`tests.getById`** - Any authenticated user can fetch ANY test by ID (no org check).
-- [ ] **`tests.getWithQuestions`** - Any authenticated user can fetch test questions from any org (answer key gated but structure visible).
-- [ ] **`questions.getById` / `questions.getByIds`** - Admin can fetch questions from any org's question bank.
-- [ ] **`batches.getById`** - Any authenticated user can fetch any batch details from any org.
-- [ ] **`batches.getStudentsByBatch`** - Admin can list all students in any batch across orgs.
-- [ ] **`batches.assignUserToBatch`** - Admin can assign students to batches in other orgs.
-- [ ] **`batches.removeUserFromBatch`** - Admin can remove students from batches in other orgs.
-- [ ] **`notes.getById`** - Any authenticated user can fetch any note from any org.
-- [ ] **`classes.getById`** - Any authenticated user can fetch any class from any org.
-
-**Fix:** Add org validation to every `getById`-style query. Pattern:
-```ts
-const admin = await requireAdmin(ctx);
-const orgId = getOrgId(admin);
-const record = await ctx.db.get(args.id);
-if (record.organizationId !== orgId) throw new Error("Access denied");
-```
-
-### 3. Cross-Org Role Manipulation
-- [ ] **`users.updateRole`** - Admin can change ANY user's role without org check. Admin from Org A can promote a student in Org B to admin.
-
-**Fix:** Verify target user belongs to the same org as the calling admin.
+### ~~3. Cross-Org Role Manipulation~~ FIXED
+- [x] **`users.updateRole`** ~~Admin can change ANY user's role without org check.~~ Now verifies target user belongs to the same org as the calling admin.
 
 ### 4. Unprotected API Route
 - [ ] **`/api/extract-questions`** (admin app) - NO authentication check. Public endpoint that processes files via Google Gemini API. Anyone can call it, burning your API credits and potentially using it for free AI processing.
@@ -45,10 +33,9 @@ if (record.organizationId !== orgId) throw new Error("Access denied");
 
 ## HIGH (Should fix before production)
 
-### 5. No Rate Limiting on AI Chat
-- [ ] **`chat.getDailyMessageCount`** returns hardcoded `Infinity` for limits. No actual rate limiting exists. Users can spam AI chat endlessly, burning your Google Gemini API credits.
-
-**Fix:** Implement actual message counting and enforce a daily limit (e.g., 20 messages/day for free tier).
+### 5. ~~No Rate Limiting on AI Chat~~ FIXED
+- [x] **`chat.getDailyMessageCount`** ~~returns hardcoded `Infinity` for limits. No actual rate limiting exists.~~ Now enforced via `consumeChatLimit` mutation. Students: 3/day, Admins: 10/day. Uses `chatRateLimits` table with auto-reset on date change. Client-side enforcement via `useMutation` in chat providers with toast notification.
+- [x] **AI Extract rate limiting** added. `consumeExtractLimit` mutation with 5/day limit for admins. Uses `extractRateLimits` table. Enforced client-side in extract page.
 
 ### 6. Chat API Context Fallback
 - [ ] **Student chat API** (`/apps/student/api/chat/route.ts`) falls back to client-provided context if server fetch fails. A student could inject fake context to manipulate AI responses.
@@ -93,10 +80,8 @@ if (record.organizationId !== orgId) throw new Error("Access denied");
 
 **Fix:** Add `v.string()` length validators in Convex schema. Sanitize HTML in rendered content.
 
-### 13. Student Can See Other Org's Data via Direct ID Access
-- [ ] If a student somehow obtains a test ID, note ID, or class ID from another org, the `getById` queries will return that data since there's no org check.
-
-**Fix:** Same as #2 - add org validation to all `getById` queries.
+### ~~13. Student Can See Other Org's Data via Direct ID Access~~ FIXED
+- [x] ~~If a student somehow obtains a test ID, note ID, or class ID from another org, the `getById` queries will return that data since there's no org check.~~ All `getById` queries now verify `user.organizationId` matches the record's org. Fixed as part of #2.
 
 ---
 
@@ -147,9 +132,9 @@ if (record.organizationId !== orgId) throw new Error("Access denied");
 
 | Priority | Count | Action |
 |----------|-------|--------|
-| CRITICAL | 4 issues (14 functions) | **Must fix before production** |
-| HIGH | 4 issues | **Should fix before production** |
-| MEDIUM | 5 issues | Fix soon after launch |
+| CRITICAL | 1 open / 3 fixed (14 functions) | **Must fix before production** |
+| HIGH | 3 open / 1 fixed | **Should fix before production** |
+| MEDIUM | 4 open / 1 fixed | Fix soon after launch |
 | LOW | 6 issues | Good to fix when possible |
 | Architecture | 3 concerns | Design decisions to evaluate |
 
@@ -157,24 +142,30 @@ if (record.organizationId !== orgId) throw new Error("Access denied");
 
 ## FILES TO MODIFY
 
-### Step 1: Add org validation to all `getById` queries
-- `packages/database/convex/tests.ts` - `getById`, `getWithQuestions`
-- `packages/database/convex/questions.ts` - `getById`, `getByIds`
-- `packages/database/convex/batches.ts` - `getById`, `getStudentsByBatch`, `assignUserToBatch`, `removeUserFromBatch`
-- `packages/database/convex/notes.ts` - `getById`
-- `packages/database/convex/classes.ts` - `getById`
-- `packages/database/convex/analytics.ts` - `getTestAnalytics`
-- `packages/database/convex/attempts.ts` - `getByTest`
-- `packages/database/convex/users.ts` - `updateRole`
+### ~~Step 1: Add org validation to all `getById` queries~~ DONE
+- ~~`packages/database/convex/tests.ts` - `getById`, `getWithQuestions`~~
+- ~~`packages/database/convex/questions.ts` - `getById`, `getByIds`~~
+- ~~`packages/database/convex/batches.ts` - `getById`, `getStudentsByBatch`, `assignUserToBatch`, `removeUserFromBatch`~~
+- ~~`packages/database/convex/notes.ts` - `getById`~~
+- ~~`packages/database/convex/classes.ts` - `getById`~~
+- ~~`packages/database/convex/analytics.ts` - `getTestAnalytics`~~
+- ~~`packages/database/convex/attempts.ts` - `getByTest`~~
+- ~~`packages/database/convex/users.ts` - `updateRole`~~
+- All 14 functions now verify the record's `organizationId` matches the caller's org before returning data
 
-### Step 2: Secure unprotected mutations
-- `packages/database/convex/users.ts` - Add identity verification to `create`, `upsertFromClerk`, `upsertAsAdmin`, `getByClerkId`
+### ~~Step 2: Secure unprotected mutations~~ DONE
+- ~~`packages/database/convex/users.ts` - Add identity verification to `create`, `upsertFromClerk`, `upsertAsAdmin`, `getByClerkId`~~
+- Added `requireMatchingIdentity` helper to `packages/database/convex/lib/auth.ts`
+- All 4 functions now verify caller's JWT `subject` matches the `clerkId` argument
 
 ### Step 3: Secure API routes
 - `apps/admin/app/api/extract-questions/route.ts` - Add auth check
 
-### Step 4: Add rate limiting to chat
-- `packages/database/convex/chat.ts` - Implement actual `getDailyMessageCount`
+### ~~Step 4: Add rate limiting to chat~~ DONE
+- ~~`packages/database/convex/chat.ts` - Implement actual `getDailyMessageCount`~~
+- Added `consumeChatLimit` mutation, `consumeExtractLimit` mutation, `chatRateLimits` table, `extractRateLimits` table
+- Wired in `apps/student/components/ai-chat/chat-provider.tsx` and `apps/admin/components/ai-chat/chat-provider.tsx`
+- Wired extraction limit in `apps/admin/app/(dashboard)/questions/extract/page.tsx`
 
 ### Step 5: Add role check to test attempts
 - `packages/database/convex/attempts.ts` - Add student role check in `start`

@@ -81,9 +81,12 @@ export const listForBatch = query({
 export const getById = query({
   args: { id: v.id("notes") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const user = await requireAuth(ctx);
     const note = await ctx.db.get(args.id);
     if (!note) return null;
+    if (!user.organizationId || note.organizationId !== user.organizationId) {
+      throw new Error("Access denied");
+    }
     return {
       ...note,
       fileUrl: note.storageId

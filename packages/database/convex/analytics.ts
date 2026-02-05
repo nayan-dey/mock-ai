@@ -159,7 +159,12 @@ export const getStudentAnalytics = query({
 export const getTestAnalytics = query({
   args: { testId: v.id("tests") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const test = await ctx.db.get(args.testId);
+    if (!test || test.organizationId !== orgId) {
+      throw new Error("Access denied");
+    }
 
     const allTestAttempts = await ctx.db
       .query("attempts")
@@ -186,7 +191,6 @@ export const getTestAnalytics = query({
     const highestScore = Math.max(...scores);
     const lowestScore = Math.min(...scores);
 
-    const test = await ctx.db.get(args.testId);
     const questionWiseAnalysis = [];
 
     if (test) {

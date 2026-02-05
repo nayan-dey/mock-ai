@@ -26,6 +26,31 @@ export async function getAuthUser(ctx: Ctx) {
 }
 
 /**
+ * Require a valid Clerk identity (JWT). Does NOT require a DB user record.
+ * Use this for upsert/create flows where the user may not exist in DB yet.
+ * Returns the Clerk subject (userId) from the token.
+ */
+export async function requireIdentity(ctx: Ctx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Authentication required");
+  }
+  return identity.subject; // This is the Clerk userId
+}
+
+/**
+ * Require a valid Clerk identity AND verify it matches the given clerkId.
+ * Prevents users from impersonating others by passing a different clerkId.
+ */
+export async function requireMatchingIdentity(ctx: Ctx, clerkId: string) {
+  const callerClerkId = await requireIdentity(ctx);
+  if (callerClerkId !== clerkId) {
+    throw new Error("Identity mismatch: you can only perform this action for your own account");
+  }
+  return callerClerkId;
+}
+
+/**
  * Require authentication. Throws if not authenticated.
  */
 export async function requireAuth(ctx: Ctx) {

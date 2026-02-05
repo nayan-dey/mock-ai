@@ -73,8 +73,13 @@ export const listPublishedForBatch = query({
 export const getById = query({
   args: { id: v.id("tests") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
-    return await ctx.db.get(args.id);
+    const user = await requireAuth(ctx);
+    const test = await ctx.db.get(args.id);
+    if (!test) return null;
+    if (!user.organizationId || test.organizationId !== user.organizationId) {
+      throw new Error("Access denied");
+    }
+    return test;
   },
 });
 
@@ -85,6 +90,9 @@ export const getWithQuestions = query({
 
     const test = await ctx.db.get(args.id);
     if (!test) return null;
+    if (!user.organizationId || test.organizationId !== user.organizationId) {
+      throw new Error("Access denied");
+    }
 
     const questions = await Promise.all(
       test.questions.map((qId) => ctx.db.get(qId))

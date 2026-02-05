@@ -51,8 +51,13 @@ export const list = query({
 export const getById = query({
   args: { id: v.id("batches") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
-    return await ctx.db.get(args.id);
+    const user = await requireAuth(ctx);
+    const batch = await ctx.db.get(args.id);
+    if (!batch) return null;
+    if (!user.organizationId || batch.organizationId !== user.organizationId) {
+      throw new Error("Access denied");
+    }
+    return batch;
   },
 });
 
@@ -173,7 +178,12 @@ export const countForOrg = query({
 export const getStudentsByBatch = query({
   args: { batchId: v.id("batches") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const batch = await ctx.db.get(args.batchId);
+    if (!batch || batch.organizationId !== orgId) {
+      throw new Error("Access denied");
+    }
     return await ctx.db
       .query("users")
       .withIndex("by_batch", (q) => q.eq("batchId", args.batchId))
@@ -188,12 +198,15 @@ export const assignUserToBatch = mutation({
   },
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
     const batch = await ctx.db.get(args.batchId);
     const user = await ctx.db.get(args.userId);
 
     if (!batch || !user) {
       throw new Error("User or batch not found");
     }
+    if (batch.organizationId !== orgId) throw new Error("Access denied");
+    if (user.organizationId && user.organizationId !== orgId) throw new Error("Access denied");
 
     const enrolledAt = Date.now();
 
@@ -239,7 +252,10 @@ export const assignUserToBatch = mutation({
 export const removeUserFromBatch = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const admin = await requireAdmin(ctx);
+    const orgId = getOrgId(admin);
+    const user = await ctx.db.get(args.userId);
+    if (!user || user.organizationId !== orgId) throw new Error("Access denied");
     await ctx.db.patch(args.userId, { batchId: undefined });
   },
 });

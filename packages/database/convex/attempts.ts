@@ -117,7 +117,12 @@ export const getByUser = query({
 export const getByTest = query({
   args: { testId: v.id("tests") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const admin = await requireAdmin(ctx);
+    const orgId = admin.organizationId;
+    const test = await ctx.db.get(args.testId);
+    if (!test || !orgId || test.organizationId !== orgId) {
+      throw new Error("Access denied");
+    }
     const allAttempts = await ctx.db
       .query("attempts")
       .withIndex("by_test_id", (q) => q.eq("testId", args.testId))
