@@ -59,7 +59,9 @@ export const sidebarData: NavGroup[] = [
       { title: "Admins", url: "/admins", icon: Shield },
       { title: "Join Requests", url: "/requests", icon: UserPlus },
       { title: "Settings", url: "/settings", icon: Settings },
-      { title: "Seed Data", url: "/seed", icon: Database },
+      ...(process.env.NODE_ENV !== "production"
+        ? [{ title: "Seed Data", url: "/seed", icon: Database }]
+        : []),
     ],
   },
 ];

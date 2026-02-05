@@ -23,7 +23,7 @@ import { UserDetailSheet } from "../../../components/user-detail-sheet";
 
 const userExportColumns: ExportColumn[] = [
   { header: "Name", key: "name" },
-  { header: "Email", key: "email" },
+  { header: "Phone", key: "phone", format: (v) => v || "—" },
   { header: "Role", key: "role", format: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
   { header: "Batch", key: "batchName", format: (v) => v || "—" },
   { header: "Fees Paid", key: "feesPaid", format: (v) => String(v) },
@@ -36,6 +36,7 @@ interface UserData {
   _id: string;
   name: string;
   email: string;
+  phone?: string;
   role: "student" | "teacher" | "admin";
   batchId?: string;
   batchName?: string;
@@ -90,6 +91,7 @@ export function UsersClient() {
           _id: user._id,
           name: user.name,
           email: user.email,
+          phone: user.phone,
           role: user.role,
           batchId: user.batchId,
           batchName: user.batchId ? batchMap[user.batchId] : undefined,
@@ -174,10 +176,10 @@ export function UsersClient() {
       enableHiding: true,
     },
     {
-      accessorKey: "email",
-      header: ({ column }) => <SortableHeader column={column} title="Email" />,
+      accessorKey: "phone",
+      header: ({ column }) => <SortableHeader column={column} title="Phone" />,
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground truncate block max-w-[180px]">{row.getValue("email")}</span>
+        <span className="text-sm text-muted-foreground truncate block max-w-[180px]">{row.getValue("phone") || "—"}</span>
       ),
     },
     {

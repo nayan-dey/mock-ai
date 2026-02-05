@@ -28,6 +28,7 @@ import {
   Award,
   Users,
   Ban,
+  Phone,
 } from "lucide-react";
 import { useMemo } from "react";
 import type { Id } from "@repo/database/dataModel";
@@ -195,6 +196,12 @@ export default function ProfilePage() {
         <h1 className="mt-4 text-xl font-semibold">{profile.name}</h1>
         {profile.bio && (
           <p className="mt-1 text-sm text-muted-foreground max-w-xs">{profile.bio}</p>
+        )}
+        {profile.phone && (
+          <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+            <Phone className="h-3 w-3" />
+            {profile.phone}
+          </p>
         )}
 
         {/* Age and Batch */}

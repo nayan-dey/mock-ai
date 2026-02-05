@@ -80,6 +80,7 @@ export default defineSchema({
     name: v.string(),
     bio: v.optional(v.string()),
     age: v.optional(v.number()),
+    phone: v.optional(v.string()),
     profileImageId: v.optional(v.id("_storage")),
     role: v.union(v.literal("student"), v.literal("teacher"), v.literal("admin")),
     batchId: v.optional(v.id("batches")),

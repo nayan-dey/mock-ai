@@ -34,6 +34,7 @@ import {
   Video,
   IndianRupee,
   MessageSquare,
+  Phone,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -122,6 +123,12 @@ export default function ProfilePage() {
         </div>
         <h1 className="mt-3 text-xl font-semibold">{dbUser.name}</h1>
         <p className="text-sm text-muted-foreground">{dbUser.email}</p>
+        {dbUser.phone && (
+          <p className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Phone className="h-3 w-3" />
+            {dbUser.phone}
+          </p>
+        )}
         {(batch || dbUser.age) && (
           <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
             {batch && (

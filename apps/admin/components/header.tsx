@@ -20,6 +20,10 @@ import {
   TabsContent,
   Badge,
   cn,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "@repo/ui";
 import {
   Bell,
@@ -36,6 +40,7 @@ import {
   Loader2,
   RefreshCw,
   Trash2,
+  Filter,
 } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -275,15 +280,31 @@ export function Header() {
           <SheetHeader className="px-6 pt-6 shrink-0">
             <div className="flex items-center justify-between">
               <SheetTitle>Notifications</SheetTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                disabled={isRefreshing}
-                onClick={handleRefresh}
-              >
-                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={isRefreshing}
+                  onClick={handleRefresh}
+                >
+                  <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
+                  disabled={isClearingAll || !notifications || notifications.length === 0}
+                  onClick={handleClearAll}
+                >
+                  {isClearingAll ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Remove all
+                </Button>
+              </div>
             </div>
             <SheetDescription>
               {unreadCount > 0
@@ -297,31 +318,9 @@ export function Header() {
             onValueChange={(value) => setActiveTab(value as "all" | "unread" | "read")}
             className="mt-4 flex-1 flex flex-col overflow-hidden px-6"
           >
-            {/* Type filter chips */}
-            <div className="flex gap-1.5 flex-wrap mb-3">
-              {[
-                { value: "all", label: "All" },
-                { value: "fee", label: "Fees" },
-                { value: "test", label: "Tests" },
-                { value: "student", label: "Students" },
-                { value: "query", label: "Queries" },
-              ].map((filter) => (
-                <button
-                  key={filter.value}
-                  onClick={() => setTypeFilter(filter.value)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium transition-colors border",
-                    typeFilter === filter.value
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
-                  )}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-
-            <TabsList className="mb-4 h-10 rounded-lg bg-muted p-1 gap-1 grid w-full grid-cols-3 items-stretch">
+            {/* Type filter dropdown + Tabs row */}
+            <div className="flex items-center gap-2 mb-4">
+              <TabsList className="h-10 rounded-lg bg-muted p-1 gap-1 grid flex-1 grid-cols-3 items-stretch">
               <TabsTrigger value="all" className="gap-1.5">
                 View All
                 {notifications && notifications.length > 0 && (
@@ -346,7 +345,36 @@ export function Header() {
                   </span>
                 )}
               </TabsTrigger>
-            </TabsList>
+              </TabsList>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-10 w-10 shrink-0">
+                    <Filter className={cn("h-4 w-4", typeFilter !== "all" && "text-primary")} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {[
+                    { value: "all", label: "All" },
+                    { value: "fee", label: "Fees" },
+                    { value: "test", label: "Tests" },
+                    { value: "student", label: "Students" },
+                    { value: "query", label: "Queries" },
+                  ].map((filter) => (
+                    <DropdownMenuItem
+                      key={filter.value}
+                      onClick={() => setTypeFilter(filter.value)}
+                      className={cn(typeFilter === filter.value && "font-semibold bg-muted")}
+                    >
+                      {filter.label}
+                      {typeFilter === filter.value && (
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             <TabsContent value="all" className="mt-0 flex-1 overflow-hidden">
               <ScrollArea className="h-full">
@@ -530,33 +558,19 @@ export function Header() {
 
           {/* Bottom Actions */}
           <div className="border-t bg-background p-4 shrink-0">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                disabled={isMarkingAllRead || unreadCount === 0}
-                onClick={handleMarkAllRead}
-              >
-                {isMarkingAllRead ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCheck className="mr-2 h-4 w-4" />
-                )}
-                Mark all read
-              </Button>
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                disabled={isClearingAll || !notifications || notifications.length === 0}
-                onClick={handleClearAll}
-              >
-                {isClearingAll ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={isMarkingAllRead || unreadCount === 0}
+              onClick={handleMarkAllRead}
+            >
+              {isMarkingAllRead ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCheck className="mr-2 h-4 w-4" />
+              )}
+              Mark all read
+            </Button>
           </div>
         </SheetContent>
       </Sheet>

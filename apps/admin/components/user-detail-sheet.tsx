@@ -72,6 +72,7 @@ import {
   CircleAlert,
   MoreHorizontal,
   FileSpreadsheet,
+  Phone,
 } from "lucide-react";
 import type { Id } from "@repo/database/dataModel";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -664,6 +665,17 @@ export function UserDetailSheet({
                         <div>
                           <p className="text-xs text-muted-foreground">Age</p>
                           <p className="font-medium">{user.age} years</p>
+                        </div>
+                      </div>
+                    )}
+                    {user.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Phone</p>
+                          <p className="font-medium truncate">{user.phone}</p>
                         </div>
                       </div>
                     )}

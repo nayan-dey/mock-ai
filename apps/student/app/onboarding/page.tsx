@@ -14,7 +14,7 @@ import {
   Input,
   useToast,
 } from "@repo/ui";
-import { KeyRound, ArrowRight, LogOut, Building2, ChevronLeft } from "lucide-react";
+import { KeyRound, ArrowRight, LogOut, Building2, ChevronLeft, Phone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -51,6 +51,7 @@ export default function OnboardingPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [selectedOrgName, setSelectedOrgName] = useState("");
   const [code, setCode] = useState("");
+  const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -122,7 +123,16 @@ export default function OnboardingPage() {
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim() || !dbUser || !selectedOrgId) return;
+    if (!code.trim() || !phone || !dbUser || !selectedOrgId) return;
+
+    if (code.trim().length < 6) {
+      setError("Batch code must be at least 6 characters.");
+      return;
+    }
+    if (!/^\d{10}$/.test(phone)) {
+      setError("Please enter a valid 10-digit phone number.");
+      return;
+    }
 
     setError("");
     setIsSubmitting(true);
@@ -130,6 +140,7 @@ export default function OnboardingPage() {
       const result = await joinByReferralCode({
         referralCode: code.trim(),
         organizationId: selectedOrgId as any,
+        phone,
       });
       // Clean up stored values
       sessionStorage.removeItem("batch_ref_code");
@@ -216,24 +227,50 @@ export default function OnboardingPage() {
             Join {selectedOrgName}
           </CardTitle>
           <CardDescription>
-            Enter your batch code to get started. Ask your instructor for the
-            code.
+            Enter your batch code and phone number to get started.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleJoin} className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value.toUpperCase());
-                  setError("");
-                }}
-                placeholder="Enter batch code (e.g. WBPOL25)"
-                className="text-center font-mono text-lg tracking-widest"
-                maxLength={10}
-                autoFocus
-              />
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Input
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value.toUpperCase());
+                    setError("");
+                  }}
+                  placeholder="Batch code (e.g. WBPOL25)"
+                  className="text-center font-mono text-lg tracking-widest"
+                  maxLength={10}
+                  autoFocus
+                />
+                <p className="text-center text-xs text-muted-foreground">
+                  Ask your instructor for the code
+                </p>
+              </div>
+              <div className="space-y-1">
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setPhone(val);
+                      setError("");
+                    }}
+                    placeholder="10-digit phone number"
+                    className="pl-9 text-center text-lg tracking-wider"
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
+                </div>
+                {phone && phone.length < 10 && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    {10 - phone.length} digits remaining
+                  </p>
+                )}
+              </div>
               {error && (
                 <p className="text-center text-sm text-destructive">{error}</p>
               )}
@@ -241,7 +278,7 @@ export default function OnboardingPage() {
 
             <Button
               type="submit"
-              disabled={!code.trim() || isSubmitting}
+              disabled={!code.trim() || code.trim().length < 6 || phone.length !== 10 || isSubmitting}
               className="w-full gap-2"
             >
               {isSubmitting ? (

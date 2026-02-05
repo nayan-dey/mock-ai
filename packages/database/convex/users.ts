@@ -362,6 +362,7 @@ export const getPublicProfile = query({
       name: user.name,
       bio: user.bio,
       age: user.age,
+      phone: user.phone,
       profileImageUrl,
       createdAt: user.createdAt,
       batchId: user.batchId,

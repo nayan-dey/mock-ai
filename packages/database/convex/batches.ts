@@ -248,6 +248,7 @@ export const joinByReferralCode = mutation({
   args: {
     referralCode: v.string(),
     organizationId: v.id("organizations"),
+    phone: v.string(),
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
@@ -278,11 +279,12 @@ export const joinByReferralCode = mutation({
 
     const enrolledAt = Date.now();
 
-    // Set batchId, organizationId, and enrolledAt on the student
+    // Set batchId, organizationId, enrolledAt, and phone on the student
     await ctx.db.patch(user._id, {
       batchId: batch._id,
       organizationId: args.organizationId,
       enrolledAt: enrolledAt,
+      phone: args.phone,
     });
 
     // Create enrollment fee if configured
