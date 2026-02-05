@@ -91,11 +91,11 @@ export default function DashboardLayout({
 
       {/* Desktop layout */}
       <SidebarProvider>
-        <div className="hidden md:flex md:h-svh md:w-full">
+        <div className="hidden md:flex md:h-svh md:max-h-svh md:w-full md:overflow-hidden">
           <AppSidebar />
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
             <Header />
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 min-h-0 overflow-auto">
               {children}
             </main>
           </div>
