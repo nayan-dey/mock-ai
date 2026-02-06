@@ -107,11 +107,11 @@ export function UsersClient() {
 
   // Export handlers
   const handleExportExcel = () => {
-    exportToExcel(filteredUsers, userExportColumns, "Users", "Users");
+    exportToExcel(enrichedUsers, userExportColumns, "Users", "Users");
   };
 
   const handleExportPdf = () => {
-    exportToPdf(filteredUsers, userExportColumns, "Users", "Users", organization?.name, organization?.resolvedLogoUrl);
+    exportToPdf(enrichedUsers, userExportColumns, "Users", "Users", organization?.name, organization?.resolvedLogoUrl);
   };
 
   const columns: ColumnDef<UserData, any>[] = useMemo(() => [

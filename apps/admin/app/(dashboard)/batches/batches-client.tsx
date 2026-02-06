@@ -12,7 +12,6 @@ import {
   formatDate,
 } from "@repo/ui";
 import { Users, Pencil, Trash2, ToggleRight, Copy, Loader2 } from "lucide-react";
-import { useUser } from "@clerk/nextjs";
 import { AdminTable, createActionsColumn, type ActionMenuItem } from "@/components/admin-table";
 import { ExportDropdown } from "@/components/export-dropdown";
 import {
@@ -45,11 +44,7 @@ interface Batch {
 }
 
 export function BatchesClient() {
-  const { user } = useUser();
-  const organization = useQuery(
-    api.organizations.getByAdminClerkId,
-    user?.id ? { adminClerkId: user.id } : "skip"
-  );
+  const organization = useQuery(api.organizations.getMyOrg);
   const batches = useQuery(api.batches.list, {});
   const updateBatch = useMutation(api.batches.update);
   const removeBatch = useMutation(api.batches.remove);

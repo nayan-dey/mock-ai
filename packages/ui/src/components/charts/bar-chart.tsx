@@ -181,7 +181,9 @@ export function BarChart<T extends Record<string, unknown>>({
         <Tooltip
           content={(props) => (
             <CustomTooltip
-              {...props}
+              active={props.active}
+              payload={props.payload as CustomTooltipProps["payload"]}
+              label={props.label}
               tooltipLabel={tooltipLabel}
               tooltipValueSuffix={tooltipValueSuffix}
               showPercentage={showPercentage}
