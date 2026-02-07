@@ -311,6 +311,29 @@ export const listPublic = query({
   },
 });
 
+// Student query — get the org the current student belongs to
+export const getStudentOrg = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+    if (!user.organizationId) return null;
+
+    const org = await ctx.db.get(user.organizationId);
+    if (!org) return null;
+
+    const resolvedLogoUrl = org.logoStorageId
+      ? await ctx.storage.getUrl(org.logoStorageId)
+      : org.logoUrl ?? null;
+
+    return {
+      _id: org._id,
+      name: org.name,
+      slug: org.slug,
+      logoUrl: resolvedLogoUrl,
+    };
+  },
+});
+
 // Public query — lookup org by slug
 export const getBySlug = query({
   args: { slug: v.string() },

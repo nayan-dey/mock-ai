@@ -31,6 +31,8 @@ import {
   CheckCircle2,
   IndianRupee,
   AlertTriangle,
+  Building2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -62,6 +64,16 @@ function DashboardSkeleton() {
 
 export default function DashboardPage() {
   const { clerkUser: user, dbUser, isLoading: isUserLoading } = useCurrentUser();
+
+  const org = useQuery(
+    api.organizations.getStudentOrg,
+    dbUser?.organizationId ? {} : "skip"
+  );
+
+  const batch = useQuery(
+    api.batches.getById,
+    dbUser?.batchId ? { id: dbUser.batchId } : "skip"
+  );
 
   const analytics = useQuery(
     api.analytics.getStudentAnalytics,
@@ -181,6 +193,28 @@ export default function DashboardPage() {
         title={`Welcome back, ${user?.firstName || dbUser.name}!`}
         description="Track your progress and continue your preparation."
       />
+
+      {/* Org + Batch Context */}
+      {(org || batch) && (
+        <div className="mb-6 flex items-center gap-2 flex-wrap">
+          {org && (
+            <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+              {org.logoUrl ? (
+                <img src={org.logoUrl} alt={org.name} className="h-4 w-4 rounded-sm object-cover" />
+              ) : (
+                <Building2 className="h-3 w-3" />
+              )}
+              <span className="font-medium text-foreground">{org.name}</span>
+            </div>
+          )}
+          {batch && (
+            <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs">
+              <Users className="h-3 w-3 text-primary" />
+              <span className="font-medium text-primary">{batch.name}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">

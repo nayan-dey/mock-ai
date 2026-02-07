@@ -16,7 +16,7 @@ export function LandingPage() {
       <FeaturesSection />
       <ComparisonSection />
       <HowItWorksSection />
-      <PricingSection />
+      {/* <PricingSection /> */}
       <CtaSection />
     </div>
   );

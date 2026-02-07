@@ -35,6 +35,7 @@ import {
   IndianRupee,
   MessageSquare,
   Phone,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -86,6 +87,11 @@ export default function ProfilePage() {
     dbUser?.batchId ? { id: dbUser.batchId } : "skip"
   );
 
+  const org = useQuery(
+    api.organizations.getStudentOrg,
+    dbUser?.organizationId ? {} : "skip"
+  );
+
   if (isUserLoading) {
     return <ProfileSkeleton />;
   }
@@ -132,9 +138,9 @@ export default function ProfilePage() {
         {(batch || dbUser.age) && (
           <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
             {batch && (
-              <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                <Users className="h-3 w-3" />
-                {batch.name}
+              <div className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs">
+                <Users className="h-3 w-3 text-primary" />
+                <span className="font-medium text-primary">{batch.name}</span>
               </div>
             )}
             {dbUser.age && (
@@ -225,14 +231,29 @@ export default function ProfilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Public Profile Link */}
-      <div className="mt-4 text-center">
+      {/* Co-branded Footer */}
+      <div className="mt-6 flex flex-col items-center gap-3">
         <Link
           href={`/profile/${dbUser._id}`}
           className="text-xs text-muted-foreground hover:text-foreground hover:underline"
         >
           View public profile
         </Link>
+        <div className="flex items-center gap-2">
+          <img src="/logo.svg" alt="Nindo" className="h-5 w-5 dark:invert" />
+          <span className="text-xs font-semibold font-serif">Nindo</span>
+          {org && (
+            <>
+              <span className="text-xs text-muted-foreground">&times;</span>
+              {org.logoUrl ? (
+                <img src={org.logoUrl} alt={org.name} className="h-5 w-5 rounded object-cover" />
+              ) : (
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="text-xs font-semibold">{org.name}</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
